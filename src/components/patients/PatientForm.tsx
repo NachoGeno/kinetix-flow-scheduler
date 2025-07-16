@@ -62,110 +62,45 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
     try {
       setLoading(true);
 
-      // Primero crear el usuario en auth
-      const { data: authUser, error: authError } = await supabase.auth.signUp({
-        email: data.email,
-        password: crypto.randomUUID(), // Password temporal
-        options: {
-          data: {
-            first_name: data.first_name,
-            last_name: data.last_name,
-            role: 'patient'
-          }
-        }
-      });
+      // Crear perfil directamente sin crear usuario en auth (para evitar problemas de confirmación)
+      const tempUserId = crypto.randomUUID();
+      
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: tempUserId, // Usar UUID temporal
+          first_name: data.first_name,
+          last_name: data.last_name,
+          email: data.email,
+          dni: data.dni,
+          phone: data.phone,
+          date_of_birth: data.date_of_birth || null,
+          role: 'patient'
+        })
+        .select()
+        .single();
 
-      if (authError) {
-        if (authError.message.includes('already exists')) {
+      if (profileError) {
+        if (profileError.message.includes('duplicate key') || profileError.message.includes('already exists')) {
           toast({
             title: "Error",
-            description: "Ya existe un usuario con este email",
+            description: "Ya existe un paciente con este email o DNI",
             variant: "destructive",
           });
         } else {
           toast({
             title: "Error",
-            description: `Error al crear usuario: ${authError.message}`,
+            description: `Error al crear perfil: ${profileError.message}`,
             variant: "destructive",
           });
         }
         return;
-      }
-
-      if (!authUser.user) {
-        toast({
-          title: "Error",
-          description: "No se pudo crear el usuario",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Esperar un poco para que el trigger se ejecute
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Verificar si el perfil fue creado por el trigger, si no, crearlo manualmente
-      let profileData;
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', authUser.user.id)
-        .single();
-
-      if (existingProfile) {
-        // Actualizar el perfil existente
-        const { data: updatedProfile, error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            dni: data.dni,
-            phone: data.phone,
-            date_of_birth: data.date_of_birth || null,
-          })
-          .eq('user_id', authUser.user.id)
-          .select()
-          .single();
-
-        if (updateError) {
-          toast({
-            title: "Error",
-            description: `Error al actualizar perfil: ${updateError.message}`,
-            variant: "destructive",
-          });
-          return;
-        }
-        profileData = updatedProfile;
-      } else {
-        // Crear el perfil manualmente si el trigger no funcionó
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: authUser.user.id,
-            first_name: data.first_name,
-            last_name: data.last_name,
-            email: data.email,
-            dni: data.dni,
-            phone: data.phone,
-            date_of_birth: data.date_of_birth || null,
-            role: 'patient'
-          })
-          .select()
-          .single();
-
-        if (createError) {
-          toast({
-            title: "Error",
-            description: `Error al crear perfil: ${createError.message}`,
-            variant: "destructive",
-          });
-          return;
-        }
-        profileData = newProfile;
       }
 
       if (!profileData) {
         toast({
           title: "Error",
-          description: "No se pudo crear o actualizar el perfil",
+          description: "No se pudo crear el perfil",
           variant: "destructive",
         });
         return;
