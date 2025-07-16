@@ -62,43 +62,70 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
     try {
       setLoading(true);
 
-      // Crear perfil directamente (el trigger automáticamente creará el usuario)
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          first_name: data.first_name,
-          last_name: data.last_name,
-          dni: data.dni,
-          email: data.email,
-          phone: data.phone,
-          date_of_birth: data.date_of_birth || null,
-          role: 'patient',
-          user_id: crypto.randomUUID() // Generar un UUID temporal
-        })
-        .select()
-        .single();
+      // Primero crear el usuario en auth
+      const { data: authUser, error: authError } = await supabase.auth.signUp({
+        email: data.email,
+        password: crypto.randomUUID(), // Password temporal
+        options: {
+          data: {
+            first_name: data.first_name,
+            last_name: data.last_name,
+            role: 'patient'
+          }
+        }
+      });
 
-      if (profileError) {
-        if (profileError.message.includes('duplicate key')) {
+      if (authError) {
+        if (authError.message.includes('already exists')) {
           toast({
             title: "Error",
-            description: "Ya existe un perfil con este email",
+            description: "Ya existe un usuario con este email",
             variant: "destructive",
           });
         } else {
           toast({
             title: "Error",
-            description: `Error al crear perfil: ${profileError.message}`,
+            description: `Error al crear usuario: ${authError.message}`,
             variant: "destructive",
           });
         }
         return;
       }
 
+      if (!authUser.user) {
+        toast({
+          title: "Error",
+          description: "No se pudo crear el usuario",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Actualizar el perfil creado por el trigger con información adicional
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          dni: data.dni,
+          phone: data.phone,
+          date_of_birth: data.date_of_birth || null,
+        })
+        .eq('user_id', authUser.user.id)
+        .select()
+        .single();
+
+      if (profileError) {
+        toast({
+          title: "Error",
+          description: `Error al actualizar perfil: ${profileError.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (!profileData) {
         toast({
           title: "Error",
-          description: "No se pudo crear el perfil",
+          description: "No se pudo actualizar el perfil",
           variant: "destructive",
         });
         return;

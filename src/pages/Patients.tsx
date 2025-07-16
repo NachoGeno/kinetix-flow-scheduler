@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -134,6 +134,10 @@ export default function Patients() {
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogTitle className="sr-only">Nuevo Paciente</DialogTitle>
+            <DialogDescription className="sr-only">
+              Formulario para crear un nuevo paciente en el sistema
+            </DialogDescription>
             <PatientForm
               onSuccess={() => {
                 setDialogOpen(false);
@@ -215,7 +219,13 @@ export default function Patients() {
                     <div className="flex items-center space-x-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm">
-                        {format(new Date(patient.profile.date_of_birth), 'PPP', { locale: es })}
+                        {(() => {
+                          try {
+                            return format(new Date(patient.profile.date_of_birth), 'PPP', { locale: es });
+                          } catch {
+                            return patient.profile.date_of_birth;
+                          }
+                        })()}
                       </span>
                     </div>
                   )}
