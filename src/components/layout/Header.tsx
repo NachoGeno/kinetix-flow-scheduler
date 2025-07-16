@@ -2,6 +2,7 @@ import { Bell, Search, User, LogOut } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,8 +12,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
 
 export function Header() {
+  const { profile, signOut } = useAuth();
   return (
     <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-6">
       <div className="flex items-center gap-4">
@@ -40,12 +43,20 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2 px-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center">
-                <User className="w-4 h-4 text-white" />
-              </div>
+              <Avatar className="w-8 h-8">
+                <AvatarImage src={profile?.avatar_url} />
+                <AvatarFallback>
+                  {profile?.first_name?.[0]}{profile?.last_name?.[0]}
+                </AvatarFallback>
+              </Avatar>
               <div className="text-left">
-                <div className="text-sm font-medium">Dr. Juan Pérez</div>
-                <div className="text-xs text-muted-foreground">Administrador</div>
+                <div className="text-sm font-medium">
+                  {profile?.first_name} {profile?.last_name}
+                </div>
+                <div className="text-xs text-muted-foreground capitalize">
+                  {profile?.role === 'patient' ? 'Paciente' : 
+                   profile?.role === 'doctor' ? 'Doctor' : 'Administrador'}
+                </div>
               </div>
             </Button>
           </DropdownMenuTrigger>
@@ -61,7 +72,7 @@ export function Header() {
               Notificaciones
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
+            <DropdownMenuItem className="text-destructive" onClick={signOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Cerrar Sesión
             </DropdownMenuItem>

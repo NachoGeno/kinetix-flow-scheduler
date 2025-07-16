@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Calendar,
   Users,
@@ -30,43 +31,50 @@ const navigationItems = [
     title: "Dashboard",
     url: "/",
     icon: Activity,
-    description: "Vista general del sistema"
+    description: "Vista general del sistema",
+    roles: ['admin', 'doctor', 'patient']
   },
   {
-    title: "Calendario",
-    url: "/calendario",
+    title: "Citas",
+    url: "/appointments",
     icon: Calendar,
-    description: "Gestión de turnos y horarios"
+    description: "Gestión de citas médicas",
+    roles: ['admin', 'doctor', 'patient']
   },
   {
     title: "Pacientes",
-    url: "/pacientes",
+    url: "/patients",
     icon: Users,
-    description: "Gestión de pacientes"
+    description: "Gestión de pacientes",
+    roles: ['admin', 'doctor']
   },
   {
-    title: "Profesionales",
-    url: "/profesionales",
+    title: "Doctores",
+    url: "/doctors",
     icon: UserCheck,
-    description: "Gestión de profesionales"
+    description: "Gestión de doctores",
+    roles: ['admin', 'patient']
   },
   {
     title: "Órdenes Médicas",
-    url: "/ordenes",
+    url: "/orders",
     icon: FileText,
-    description: "Órdenes y autorizaciones"
+    description: "Órdenes y prescripciones médicas",
+    roles: ['admin', 'doctor']
   },
   {
     title: "Historia Clínica",
-    url: "/historia-clinica",
+    url: "/medical-records",
     icon: ClipboardList,
-    description: "Evolutivos y registros"
+    description: "Historiales clínicos",
+    roles: ['admin', 'doctor', 'patient']
   },
   {
-    title: "Informes",
-    url: "/informes",
+    title: "Reportes",
+    url: "/reports",
     icon: BarChart3,
-    description: "Reportes y estadísticas"
+    description: "Reportes y estadísticas",
+    roles: ['admin']
   }
 ];
 
@@ -83,6 +91,16 @@ export function AppSidebar() {
   const { open } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
+  const { profile } = useAuth();
+
+  const filteredNavigationItems = navigationItems.filter(item => {
+    if (!item.roles || !profile?.role) return true;
+    return item.roles.includes(profile.role);
+  });
+
+  const filteredAdminItems = adminItems.filter(() => {
+    return profile?.role === 'admin';
+  });
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -126,7 +144,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
-              {navigationItems.map((item) => (
+              {filteredNavigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink
@@ -146,13 +164,14 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="mt-6">
-          <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium mb-2">
-            Administración
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-1">
-              {adminItems.map((item) => (
+        {filteredAdminItems.length > 0 && (
+          <SidebarGroup className="mt-6">
+            <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium mb-2">
+              Administración
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-1">
+                {filteredAdminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink
@@ -168,9 +187,10 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );
