@@ -330,6 +330,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           date_of_birth: string | null
+          dni: string | null
           email: string
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
@@ -346,6 +347,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           date_of_birth?: string | null
+          dni?: string | null
           email: string
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -362,6 +364,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           date_of_birth?: string | null
+          dni?: string | null
           email?: string
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
