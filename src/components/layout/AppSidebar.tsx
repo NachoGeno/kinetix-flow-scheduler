@@ -46,7 +46,7 @@ const navigationItems = [
     url: "/patients",
     icon: Users,
     description: "Gestión de pacientes",
-    roles: ['admin', 'doctor']
+    roles: ['admin', 'doctor', 'patient']
   },
   {
     title: "Doctores",
