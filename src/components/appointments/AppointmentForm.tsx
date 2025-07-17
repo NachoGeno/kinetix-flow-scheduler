@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CalendarIcon, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -437,8 +437,12 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setIsNewOrderDialogOpen(true)}
+                    onClick={() => {
+                      console.log('Botón + clickeado, paciente seleccionado:', form.watch('patient_id'));
+                      setIsNewOrderDialogOpen(true);
+                    }}
                     disabled={!form.watch('patient_id')}
+                    title={!form.watch('patient_id') ? 'Primero selecciona un paciente' : 'Crear nueva orden médica'}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -590,6 +594,9 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Nuevo Paciente</DialogTitle>
+          <DialogDescription>
+            Registrar un nuevo paciente en el sistema
+          </DialogDescription>
         </DialogHeader>
         <PatientForm 
           onSuccess={handleNewPatientCreated} 
@@ -602,6 +609,9 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Nueva Orden Médica</DialogTitle>
+          <DialogDescription>
+            Crear una nueva orden médica para el paciente seleccionado
+          </DialogDescription>
         </DialogHeader>
         <MedicalOrderForm 
           onSuccess={handleNewOrderCreated} 
