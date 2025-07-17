@@ -89,6 +89,20 @@ export default function Patients() {
 
   const handleDeletePatient = async (patientId: string) => {
     try {
+      // Verificar si el paciente tiene citas completadas antes de eliminar
+      const { data: completedAppointments, error: checkError } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('patient_id', patientId)
+        .eq('status', 'completed')
+        .limit(1);
+
+      if (checkError) {
+        console.error('Error checking appointments:', checkError);
+      }
+
+      const hasCompletedSessions = (completedAppointments || []).length > 0;
+
       const { error } = await supabase
         .from('patients')
         .update({ is_active: false })
@@ -103,9 +117,14 @@ export default function Patients() {
         return;
       }
 
+      // Mensaje personalizado según si tenía sesiones completadas o no
+      const message = hasCompletedSessions 
+        ? "Paciente eliminado. Sus turnos activos se mantienen debido a sesiones completadas previas."
+        : "Paciente eliminado. Todos sus turnos programados han sido cancelados automáticamente.";
+
       toast({
         title: "Éxito",
-        description: "Paciente eliminado correctamente",
+        description: message,
       });
       
       fetchPatients(); // Recargar la lista
@@ -295,13 +314,17 @@ export default function Patients() {
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Esta acción desactivará al paciente {patient.profile?.first_name} {patient.profile?.last_name}. 
-                            El paciente ya no aparecerá en la lista activa pero se mantendrán sus registros históricos.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
+                         <AlertDialogHeader>
+                           <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                           <AlertDialogDescription>
+                             Esta acción desactivará al paciente {patient.profile?.first_name} {patient.profile?.last_name}. 
+                             El paciente ya no aparecerá en la lista activa pero se mantendrán sus registros históricos.
+                             <br /><br />
+                             <strong>Importante:</strong> Si el paciente no ha asistido a sesiones previas (no tiene citas completadas), 
+                             todos sus turnos programados se cancelarán automáticamente. Si ya asistió a sesiones, 
+                             sus turnos se mantendrán activos.
+                           </AlertDialogDescription>
+                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
                           <AlertDialogAction 
