@@ -17,7 +17,6 @@ const patientSchema = z.object({
   email: z.string().email('Email inválido'),
   phone: z.string().optional(),
   date_of_birth: z.string().optional(),
-  blood_type: z.string().optional(),
   insurance_provider: z.string().optional(),
   insurance_number: z.string().optional(),
 });
@@ -43,7 +42,6 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
       email: '',
       phone: '',
       date_of_birth: '',
-      blood_type: '',
       insurance_provider: '',
       insurance_number: '',
     },
@@ -62,13 +60,11 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
     try {
       setLoading(true);
 
-      // Crear perfil directamente sin crear usuario en auth (para evitar problemas de confirmación)
-      const tempUserId = crypto.randomUUID();
-      
+      // Crear perfil directamente sin crear usuario en auth
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .insert({
-          user_id: tempUserId, // Usar UUID temporal
+          user_id: null, // Null para pacientes que no requieren autenticación
           first_name: data.first_name,
           last_name: data.last_name,
           email: data.email,
@@ -111,7 +107,6 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
         .from('patients')
         .insert({
           profile_id: profileData.id,
-          blood_type: data.blood_type || null,
           insurance_provider: data.insurance_provider || null,
           insurance_number: data.insurance_number || null,
         });
@@ -226,16 +221,6 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
                 id="date_of_birth"
                 type="date"
                 {...form.register('date_of_birth')}
-                disabled={loading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="blood_type">Tipo de Sangre</Label>
-              <Input
-                id="blood_type"
-                placeholder="Ej: O+, A-, B+, AB-"
-                {...form.register('blood_type')}
                 disabled={loading}
               />
             </div>
