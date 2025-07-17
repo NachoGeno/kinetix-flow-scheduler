@@ -155,6 +155,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           id,
           profile:profiles(first_name, last_name, dni, email)
         `)
+        .eq('is_active', true)
         .order('profile(first_name)', { ascending: true });
 
       if (error) throw error;
