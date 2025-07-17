@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Appointments from "./pages/Appointments";
 import Patients from "./pages/Patients";
 import Doctors from "./pages/Doctors";
+import Orders from "./pages/Orders";
 import Configuration from "./pages/Configuration";
 import NotFound from "./pages/NotFound";
 
@@ -56,6 +57,11 @@ const App = () => (
             <Route path="/doctors" element={
               <ProtectedRoute>
                 <Doctors />
+              </ProtectedRoute>
+            } />
+            <Route path="/orders" element={
+              <ProtectedRoute>
+                <Orders />
               </ProtectedRoute>
             } />
             <Route path="/configuracion" element={
