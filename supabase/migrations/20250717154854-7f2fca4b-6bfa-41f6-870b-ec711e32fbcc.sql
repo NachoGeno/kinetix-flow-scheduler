@@ -1,0 +1,2 @@
+-- Agregar campo appointment_id a medical_orders para crear la relación bidireccional
+-- Esto nos permitirá saber si una cita está asociada a una orden médica

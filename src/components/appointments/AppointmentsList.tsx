@@ -20,7 +20,6 @@ interface Appointment {
   appointment_time: string;
   status: string;
   reason: string;
-  medical_order_id?: string;
   patient: {
     profile: {
       first_name: string;
@@ -144,15 +143,6 @@ export default function AppointmentsList() {
 
   const handleCancelAppointment = async (appointmentId: string) => {
     try {
-      // Primero obtener los datos de la cita para verificar si tiene orden médica
-      const { data: appointmentData, error: fetchError } = await supabase
-        .from('appointments')
-        .select('medical_order_id')
-        .eq('id', appointmentId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
       // Cancelar la cita
       const { error } = await supabase
         .from('appointments')
@@ -160,28 +150,6 @@ export default function AppointmentsList() {
         .eq('id', appointmentId);
 
       if (error) throw error;
-
-      // Si la cita tenía una orden médica, liberar una sesión
-      if (appointmentData?.medical_order_id) {
-        const { data: orderData, error: orderFetchError } = await supabase
-          .from('medical_orders')
-          .select('sessions_used, total_sessions')
-          .eq('id', appointmentData.medical_order_id)
-          .single();
-
-        if (!orderFetchError && orderData) {
-          const newSessionsUsed = Math.max(0, orderData.sessions_used - 1);
-          const isCompleted = newSessionsUsed >= orderData.total_sessions;
-
-          await supabase
-            .from('medical_orders')
-            .update({ 
-              sessions_used: newSessionsUsed,
-              completed: isCompleted
-            })
-            .eq('id', appointmentData.medical_order_id);
-        }
-      }
 
       toast({
         title: "Éxito",
