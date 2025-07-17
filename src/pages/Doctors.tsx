@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Users, Phone, Mail, Award, Clock } from 'lucide-react';
+import { Search, Plus, Users, Phone, Mail, Award, Clock, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -132,6 +133,38 @@ export default function Doctors() {
   const handleEditDoctor = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     setEditDialogOpen(true);
+  };
+
+  const handleDeleteDoctor = async (doctorId: string) => {
+    try {
+      const { error } = await supabase
+        .from('doctors')
+        .update({ is_active: false })
+        .eq('id', doctorId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "No se pudo eliminar el profesional",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Éxito",
+        description: "Profesional eliminado correctamente",
+      });
+      
+      fetchDoctors(); // Recargar la lista
+    } catch (error) {
+      console.error('Error deleting doctor:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el profesional",
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredDoctors = doctors.filter(doctor => {
@@ -304,9 +337,37 @@ export default function Doctors() {
                     Ver Perfil
                   </Button>
                   {profile?.role === 'admin' && (
-                    <Button variant="outline" size="sm" onClick={() => handleEditDoctor(doctor)}>
-                      Editar
-                    </Button>
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => handleEditDoctor(doctor)}>
+                        Editar
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Eliminar
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta acción desactivará al profesional Dr. {doctor.profile?.first_name} {doctor.profile?.last_name}. 
+                              El profesional ya no aparecerá en la lista activa pero se mantendrán sus registros históricos.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => handleDeleteDoctor(doctor.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Eliminar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
                   )}
                 </div>
               </CardContent>
