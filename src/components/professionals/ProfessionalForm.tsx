@@ -47,9 +47,30 @@ interface Specialty {
   color: string;
 }
 
+interface Doctor {
+  id: string;
+  license_number: string;
+  years_experience: number;
+  consultation_fee: number;
+  bio: string;
+  is_active: boolean;
+  profile: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    avatar_url: string;
+  };
+  specialty: {
+    name: string;
+    color: string;
+  };
+}
+
 interface ProfessionalFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
+  doctorData?: Doctor | null;
 }
 
 const workDaysOptions = [
@@ -62,7 +83,7 @@ const workDaysOptions = [
   { id: 'sunday', label: 'Domingo' },
 ];
 
-export function ProfessionalForm({ onSuccess, onCancel }: ProfessionalFormProps) {
+export function ProfessionalForm({ onSuccess, onCancel, doctorData }: ProfessionalFormProps) {
   const [loading, setLoading] = useState(false);
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [workDays, setWorkDays] = useState<string[]>(['monday', 'tuesday', 'wednesday', 'thursday', 'friday']);
@@ -104,6 +125,31 @@ export function ProfessionalForm({ onSuccess, onCancel }: ProfessionalFormProps)
     fetchSpecialties();
   }, []);
 
+  // Cargar datos del doctor si estamos editando
+  useEffect(() => {
+    if (doctorData && specialties.length > 0) {
+      const specialty = specialties.find(s => s.name === doctorData.specialty.name);
+      
+      form.reset({
+        first_name: doctorData.profile.first_name,
+        last_name: doctorData.profile.last_name,
+        email: doctorData.profile.email,
+        phone: doctorData.profile.phone || '',
+        dni: '', // No tenemos este dato en la interface actual
+        specialty_id: specialty?.id || '',
+        license_number: doctorData.license_number,
+        years_experience: doctorData.years_experience || 0,
+        consultation_fee: doctorData.consultation_fee || 0,
+        bio: doctorData.bio || '',
+        hire_date: new Date(), // Por defecto
+        work_days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+        work_start_time: '08:00',
+        work_end_time: '17:00',
+        appointment_duration: 30,
+      });
+    }
+  }, [doctorData, specialties, form]);
+
   const handleWorkDayChange = (dayId: string, checked: boolean) => {
     const updatedDays = checked 
       ? [...workDays, dayId]
@@ -117,63 +163,138 @@ export function ProfessionalForm({ onSuccess, onCancel }: ProfessionalFormProps)
     try {
       setLoading(true);
 
-      // Crear perfil del profesional
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: null, // Para profesionales no autenticados inicialmente
-          first_name: data.first_name,
-          last_name: data.last_name,
-          email: data.email,
-          phone: data.phone,
-          dni: data.dni,
-          role: 'doctor' as const,
-        })
-        .select()
-        .single();
+      if (doctorData) {
+        // Modo edición - actualizar datos existentes
+        // Primero obtener el profile_id del doctor
+        const { data: doctorInfo, error: doctorInfoError } = await supabase
+          .from('doctors')
+          .select('profile_id')
+          .eq('id', doctorData.id)
+          .single();
 
-      if (profileError) {
-        console.error('Error creando perfil:', profileError);
+        if (doctorInfoError) {
+          console.error('Error obteniendo información del doctor:', doctorInfoError);
+          toast({
+            title: "Error",
+            description: "No se pudo obtener la información del profesional",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Actualizar perfil
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            phone: data.phone,
+            dni: data.dni,
+          })
+          .eq('id', doctorInfo.profile_id);
+
+        if (profileError) {
+          console.error('Error actualizando perfil:', profileError);
+          toast({
+            title: "Error",
+            description: "No se pudo actualizar el perfil del profesional",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Actualizar registro de doctor
+        const { error: doctorError } = await supabase
+          .from('doctors')
+          .update({
+            specialty_id: data.specialty_id,
+            license_number: data.license_number,
+            years_experience: data.years_experience,
+            consultation_fee: data.consultation_fee,
+            bio: data.bio || null,
+            hire_date: format(data.hire_date, 'yyyy-MM-dd'),
+            work_days: data.work_days,
+            work_start_time: data.work_start_time,
+            work_end_time: data.work_end_time,
+            appointment_duration: data.appointment_duration,
+          })
+          .eq('id', doctorData.id);
+
+        if (doctorError) {
+          console.error('Error actualizando doctor:', doctorError);
+          toast({
+            title: "Error",
+            description: "No se pudo actualizar el registro del profesional",
+            variant: "destructive",
+          });
+          return;
+        }
+
         toast({
-          title: "Error",
-          description: "No se pudo crear el perfil del profesional",
-          variant: "destructive",
+          title: "Éxito",
+          description: "Profesional actualizado correctamente",
         });
-        return;
-      }
+      } else {
+        // Modo creación - crear nuevos registros
+        // Crear perfil del profesional
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: null, // Para profesionales no autenticados inicialmente
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            phone: data.phone,
+            dni: data.dni,
+            role: 'doctor' as const,
+          })
+          .select()
+          .single();
 
-      // Crear registro de doctor
-      const { error: doctorError } = await supabase
-        .from('doctors')
-        .insert({
-          profile_id: profileData.id,
-          specialty_id: data.specialty_id,
-          license_number: data.license_number,
-          years_experience: data.years_experience,
-          consultation_fee: data.consultation_fee,
-          bio: data.bio || null,
-          hire_date: format(data.hire_date, 'yyyy-MM-dd'),
-          work_days: data.work_days,
-          work_start_time: data.work_start_time,
-          work_end_time: data.work_end_time,
-          appointment_duration: data.appointment_duration,
-          is_active: true,
-        });
+        if (profileError) {
+          console.error('Error creando perfil:', profileError);
+          toast({
+            title: "Error",
+            description: "No se pudo crear el perfil del profesional",
+            variant: "destructive",
+          });
+          return;
+        }
 
-      if (doctorError) {
-        console.error('Error creando doctor:', doctorError);
+        // Crear registro de doctor
+        const { error: doctorError } = await supabase
+          .from('doctors')
+          .insert({
+            profile_id: profileData.id,
+            specialty_id: data.specialty_id,
+            license_number: data.license_number,
+            years_experience: data.years_experience,
+            consultation_fee: data.consultation_fee,
+            bio: data.bio || null,
+            hire_date: format(data.hire_date, 'yyyy-MM-dd'),
+            work_days: data.work_days,
+            work_start_time: data.work_start_time,
+            work_end_time: data.work_end_time,
+            appointment_duration: data.appointment_duration,
+            is_active: true,
+          });
+
+        if (doctorError) {
+          console.error('Error creando doctor:', doctorError);
+          toast({
+            title: "Error",
+            description: "No se pudo crear el registro del profesional",
+            variant: "destructive",
+          });
+          return;
+        }
+
         toast({
-          title: "Error",
-          description: "No se pudo crear el registro del profesional",
-          variant: "destructive",
+          title: "Éxito",
+          description: "Profesional creado correctamente",
         });
-        return;
       }
-
-      toast({
-        title: "Éxito",
-        description: "Profesional creado correctamente",
-      });
 
       form.reset();
       onSuccess?.();
@@ -194,10 +315,13 @@ export function ProfessionalForm({ onSuccess, onCancel }: ProfessionalFormProps)
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <User className="h-5 w-5" />
-          Nuevo Profesional
+          {doctorData ? 'Editar Profesional' : 'Nuevo Profesional'}
         </CardTitle>
         <CardDescription>
-          Complete la información del nuevo profesional de la salud
+          {doctorData 
+            ? 'Modifique la información del profesional de la salud'
+            : 'Complete la información del nuevo profesional de la salud'
+          }
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -488,7 +612,10 @@ export function ProfessionalForm({ onSuccess, onCancel }: ProfessionalFormProps)
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Creando...' : 'Crear Profesional'}
+              {loading 
+                ? (doctorData ? 'Actualizando...' : 'Creando...') 
+                : (doctorData ? 'Actualizar Profesional' : 'Crear Profesional')
+              }
             </Button>
           </div>
         </form>

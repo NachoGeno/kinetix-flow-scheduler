@@ -45,6 +45,9 @@ export default function Doctors() {
   const [searchTerm, setSearchTerm] = useState('');
   const [specialtyFilter, setSpecialtyFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewProfileOpen, setViewProfileOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -117,7 +120,18 @@ export default function Doctors() {
 
   const handleFormSuccess = () => {
     setDialogOpen(false);
+    setEditDialogOpen(false);
     fetchDoctors(); // Recargar la lista
+  };
+
+  const handleViewProfile = (doctor: Doctor) => {
+    setSelectedDoctor(doctor);
+    setViewProfileOpen(true);
+  };
+
+  const handleEditDoctor = (doctor: Doctor) => {
+    setSelectedDoctor(doctor);
+    setEditDialogOpen(true);
   };
 
   const filteredDoctors = doctors.filter(doctor => {
@@ -286,11 +300,11 @@ export default function Doctors() {
                       Agendar Cita
                     </Button>
                   )}
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => handleViewProfile(doctor)}>
                     Ver Perfil
                   </Button>
                   {profile?.role === 'admin' && (
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => handleEditDoctor(doctor)}>
                       Editar
                     </Button>
                   )}
@@ -300,6 +314,98 @@ export default function Doctors() {
           ))
         )}
       </div>
+
+      {/* View Profile Dialog */}
+      <Dialog open={viewProfileOpen} onOpenChange={setViewProfileOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Perfil del Dr. {selectedDoctor?.profile?.first_name} {selectedDoctor?.profile?.last_name}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedDoctor && (
+            <div className="space-y-6">
+              <div className="flex items-center space-x-4">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={selectedDoctor.profile?.avatar_url} />
+                  <AvatarFallback>
+                    Dr. {selectedDoctor.profile?.first_name?.[0]}{selectedDoctor.profile?.last_name?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="text-2xl font-semibold">
+                    Dr. {selectedDoctor.profile?.first_name} {selectedDoctor.profile?.last_name}
+                  </h3>
+                  <p className="text-muted-foreground">{selectedDoctor.specialty?.name}</p>
+                  <Badge 
+                    variant="secondary"
+                    style={{ backgroundColor: `${selectedDoctor.specialty?.color}20`, color: selectedDoctor.specialty?.color }}
+                  >
+                    {selectedDoctor.specialty?.name}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Información de Contacto</h4>
+                  <div className="flex items-center space-x-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{selectedDoctor.profile?.email}</span>
+                  </div>
+                  {selectedDoctor.profile?.phone && (
+                    <div className="flex items-center space-x-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{selectedDoctor.profile.phone}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="font-medium">Información Profesional</h4>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium">Licencia:</span>
+                    <span className="text-sm">{selectedDoctor.license_number}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Award className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{selectedDoctor.years_experience} años de experiencia</span>
+                  </div>
+                  {selectedDoctor.consultation_fee && (
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium">Tarifa de consulta:</span>
+                      <span className="text-sm">${selectedDoctor.consultation_fee}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {selectedDoctor.bio && (
+                <div>
+                  <h4 className="font-medium mb-2">Biografía</h4>
+                  <p className="text-sm text-muted-foreground">{selectedDoctor.bio}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Doctor Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Profesional</DialogTitle>
+          </DialogHeader>
+          {selectedDoctor && (
+            <ProfessionalForm 
+              doctorData={selectedDoctor}
+              onSuccess={handleFormSuccess}
+              onCancel={() => setEditDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
