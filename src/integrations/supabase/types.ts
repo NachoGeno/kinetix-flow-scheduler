@@ -160,7 +160,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           description: string
-          doctor_id: string
+          doctor_id: string | null
           doctor_name: string | null
           id: string
           instructions: string | null
@@ -180,7 +180,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           description: string
-          doctor_id: string
+          doctor_id?: string | null
           doctor_name?: string | null
           id?: string
           instructions?: string | null
@@ -200,7 +200,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           description?: string
-          doctor_id?: string
+          doctor_id?: string | null
           doctor_name?: string | null
           id?: string
           instructions?: string | null
