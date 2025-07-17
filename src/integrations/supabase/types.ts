@@ -167,6 +167,8 @@ export type Database = {
           order_type: Database["public"]["Enums"]["order_type"]
           patient_id: string
           results: string | null
+          sessions_used: number
+          total_sessions: number
           updated_at: string
           urgent: boolean | null
         }
@@ -187,6 +189,8 @@ export type Database = {
           order_type: Database["public"]["Enums"]["order_type"]
           patient_id: string
           results?: string | null
+          sessions_used?: number
+          total_sessions?: number
           updated_at?: string
           urgent?: boolean | null
         }
@@ -207,6 +211,8 @@ export type Database = {
           order_type?: Database["public"]["Enums"]["order_type"]
           patient_id?: string
           results?: string | null
+          sessions_used?: number
+          total_sessions?: number
           updated_at?: string
           urgent?: boolean | null
         }

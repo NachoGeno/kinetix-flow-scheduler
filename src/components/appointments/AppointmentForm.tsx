@@ -29,7 +29,6 @@ const formSchema = z.object({
   }),
   appointment_time: z.string().min(1, 'Selecciona una hora'),
   reason: z.string().min(1, 'Describe el motivo de la consulta'),
-  sessions_count: z.number().min(1).optional(),
 });
 
 interface Doctor {
@@ -62,8 +61,9 @@ interface MedicalOrder {
   id: string;
   description: string;
   instructions: string | null;
-  sessions_count?: number;
   doctor_name: string | null;
+  total_sessions: number;
+  sessions_used: number;
 }
 
 interface AppointmentFormProps {
@@ -93,7 +93,6 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       appointment_date: selectedDate || undefined,
       appointment_time: selectedTime || '',
       reason: '',
-      sessions_count: 1,
     },
   });
 
@@ -179,7 +178,9 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           id,
           description,
           instructions,
-          doctor_name
+          doctor_name,
+          total_sessions,
+          sessions_used
         `)
         .eq('patient_id', patientId)
         .eq('completed', false)
@@ -281,7 +282,6 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   const handleNewOrderCreated = (order: any) => {
     // Actualizar el formulario con la nueva orden
     form.setValue('medical_order_id', order.id);
-    form.setValue('sessions_count', order.sessions_count || 1);
     form.setValue('reason', order.description);
     
     fetchMedicalOrders();
@@ -289,75 +289,55 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     
     toast({
       title: "Orden creada",
-      description: `Orden médica creada con ${order.sessions_count} sesiones`,
+      description: `Orden médica creada con ${order.total_sessions} sesiones`,
     });
-  };
-
-  const createMultipleAppointments = async (values: z.infer<typeof formSchema>, sessionsCount: number) => {
-    const appointments = [];
-    const startDate = new Date(values.appointment_date);
-    const doctor = doctors.find(d => d.id === values.doctor_id);
-    
-    if (!doctor) {
-      throw new Error('Doctor no encontrado');
-    }
-
-    // Generar fechas para las citas (semanalmente)
-    for (let i = 0; i < sessionsCount; i++) {
-      const appointmentDate = new Date(startDate);
-      appointmentDate.setDate(startDate.getDate() + (i * 7)); // Cada semana
-
-      appointments.push({
-        patient_id: values.patient_id,
-        doctor_id: values.doctor_id,
-        appointment_date: format(appointmentDate, 'yyyy-MM-dd'),
-        appointment_time: values.appointment_time,
-        reason: values.reason,
-        status: 'scheduled',
-        notes: i === 0 ? 'Primera sesión' : `Sesión ${i + 1} de ${sessionsCount}`,
-      });
-    }
-
-    const { error } = await supabase
-      .from('appointments')
-      .insert(appointments);
-
-    if (error) throw error;
-
-    return appointments;
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setLoading(true);
 
-      // Determinar cantidad de sesiones
       const medicalOrderId = values.medical_order_id === 'none' ? null : values.medical_order_id;
-      const sessionsCount = values.sessions_count || 1;
 
-      if (sessionsCount > 1) {
-        // Crear múltiples citas
-        await createMultipleAppointments(values, sessionsCount);
-        
-        toast({
-          title: "Éxito",
-          description: `Se crearon ${sessionsCount} citas correctamente`,
+      // Crear una sola cita
+      const { error } = await supabase
+        .from('appointments')
+        .insert({
+          patient_id: values.patient_id,
+          doctor_id: values.doctor_id,
+          appointment_date: format(values.appointment_date, 'yyyy-MM-dd'),
+          appointment_time: values.appointment_time,
+          reason: values.reason,
+          status: 'scheduled'
         });
+
+      if (error) throw error;
+
+      // Si hay una orden médica, incrementar sessions_used
+      if (medicalOrderId) {
+        const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
+        if (selectedOrder) {
+          const newSessionsUsed = selectedOrder.sessions_used + 1;
+          const isCompleted = newSessionsUsed >= selectedOrder.total_sessions;
+
+          const { error: updateError } = await supabase
+            .from('medical_orders')
+            .update({ 
+              sessions_used: newSessionsUsed,
+              completed: isCompleted
+            })
+            .eq('id', medicalOrderId);
+
+          if (updateError) {
+            console.error('Error updating medical order:', updateError);
+          } else {
+            toast({
+              title: "Éxito",
+              description: `Cita agendada. Sesiones restantes: ${selectedOrder.total_sessions - newSessionsUsed}`,
+            });
+          }
+        }
       } else {
-        // Crear una sola cita
-        const { error } = await supabase
-          .from('appointments')
-          .insert({
-            patient_id: values.patient_id,
-            doctor_id: values.doctor_id,
-            appointment_date: format(values.appointment_date, 'yyyy-MM-dd'),
-            appointment_time: values.appointment_time,
-            reason: values.reason,
-            status: 'scheduled'
-          });
-
-        if (error) throw error;
-
         toast({
           title: "Éxito",
           description: "Cita agendada correctamente",
@@ -434,19 +414,27 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                         <SelectValue placeholder="Seleccionar orden médica" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">Sin orden médica</SelectItem>
-                      {medicalOrders.map((order) => (
-                        <SelectItem key={order.id} value={order.id}>
-                          {order.description.substring(0, 50)}...
-                          {order.doctor_name && (
-                            <span className="text-sm text-muted-foreground ml-2">
-                              (Dr. {order.doctor_name})
-                            </span>
-                          )}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+                     <SelectContent>
+                       <SelectItem value="none">Sin orden médica</SelectItem>
+                       {medicalOrders.map((order) => {
+                         const sessionsRemaining = order.total_sessions - order.sessions_used;
+                         const isOrderComplete = sessionsRemaining <= 0;
+                         
+                         return (
+                           <SelectItem 
+                             key={order.id} 
+                             value={order.id}
+                             disabled={isOrderComplete}
+                           >
+                             {order.description.substring(0, 50)}...
+                             <span className="text-sm text-muted-foreground ml-2">
+                               {order.doctor_name && `Dr. ${order.doctor_name} - `}
+                               {sessionsRemaining} sesión{sessionsRemaining !== 1 ? 'es' : ''} restante{sessionsRemaining !== 1 ? 's' : ''}
+                             </span>
+                           </SelectItem>
+                         );
+                       })}
+                     </SelectContent>
                   </Select>
                   <Button
                     type="button"
@@ -466,25 +454,6 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="sessions_count"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Cantidad de Sesiones</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="20"
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
 
           <FormField
           control={form.control}

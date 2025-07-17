@@ -162,6 +162,8 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
         completed: editOrder ? editOrder.completed : false,
         art_provider: values.art_provider || null,
         art_authorization_number: values.art_authorization_number || null,
+        total_sessions: values.sessions_count,
+        sessions_used: editOrder ? editOrder.sessions_used : 0,
       };
 
       let data, error;
