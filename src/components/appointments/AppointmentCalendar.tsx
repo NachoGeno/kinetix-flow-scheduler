@@ -167,13 +167,17 @@ export default function AppointmentCalendar() {
 
     while (currentHour < endHour || (currentHour === endHour && currentMinute < endMinute)) {
       const timeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
-      const isOccupied = appointments.some(apt => apt.appointment_time === timeString);
+      const timeAppointments = appointments.filter(apt => apt.appointment_time === timeString);
+      const maxSlots = 3; // Máximo 3 citas simultáneas
+      const availableSlots = maxSlots - timeAppointments.length;
       
       slots.push({
         time: timeString,
         display: `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`,
-        isOccupied,
-        appointment: appointments.find(apt => apt.appointment_time === timeString)
+        appointments: timeAppointments,
+        availableSlots,
+        isFull: timeAppointments.length >= maxSlots,
+        maxSlots
       });
 
       currentMinute += duration;
@@ -192,8 +196,8 @@ export default function AppointmentCalendar() {
     setSelectedTimeSlot('');
   };
 
-  const handleTimeSlotClick = (time: string) => {
-    if (profile?.role === 'patient' || profile?.role === 'admin') {
+  const handleTimeSlotClick = (time: string, isFull: boolean) => {
+    if ((profile?.role === 'patient' || profile?.role === 'admin') && !isFull) {
       setSelectedTimeSlot(time);
       setIsNewAppointmentOpen(true);
     }
@@ -297,46 +301,70 @@ export default function AppointmentCalendar() {
                   No hay horarios disponibles para este doctor
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {timeSlots.map((slot) => (
-                    <div
+                    <Card
                       key={slot.time}
-                      className={`p-3 rounded-md border text-center transition-all duration-200 ${
-                        slot.isOccupied
-                          ? 'bg-red-50 border-red-200 text-red-800'
-                          : 'bg-green-50 border-green-200 text-green-800 hover:bg-green-100 cursor-pointer hover:shadow-md transform hover:scale-105'
+                      className={`transition-all duration-200 ${
+                        slot.isFull
+                          ? 'bg-red-50 border-red-200'
+                          : 'bg-green-50 border-green-200 hover:bg-green-100 cursor-pointer hover:shadow-md'
                       }`}
-                      onClick={() => !slot.isOccupied && handleTimeSlotClick(slot.time)}
+                      onClick={() => handleTimeSlotClick(slot.time, slot.isFull)}
                     >
-                      <div className="flex items-center justify-center mb-1">
-                        <Clock className="h-3 w-3 mr-1" />
-                        <span className="text-sm font-medium">{slot.display}</span>
-                      </div>
-                      {slot.isOccupied ? (
-                        <div className="space-y-1">
-                          <Badge variant="destructive" className="text-xs">
-                            Ocupado
-                          </Badge>
-                          {slot.appointment && (
-                            <div className="text-xs">
-                              <div className="flex items-center justify-center">
-                                <User className="h-2 w-2 mr-1" />
-                                {slot.appointment.patient.profile.first_name} {slot.appointment.patient.profile.last_name}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="space-y-1">
-                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                            Disponible
-                          </Badge>
-                          <div className="text-xs text-green-600 font-medium">
-                            Clic para agendar
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <Clock className="h-4 w-4 mr-2" />
+                            <span className="font-semibold">{slot.display}</span>
                           </div>
+                          <Badge 
+                            variant={slot.isFull ? "destructive" : "secondary"}
+                            className="text-xs"
+                          >
+                            {slot.availableSlots}/{slot.maxSlots}
+                          </Badge>
                         </div>
-                      )}
-                    </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        {slot.appointments.length > 0 ? (
+                          <div className="space-y-2">
+                            {slot.appointments.map((appointment, index) => (
+                              <div 
+                                key={appointment.id}
+                                className="flex items-center text-xs p-2 bg-white rounded border"
+                              >
+                                <User className="h-3 w-3 mr-1 text-blue-600" />
+                                <span className="flex-1 truncate">
+                                  {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
+                                </span>
+                                <Badge 
+                                  className={`text-xs ml-1 ${statusColors[appointment.status as keyof typeof statusColors]}`}
+                                >
+                                  {appointment.status}
+                                </Badge>
+                              </div>
+                            ))}
+                            {!slot.isFull && (
+                              <div className="text-center pt-2">
+                                <div className="text-xs text-green-600 font-medium">
+                                  + {slot.availableSlots} slot{slot.availableSlots !== 1 ? 's' : ''} disponible{slot.availableSlots !== 1 ? 's' : ''}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center py-4">
+                            <div className="text-sm text-green-600 font-medium mb-1">
+                              {slot.maxSlots} slots disponibles
+                            </div>
+                            <div className="text-xs text-green-500">
+                              Clic para agendar
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               )}
