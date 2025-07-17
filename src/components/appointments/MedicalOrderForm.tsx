@@ -153,6 +153,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
       setLoading(true);
 
       const orderData = {
+        doctor_id: 'temp-doctor-id', // Valor temporal ya que ahora usamos doctor_name
         doctor_name: values.doctor_name,
         patient_id: values.patient_id,
         description: values.description,

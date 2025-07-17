@@ -208,11 +208,21 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     const doctorId = form.watch('doctor_id');
     const appointmentDate = form.watch('appointment_date');
 
-    if (!doctorId || !appointmentDate) return;
+    console.log('fetchAvailableSlots llamado:', { doctorId, appointmentDate });
+
+    if (!doctorId || !appointmentDate) {
+      console.log('No hay doctor o fecha seleccionada');
+      return;
+    }
 
     try {
       const doctor = doctors.find(d => d.id === doctorId);
-      if (!doctor) return;
+      if (!doctor) {
+        console.log('Doctor no encontrado');
+        return;
+      }
+
+      console.log('Doctor encontrado:', doctor);
 
       // Get existing appointments for this doctor and date
       const { data: appointments, error } = await supabase
@@ -224,11 +234,15 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
       if (error) throw error;
 
+      console.log('Citas existentes:', appointments);
+
       // Generate all possible time slots
       const slots = [];
       const startTime = doctor.work_start_time || '08:00:00';
       const endTime = doctor.work_end_time || '17:00:00';
       const duration = doctor.appointment_duration || 30;
+
+      console.log('Horario del doctor:', { startTime, endTime, duration });
 
       const [startHour, startMinute] = startTime.split(':').map(Number);
       const [endHour, endMinute] = endTime.split(':').map(Number);
@@ -247,9 +261,13 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         }
       }
 
+      console.log('Slots generados:', slots);
+
       // Filter out occupied slots
       const occupiedTimes = (appointments || []).map(apt => apt.appointment_time);
       const availableSlots = slots.filter(slot => !occupiedTimes.includes(slot));
+
+      console.log('Slots disponibles:', availableSlots);
 
       setAvailableSlots(availableSlots);
     } catch (error) {

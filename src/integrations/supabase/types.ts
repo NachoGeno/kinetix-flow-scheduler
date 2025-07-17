@@ -161,6 +161,7 @@ export type Database = {
           created_at: string
           description: string
           doctor_id: string
+          doctor_name: string | null
           id: string
           instructions: string | null
           order_type: Database["public"]["Enums"]["order_type"]
@@ -180,6 +181,7 @@ export type Database = {
           created_at?: string
           description: string
           doctor_id: string
+          doctor_name?: string | null
           id?: string
           instructions?: string | null
           order_type: Database["public"]["Enums"]["order_type"]
@@ -199,6 +201,7 @@ export type Database = {
           created_at?: string
           description?: string
           doctor_id?: string
+          doctor_name?: string | null
           id?: string
           instructions?: string | null
           order_type?: Database["public"]["Enums"]["order_type"]
