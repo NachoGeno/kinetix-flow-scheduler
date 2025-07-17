@@ -18,15 +18,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import PatientForm from '@/components/patients/PatientForm';
+import MedicalOrderForm from './MedicalOrderForm';
 
 const formSchema = z.object({
   patient_id: z.string().min(1, 'Selecciona un paciente'),
+  medical_order_id: z.string().optional(),
   doctor_id: z.string().min(1, 'Selecciona un doctor'),
   appointment_date: z.date({
     required_error: 'Selecciona una fecha',
   }),
   appointment_time: z.string().min(1, 'Selecciona una hora'),
   reason: z.string().min(1, 'Describe el motivo de la consulta'),
+  sessions_count: z.number().min(1).optional(),
 });
 
 interface Doctor {
@@ -55,6 +58,19 @@ interface Patient {
   };
 }
 
+interface MedicalOrder {
+  id: string;
+  description: string;
+  instructions: string | null;
+  sessions_count?: number;
+  doctor: {
+    profile: {
+      first_name: string;
+      last_name: string;
+    };
+  };
+}
+
 interface AppointmentFormProps {
   onSuccess?: () => void;
   selectedDate?: Date;
@@ -65,9 +81,11 @@ interface AppointmentFormProps {
 export default function AppointmentForm({ onSuccess, selectedDate, selectedDoctor, selectedTime }: AppointmentFormProps) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [medicalOrders, setMedicalOrders] = useState<MedicalOrder[]>([]);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [isNewPatientDialogOpen, setIsNewPatientDialogOpen] = useState(false);
+  const [isNewOrderDialogOpen, setIsNewOrderDialogOpen] = useState(false);
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -75,16 +93,19 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     resolver: zodResolver(formSchema),
     defaultValues: {
       patient_id: '',
+      medical_order_id: '',
       doctor_id: selectedDoctor || '',
       appointment_date: selectedDate || undefined,
       appointment_time: selectedTime || '',
       reason: '',
+      sessions_count: 1,
     },
   });
 
   useEffect(() => {
     fetchDoctors();
     fetchPatients();
+    fetchMedicalOrders();
   }, []);
 
   useEffect(() => {
@@ -92,6 +113,12 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       fetchAvailableSlots();
     }
   }, [form.watch('doctor_id'), form.watch('appointment_date')]);
+
+  useEffect(() => {
+    if (form.watch('patient_id')) {
+      fetchMedicalOrders();
+    }
+  }, [form.watch('patient_id')]);
 
   const fetchDoctors = async () => {
     try {
@@ -137,6 +164,40 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       toast({
         title: "Error",
         description: "No se pudieron cargar los pacientes",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchMedicalOrders = async () => {
+    const patientId = form.watch('patient_id');
+    if (!patientId) {
+      setMedicalOrders([]);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('medical_orders')
+        .select(`
+          id,
+          description,
+          instructions,
+          doctor:doctors(
+            profile:profiles(first_name, last_name)
+          )
+        `)
+        .eq('patient_id', patientId)
+        .eq('completed', false)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setMedicalOrders(data || []);
+    } catch (error) {
+      console.error('Error fetching medical orders:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las órdenes médicas",
         variant: "destructive",
       });
     }
@@ -205,27 +266,90 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     setIsNewPatientDialogOpen(false);
   };
 
+  const handleNewOrderCreated = (order: any) => {
+    // Actualizar el formulario con la nueva orden
+    form.setValue('medical_order_id', order.id);
+    form.setValue('sessions_count', order.sessions_count || 1);
+    form.setValue('reason', order.description);
+    
+    fetchMedicalOrders();
+    setIsNewOrderDialogOpen(false);
+    
+    toast({
+      title: "Orden creada",
+      description: `Orden médica creada con ${order.sessions_count} sesiones`,
+    });
+  };
+
+  const createMultipleAppointments = async (values: z.infer<typeof formSchema>, sessionsCount: number) => {
+    const appointments = [];
+    const startDate = new Date(values.appointment_date);
+    const doctor = doctors.find(d => d.id === values.doctor_id);
+    
+    if (!doctor) {
+      throw new Error('Doctor no encontrado');
+    }
+
+    // Generar fechas para las citas (semanalmente)
+    for (let i = 0; i < sessionsCount; i++) {
+      const appointmentDate = new Date(startDate);
+      appointmentDate.setDate(startDate.getDate() + (i * 7)); // Cada semana
+
+      appointments.push({
+        patient_id: values.patient_id,
+        doctor_id: values.doctor_id,
+        appointment_date: format(appointmentDate, 'yyyy-MM-dd'),
+        appointment_time: values.appointment_time,
+        reason: values.reason,
+        status: 'scheduled',
+        notes: i === 0 ? 'Primera sesión' : `Sesión ${i + 1} de ${sessionsCount}`,
+      });
+    }
+
+    const { error } = await supabase
+      .from('appointments')
+      .insert(appointments);
+
+    if (error) throw error;
+
+    return appointments;
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setLoading(true);
 
-      const { error } = await supabase
-        .from('appointments')
-        .insert({
-          patient_id: values.patient_id,
-          doctor_id: values.doctor_id,
-          appointment_date: format(values.appointment_date, 'yyyy-MM-dd'),
-          appointment_time: values.appointment_time,
-          reason: values.reason,
-          status: 'scheduled'
+      // Determinar cantidad de sesiones
+      const sessionsCount = values.sessions_count || 1;
+
+      if (sessionsCount > 1) {
+        // Crear múltiples citas
+        await createMultipleAppointments(values, sessionsCount);
+        
+        toast({
+          title: "Éxito",
+          description: `Se crearon ${sessionsCount} citas correctamente`,
         });
+      } else {
+        // Crear una sola cita
+        const { error } = await supabase
+          .from('appointments')
+          .insert({
+            patient_id: values.patient_id,
+            doctor_id: values.doctor_id,
+            appointment_date: format(values.appointment_date, 'yyyy-MM-dd'),
+            appointment_time: values.appointment_time,
+            reason: values.reason,
+            status: 'scheduled'
+          });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Éxito",
-        description: "Cita agendada correctamente",
-      });
+        toast({
+          title: "Éxito",
+          description: "Cita agendada correctamente",
+        });
+      }
 
       form.reset();
       onSuccess?.();
@@ -279,6 +403,65 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="medical_order_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Orden Médica</FormLabel>
+                <div className="flex gap-2">
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Seleccionar orden médica" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">Sin orden médica</SelectItem>
+                      {medicalOrders.map((order) => (
+                        <SelectItem key={order.id} value={order.id}>
+                          {order.description.substring(0, 50)}...
+                          <span className="text-sm text-muted-foreground ml-2">
+                            (Dr. {order.doctor.profile.first_name} {order.doctor.profile.last_name})
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsNewOrderDialogOpen(true)}
+                    disabled={!form.watch('patient_id')}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="sessions_count"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cantidad de Sesiones</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="20"
+                    {...field}
+                    onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -410,6 +593,19 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         <PatientForm 
           onSuccess={handleNewPatientCreated} 
           onCancel={() => setIsNewPatientDialogOpen(false)}
+        />
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={isNewOrderDialogOpen} onOpenChange={setIsNewOrderDialogOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Nueva Orden Médica</DialogTitle>
+        </DialogHeader>
+        <MedicalOrderForm 
+          onSuccess={handleNewOrderCreated} 
+          onCancel={() => setIsNewOrderDialogOpen(false)}
+          selectedPatient={form.watch('patient_id')}
         />
       </DialogContent>
     </Dialog>
