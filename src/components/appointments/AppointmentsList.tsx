@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, Search, Plus, Filter } from 'lucide-react';
+import { Calendar, Clock, Search, Plus, Filter, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +20,7 @@ interface Appointment {
   appointment_time: string;
   status: string;
   reason: string;
+  medical_order_id?: string;
   patient: {
     profile: {
       first_name: string;
@@ -140,6 +142,63 @@ export default function AppointmentsList() {
     setIsNewAppointmentOpen(false);
   };
 
+  const handleCancelAppointment = async (appointmentId: string) => {
+    try {
+      // Primero obtener los datos de la cita para verificar si tiene orden médica
+      const { data: appointmentData, error: fetchError } = await supabase
+        .from('appointments')
+        .select('medical_order_id')
+        .eq('id', appointmentId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Cancelar la cita
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: 'cancelled' })
+        .eq('id', appointmentId);
+
+      if (error) throw error;
+
+      // Si la cita tenía una orden médica, liberar una sesión
+      if (appointmentData?.medical_order_id) {
+        const { data: orderData, error: orderFetchError } = await supabase
+          .from('medical_orders')
+          .select('sessions_used, total_sessions')
+          .eq('id', appointmentData.medical_order_id)
+          .single();
+
+        if (!orderFetchError && orderData) {
+          const newSessionsUsed = Math.max(0, orderData.sessions_used - 1);
+          const isCompleted = newSessionsUsed >= orderData.total_sessions;
+
+          await supabase
+            .from('medical_orders')
+            .update({ 
+              sessions_used: newSessionsUsed,
+              completed: isCompleted
+            })
+            .eq('id', appointmentData.medical_order_id);
+        }
+      }
+
+      toast({
+        title: "Éxito",
+        description: "Cita cancelada correctamente",
+      });
+
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error cancelling appointment:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cancelar la cita",
+        variant: "destructive",
+      });
+    }
+  };
+
   const filteredAppointments = appointments.filter(appointment => {
     const matchesSearch = appointment.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          appointment.patient?.profile?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -238,12 +297,44 @@ export default function AppointmentsList() {
                       {appointment.doctor?.specialty?.name}
                     </CardDescription>
                   </div>
-                  <Badge 
-                    className={statusColors[appointment.status as keyof typeof statusColors]}
-                    variant="secondary"
-                  >
-                    {statusLabels[appointment.status as keyof typeof statusLabels]}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      className={statusColors[appointment.status as keyof typeof statusColors]}
+                      variant="secondary"
+                    >
+                      {statusLabels[appointment.status as keyof typeof statusLabels]}
+                    </Badge>
+                    {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Cancelar cita?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta acción cancelará la cita programada. ¿Estás seguro de que deseas continuar?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() => handleCancelAppointment(appointment.id)}
+                            >
+                              Sí, cancelar cita
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
