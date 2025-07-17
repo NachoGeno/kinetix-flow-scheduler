@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, Search, Plus, Filter, Trash2 } from 'lucide-react';
+import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -167,6 +167,37 @@ export default function AppointmentsList() {
     }
   };
 
+  const handleMarkAttendance = async (appointmentId: string, status: 'in_progress' | 'completed' | 'no_show') => {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status })
+        .eq('id', appointmentId);
+
+      if (error) throw error;
+
+      const statusMessages = {
+        in_progress: 'Paciente marcado como presente',
+        completed: 'Cita marcada como completada',
+        no_show: 'Paciente marcado como no asistió'
+      };
+
+      toast({
+        title: "Éxito",
+        description: statusMessages[status],
+      });
+
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error updating appointment status:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de la cita",
+        variant: "destructive",
+      });
+    }
+  };
+
   const filteredAppointments = appointments.filter(appointment => {
     const matchesSearch = appointment.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          appointment.patient?.profile?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -272,36 +303,78 @@ export default function AppointmentsList() {
                     >
                       {statusLabels[appointment.status as keyof typeof statusLabels]}
                     </Badge>
-                    {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
+                    <div className="flex items-center gap-1">
+                      {/* Botones de asistencia para doctores y admins */}
+                      {(profile?.role === 'doctor' || profile?.role === 'admin') && 
+                       appointment.status === 'scheduled' && (
+                        <>
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                            className="h-8 px-2 text-green-600 hover:text-green-700"
+                            onClick={() => handleMarkAttendance(appointment.id, 'in_progress')}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <UserCheck className="h-3 w-3 mr-1" />
+                            Presente
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Cancelar cita?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Esta acción cancelará la cita programada. ¿Estás seguro de que deseas continuar?
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => handleCancelAppointment(appointment.id)}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2 text-gray-600 hover:text-gray-700"
+                            onClick={() => handleMarkAttendance(appointment.id, 'no_show')}
+                          >
+                            <UserX className="h-3 w-3 mr-1" />
+                            No asistió
+                          </Button>
+                        </>
+                      )}
+                      
+                      {/* Botón completar para citas en progreso */}
+                      {(profile?.role === 'doctor' || profile?.role === 'admin') && 
+                       appointment.status === 'in_progress' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2 text-purple-600 hover:text-purple-700"
+                          onClick={() => handleMarkAttendance(appointment.id, 'completed')}
+                        >
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Completar
+                        </Button>
+                      )}
+                      
+                      {/* Botón cancelar */}
+                      {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                             >
-                              Sí, cancelar cita
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Cancelar cita?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción cancelará la cita programada. El horario quedará disponible para otros pacientes. ¿Estás seguro de que deseas continuar?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => handleCancelAppointment(appointment.id)}
+                              >
+                                Sí, cancelar cita
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardHeader>

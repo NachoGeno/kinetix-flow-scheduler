@@ -167,7 +167,10 @@ export default function AppointmentCalendar() {
 
     while (currentHour < endHour || (currentHour === endHour && currentMinute < endMinute)) {
       const timeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
-      const timeAppointments = appointments.filter(apt => apt.appointment_time === timeString);
+      // Excluir turnos cancelados del conteo de slots ocupados
+      const timeAppointments = appointments.filter(apt => 
+        apt.appointment_time === timeString && apt.status !== 'cancelled'
+      );
       const maxSlots = 3; // Máximo 3 citas simultáneas
       const availableSlots = maxSlots - timeAppointments.length;
       
