@@ -93,7 +93,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     resolver: zodResolver(formSchema),
     defaultValues: {
       patient_id: '',
-      medical_order_id: '',
+      medical_order_id: 'none',
       doctor_id: selectedDoctor || '',
       appointment_date: selectedDate || undefined,
       appointment_time: selectedTime || '',
@@ -320,6 +320,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       setLoading(true);
 
       // Determinar cantidad de sesiones
+      const medicalOrderId = values.medical_order_id === 'none' ? null : values.medical_order_id;
       const sessionsCount = values.sessions_count || 1;
 
       if (sessionsCount > 1) {
@@ -422,7 +423,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Sin orden médica</SelectItem>
+                      <SelectItem value="none">Sin orden médica</SelectItem>
                       {medicalOrders.map((order) => (
                         <SelectItem key={order.id} value={order.id}>
                           {order.description.substring(0, 50)}...
