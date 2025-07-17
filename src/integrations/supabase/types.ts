@@ -79,9 +79,11 @@ export type Database = {
       }
       doctors: {
         Row: {
+          appointment_duration: number | null
           bio: string | null
           consultation_fee: number | null
           created_at: string
+          hire_date: string | null
           id: string
           is_active: boolean | null
           license_number: string
@@ -89,12 +91,17 @@ export type Database = {
           schedule_notes: string | null
           specialty_id: string
           updated_at: string
+          work_days: string[] | null
+          work_end_time: string | null
+          work_start_time: string | null
           years_experience: number | null
         }
         Insert: {
+          appointment_duration?: number | null
           bio?: string | null
           consultation_fee?: number | null
           created_at?: string
+          hire_date?: string | null
           id?: string
           is_active?: boolean | null
           license_number: string
@@ -102,12 +109,17 @@ export type Database = {
           schedule_notes?: string | null
           specialty_id: string
           updated_at?: string
+          work_days?: string[] | null
+          work_end_time?: string | null
+          work_start_time?: string | null
           years_experience?: number | null
         }
         Update: {
+          appointment_duration?: number | null
           bio?: string | null
           consultation_fee?: number | null
           created_at?: string
+          hire_date?: string | null
           id?: string
           is_active?: boolean | null
           license_number?: string
@@ -115,6 +127,9 @@ export type Database = {
           schedule_notes?: string | null
           specialty_id?: string
           updated_at?: string
+          work_days?: string[] | null
+          work_end_time?: string | null
+          work_start_time?: string | null
           years_experience?: number | null
         }
         Relationships: [

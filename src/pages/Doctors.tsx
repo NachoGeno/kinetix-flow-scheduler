@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { ProfessionalForm } from '@/components/professionals/ProfessionalForm';
 
 interface Doctor {
   id: string;
@@ -42,6 +44,7 @@ export default function Doctors() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [specialtyFilter, setSpecialtyFilter] = useState('all');
+  const [dialogOpen, setDialogOpen] = useState(false);
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -112,6 +115,11 @@ export default function Doctors() {
     }
   };
 
+  const handleFormSuccess = () => {
+    setDialogOpen(false);
+    fetchDoctors(); // Recargar la lista
+  };
+
   const filteredDoctors = doctors.filter(doctor => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = (
@@ -148,10 +156,23 @@ export default function Doctors() {
           </p>
         </div>
         {profile?.role === 'admin' && (
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Profesional
-          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo Profesional
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Agregar Nuevo Profesional</DialogTitle>
+              </DialogHeader>
+              <ProfessionalForm 
+                onSuccess={handleFormSuccess}
+                onCancel={() => setDialogOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
         )}
       </div>
 
