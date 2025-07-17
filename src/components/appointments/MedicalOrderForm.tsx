@@ -16,6 +16,8 @@ const formSchema = z.object({
   description: z.string().min(1, 'Describe la indicación médica'),
   instructions: z.string().optional(),
   sessions_count: z.number().min(1, 'Debe tener al menos 1 sesión').max(20, 'Máximo 20 sesiones'),
+  art_provider: z.string().optional(),
+  art_authorization_number: z.string().optional(),
 });
 
 interface Doctor {
@@ -42,22 +44,27 @@ interface MedicalOrderFormProps {
   onSuccess?: (order: any) => void;
   onCancel?: () => void;
   selectedPatient?: string;
+  editOrder?: any;
 }
 
-export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient }: MedicalOrderFormProps) {
+export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient, editOrder }: MedicalOrderFormProps) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      doctor_id: '',
-      patient_id: selectedPatient || '',
-      description: '',
-      instructions: '',
+      doctor_id: editOrder?.doctor_id || '',
+      patient_id: editOrder?.patient_id || selectedPatient || '',
+      description: editOrder?.description || '',
+      instructions: editOrder?.instructions || '',
       sessions_count: 1,
+      art_provider: editOrder?.art_provider || '',
+      art_authorization_number: editOrder?.art_authorization_number || '',
     },
   });
 
@@ -111,29 +118,98 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient 
     }
   };
 
+  const handleFileUpload = async (orderId: string) => {
+    if (!selectedFile) return null;
+
+    try {
+      setUploading(true);
+      const fileExt = selectedFile.name.split('.').pop();
+      const fileName = `${orderId}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('medical-orders')
+        .upload(fileName, selectedFile);
+
+      if (uploadError) throw uploadError;
+
+      return {
+        attachment_url: fileName,
+        attachment_name: selectedFile.name,
+      };
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo subir el archivo",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from('medical_orders')
-        .insert({
-          doctor_id: values.doctor_id,
-          patient_id: values.patient_id,
-          description: values.description,
-          instructions: values.instructions || null,
-          order_type: 'prescription',
-          urgent: false,
-          completed: false,
-        })
-        .select()
-        .single();
+      const orderData = {
+        doctor_id: values.doctor_id,
+        patient_id: values.patient_id,
+        description: values.description,
+        instructions: values.instructions || null,
+        order_type: 'prescription' as const,
+        urgent: false,
+        completed: editOrder ? editOrder.completed : false,
+        art_provider: values.art_provider || null,
+        art_authorization_number: values.art_authorization_number || null,
+      };
+
+      let data, error;
+
+      if (editOrder) {
+        // Actualizar orden existente
+        const updateResult = await supabase
+          .from('medical_orders')
+          .update(orderData)
+          .eq('id', editOrder.id)
+          .select()
+          .single();
+        
+        data = updateResult.data;
+        error = updateResult.error;
+      } else {
+        // Crear nueva orden
+        const insertResult = await supabase
+          .from('medical_orders')
+          .insert(orderData)
+          .select()
+          .single();
+        
+        data = insertResult.data;
+        error = insertResult.error;
+      }
 
       if (error) throw error;
 
+      // Subir archivo si se seleccionó uno
+      if (selectedFile) {
+        const fileData = await handleFileUpload(data.id);
+        if (fileData) {
+          const { error: updateError } = await supabase
+            .from('medical_orders')
+            .update(fileData)
+            .eq('id', data.id);
+
+          if (updateError) {
+            console.error('Error updating file info:', updateError);
+          }
+        }
+      }
+
       toast({
         title: "Éxito",
-        description: "Orden médica creada correctamente",
+        description: editOrder ? "Orden médica actualizada correctamente" : "Orden médica creada correctamente",
       });
 
       // Crear el objeto de orden con la información de sesiones
@@ -143,12 +219,13 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient 
       };
 
       form.reset();
+      setSelectedFile(null);
       onSuccess?.(orderWithSessions);
     } catch (error) {
-      console.error('Error creating medical order:', error);
+      console.error('Error saving medical order:', error);
       toast({
         title: "Error",
-        description: "No se pudo crear la orden médica",
+        description: editOrder ? "No se pudo actualizar la orden médica" : "No se pudo crear la orden médica",
         variant: "destructive",
       });
     } finally {
@@ -271,9 +348,58 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient 
           )}
         />
 
+        <FormField
+          control={form.control}
+          name="art_provider"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>ART/Obra Social</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Nombre de la ART o obra social..."
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="art_authorization_number"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Número de Autorización</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Número de autorización ART/Obra Social..."
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Archivo Adjunto (opcional)</label>
+          <Input
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+            className="cursor-pointer"
+          />
+          {selectedFile && (
+            <p className="text-sm text-muted-foreground">
+              Archivo seleccionado: {selectedFile.name}
+            </p>
+          )}
+        </div>
+
         <div className="flex gap-2">
-          <Button type="submit" className="flex-1" disabled={loading}>
-            {loading ? 'Creando...' : 'Crear Orden Médica'}
+          <Button type="submit" className="flex-1" disabled={loading || uploading}>
+            {loading ? (editOrder ? 'Actualizando...' : 'Creando...') : (editOrder ? 'Actualizar Orden Médica' : 'Crear Orden Médica')}
           </Button>
           {onCancel && (
             <Button type="button" variant="outline" onClick={onCancel}>

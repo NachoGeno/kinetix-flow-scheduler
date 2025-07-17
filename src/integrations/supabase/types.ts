@@ -152,6 +152,10 @@ export type Database = {
       medical_orders: {
         Row: {
           appointment_id: string | null
+          art_authorization_number: string | null
+          art_provider: string | null
+          attachment_name: string | null
+          attachment_url: string | null
           completed: boolean | null
           completed_at: string | null
           created_at: string
@@ -167,6 +171,10 @@ export type Database = {
         }
         Insert: {
           appointment_id?: string | null
+          art_authorization_number?: string | null
+          art_provider?: string | null
+          attachment_name?: string | null
+          attachment_url?: string | null
           completed?: boolean | null
           completed_at?: string | null
           created_at?: string
@@ -182,6 +190,10 @@ export type Database = {
         }
         Update: {
           appointment_id?: string | null
+          art_authorization_number?: string | null
+          art_provider?: string | null
+          attachment_name?: string | null
+          attachment_url?: string | null
           completed?: boolean | null
           completed_at?: string | null
           created_at?: string

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, FileText, User, Calendar, Clock, CalendarPlus } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, FileText, User, Calendar, Clock, CalendarPlus, Download } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,10 @@ interface MedicalOrder {
   completed: boolean;
   completed_at: string | null;
   created_at: string;
+  art_provider: string | null;
+  art_authorization_number: string | null;
+  attachment_url: string | null;
+  attachment_name: string | null;
   patient: {
     id: string;
     profile: {
@@ -65,8 +69,10 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
+  const [isEditOrderOpen, setIsEditOrderOpen] = useState(false);
   const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<MedicalOrder | null>(null);
+  const [editingOrder, setEditingOrder] = useState<MedicalOrder | null>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -134,6 +140,46 @@ export default function Orders() {
   const handleNewOrderCreated = () => {
     fetchOrders();
     setIsNewOrderOpen(false);
+  };
+
+  const handleEditOrder = (order: MedicalOrder) => {
+    setEditingOrder(order);
+    setIsEditOrderOpen(true);
+  };
+
+  const handleOrderUpdated = () => {
+    fetchOrders();
+    setIsEditOrderOpen(false);
+    setEditingOrder(null);
+  };
+
+  const handleDownloadFile = async (order: MedicalOrder) => {
+    if (!order.attachment_url) return;
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('medical-orders')
+        .download(order.attachment_url);
+
+      if (error) throw error;
+
+      const blob = new Blob([data]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = order.attachment_name || 'archivo';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo descargar el archivo",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleScheduleAppointment = (order: MedicalOrder) => {
@@ -361,6 +407,33 @@ export default function Orders() {
                     </div>
                   )}
 
+                  {(order.art_provider || order.art_authorization_number) && (
+                    <div>
+                      <strong>ART/Obra Social:</strong>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {order.art_provider && <p>Proveedor: {order.art_provider}</p>}
+                        {order.art_authorization_number && <p>Autorización: {order.art_authorization_number}</p>}
+                      </div>
+                    </div>
+                  )}
+
+                  {order.attachment_url && (
+                    <div>
+                      <strong>Archivo adjunto:</strong>
+                      <div className="flex items-center gap-2 mt-1">
+                        <FileText className="h-4 w-4" />
+                        <span className="text-sm text-muted-foreground">{order.attachment_name}</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDownloadFile(order)}
+                          className="h-6 px-2"
+                        >
+                          <Download className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {order.completed && order.completed_at && (
                     <div className="text-sm text-green-600">
@@ -376,6 +449,15 @@ export default function Orders() {
                     >
                       <CalendarPlus className="h-4 w-4 mr-2" />
                       Programar Citas
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEditOrder(order)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
                     </Button>
                     
                     {!order.completed && (
@@ -416,6 +498,25 @@ export default function Orders() {
           ))
         )}
       </div>
+
+      {/* Edit Order Dialog */}
+      <Dialog open={isEditOrderOpen} onOpenChange={setIsEditOrderOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Orden Médica</DialogTitle>
+            <DialogDescription>
+              Modificar la información de la orden médica
+            </DialogDescription>
+          </DialogHeader>
+          {editingOrder && (
+            <MedicalOrderForm 
+              editOrder={editingOrder}
+              onSuccess={handleOrderUpdated}
+              onCancel={() => setIsEditOrderOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Appointment Dialog */}
       <Dialog open={isAppointmentOpen} onOpenChange={setIsAppointmentOpen}>
