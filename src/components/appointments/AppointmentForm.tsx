@@ -9,15 +9,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CalendarIcon, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import PatientForm from '@/components/patients/PatientForm';
 
 const formSchema = z.object({
+  patient_id: z.string().min(1, 'Selecciona un paciente'),
   doctor_id: z.string().min(1, 'Selecciona un doctor'),
   appointment_date: z.date({
     required_error: 'Selecciona una fecha',
@@ -42,6 +45,16 @@ interface Doctor {
   work_days: string[];
 }
 
+interface Patient {
+  id: string;
+  profile: {
+    first_name: string;
+    last_name: string;
+    dni: string | null;
+    email: string;
+  };
+}
+
 interface AppointmentFormProps {
   onSuccess?: () => void;
   selectedDate?: Date;
@@ -51,14 +64,17 @@ interface AppointmentFormProps {
 
 export default function AppointmentForm({ onSuccess, selectedDate, selectedDoctor, selectedTime }: AppointmentFormProps) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isNewPatientDialogOpen, setIsNewPatientDialogOpen] = useState(false);
   const { profile } = useAuth();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      patient_id: '',
       doctor_id: selectedDoctor || '',
       appointment_date: selectedDate || undefined,
       appointment_time: selectedTime || '',
@@ -68,6 +84,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
   useEffect(() => {
     fetchDoctors();
+    fetchPatients();
   }, []);
 
   useEffect(() => {
@@ -98,6 +115,28 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       toast({
         title: "Error",
         description: "No se pudieron cargar los doctores",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchPatients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('patients')
+        .select(`
+          id,
+          profile:profiles(first_name, last_name, dni, email)
+        `)
+        .order('profile(first_name)', { ascending: true });
+
+      if (error) throw error;
+      setPatients(data || []);
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los pacientes",
         variant: "destructive",
       });
     }
@@ -161,32 +200,19 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     }
   };
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!profile) return;
+  const handleNewPatientCreated = () => {
+    fetchPatients();
+    setIsNewPatientDialogOpen(false);
+  };
 
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setLoading(true);
-
-      // Get patient ID
-      const { data: patientData, error: patientError } = await supabase
-        .from('patients')
-        .select('id')
-        .eq('profile_id', profile.id)
-        .single();
-
-      if (patientError || !patientData) {
-        toast({
-          title: "Error",
-          description: "No se encontró el perfil de paciente",
-          variant: "destructive",
-        });
-        return;
-      }
 
       const { error } = await supabase
         .from('appointments')
         .insert({
-          patient_id: patientData.id,
+          patient_id: values.patient_id,
           doctor_id: values.doctor_id,
           appointment_date: format(values.appointment_date, 'yyyy-MM-dd'),
           appointment_time: values.appointment_time,
@@ -216,9 +242,49 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
+    <>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="patient_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Paciente</FormLabel>
+                <div className="flex gap-2">
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Seleccionar paciente" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {patients.map((patient) => (
+                        <SelectItem key={patient.id} value={patient.id}>
+                          {patient.profile.first_name} {patient.profile.last_name}
+                          {patient.profile.dni && (
+                            <span className="text-sm text-muted-foreground ml-2">
+                              (DNI: {patient.profile.dni})
+                            </span>
+                          )}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsNewPatientDialogOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
           control={form.control}
           name="doctor_id"
           render={({ field }) => (
@@ -335,5 +401,18 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         </Button>
       </form>
     </Form>
+
+    <Dialog open={isNewPatientDialogOpen} onOpenChange={setIsNewPatientDialogOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Nuevo Paciente</DialogTitle>
+        </DialogHeader>
+        <PatientForm 
+          onSuccess={handleNewPatientCreated} 
+          onCancel={() => setIsNewPatientDialogOpen(false)}
+        />
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
