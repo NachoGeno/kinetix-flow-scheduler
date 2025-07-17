@@ -15,14 +15,14 @@ import AppointmentForm from './AppointmentForm';
 
 interface Doctor {
   id: string;
-  profile: {
+  profile?: {
     first_name: string;
     last_name: string;
-  };
-  specialty: {
+  } | null;
+  specialty?: {
     name: string;
     color: string;
-  };
+  } | null;
   work_start_time: string;
   work_end_time: string;
   appointment_duration: number;
@@ -267,9 +267,9 @@ export default function AppointmentCalendar() {
                   <SelectItem value="all">Todos los doctores</SelectItem>
                   {doctors.map((doctor) => (
                     <SelectItem key={doctor.id} value={doctor.id}>
-                      Dr. {doctor.profile.first_name} {doctor.profile.last_name}
+                      Dr. {doctor.profile?.first_name || 'N/A'} {doctor.profile?.last_name || 'N/A'}
                       <span className="text-sm text-muted-foreground ml-2">
-                        ({doctor.specialty.name})
+                        ({doctor.specialty?.name || 'Sin especialidad'})
                       </span>
                     </SelectItem>
                   ))}
@@ -288,7 +288,7 @@ export default function AppointmentCalendar() {
               </CardTitle>
               {selectedDoctor !== 'all' && (
                 <div className="text-sm text-muted-foreground">
-                  {doctors.find(d => d.id === selectedDoctor)?.profile.first_name} {doctors.find(d => d.id === selectedDoctor)?.profile.last_name} - {doctors.find(d => d.id === selectedDoctor)?.specialty.name}
+                  {doctors.find(d => d.id === selectedDoctor)?.profile?.first_name || 'N/A'} {doctors.find(d => d.id === selectedDoctor)?.profile?.last_name || 'N/A'} - {doctors.find(d => d.id === selectedDoctor)?.specialty?.name || 'Sin especialidad'}
                 </div>
               )}
             </CardHeader>
