@@ -75,7 +75,7 @@ export default function Doctors() {
       if (error) {
         toast({
           title: "Error",
-          description: "No se pudieron cargar los doctores",
+          description: "No se pudieron cargar los profesionales",
           variant: "destructive",
         });
         return;
@@ -86,7 +86,7 @@ export default function Doctors() {
       console.error('Error fetching doctors:', error);
       toast({
         title: "Error",
-        description: "No se pudieron cargar los doctores",
+        description: "No se pudieron cargar los profesionales",
         variant: "destructive",
       });
     } finally {
@@ -131,9 +131,9 @@ export default function Doctors() {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Doctores</h1>
+          <h1 className="text-3xl font-bold">Profesionales</h1>
         </div>
-        <div className="text-center py-8">Cargando doctores...</div>
+        <div className="text-center py-8">Cargando profesionales...</div>
       </div>
     );
   }
@@ -142,15 +142,15 @@ export default function Doctors() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Doctores</h1>
+          <h1 className="text-3xl font-bold">Profesionales</h1>
           <p className="text-muted-foreground">
-            Total: {filteredDoctors.length} doctores activos
+            Total: {filteredDoctors.length} profesionales activos
           </p>
         </div>
         {profile?.role === 'admin' && (
           <Button>
             <Plus className="h-4 w-4 mr-2" />
-            Nuevo Doctor
+            Nuevo Profesional
           </Button>
         )}
       </div>
@@ -160,7 +160,7 @@ export default function Doctors() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar doctores por nombre, especialidad o licencia..."
+            placeholder="Buscar profesionales por nombre, especialidad o licencia..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -189,8 +189,8 @@ export default function Doctors() {
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">
                 {searchTerm || specialtyFilter !== 'all' 
-                  ? 'No se encontraron doctores' 
-                  : 'No hay doctores registrados'
+                  ? 'No se encontraron profesionales' 
+                  : 'No hay profesionales registrados'
                 }
               </p>
             </CardContent>

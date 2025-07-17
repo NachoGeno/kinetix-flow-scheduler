@@ -49,10 +49,10 @@ const navigationItems = [
     roles: ['admin', 'doctor', 'patient']
   },
   {
-    title: "Doctores",
+    title: "Profesionales",
     url: "/doctors",
     icon: UserCheck,
-    description: "Gestión de doctores",
+    description: "Gestión de profesionales",
     roles: ['admin', 'patient']
   },
   {
