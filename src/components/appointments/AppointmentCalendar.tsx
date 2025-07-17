@@ -70,6 +70,7 @@ export default function AppointmentCalendar() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = useState(false);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -188,6 +189,14 @@ export default function AppointmentCalendar() {
   const handleAppointmentCreated = () => {
     fetchAppointments();
     setIsNewAppointmentOpen(false);
+    setSelectedTimeSlot('');
+  };
+
+  const handleTimeSlotClick = (time: string) => {
+    if (profile?.role === 'patient' || profile?.role === 'admin') {
+      setSelectedTimeSlot(time);
+      setIsNewAppointmentOpen(true);
+    }
   };
 
   const timeSlots = generateTimeSlots();
@@ -196,7 +205,7 @@ export default function AppointmentCalendar() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Calendario de Citas</h1>
-        {profile?.role === 'patient' && (
+        {(profile?.role === 'patient' || profile?.role === 'admin') && (
           <Dialog open={isNewAppointmentOpen} onOpenChange={setIsNewAppointmentOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -212,6 +221,7 @@ export default function AppointmentCalendar() {
                 onSuccess={handleAppointmentCreated}
                 selectedDate={selectedDate}
                 selectedDoctor={selectedDoctor !== 'all' ? selectedDoctor : undefined}
+                selectedTime={selectedTimeSlot}
               />
             </DialogContent>
           </Dialog>
@@ -291,11 +301,12 @@ export default function AppointmentCalendar() {
                   {timeSlots.map((slot) => (
                     <div
                       key={slot.time}
-                      className={`p-3 rounded-md border text-center ${
+                      className={`p-3 rounded-md border text-center transition-all duration-200 ${
                         slot.isOccupied
                           ? 'bg-red-50 border-red-200 text-red-800'
-                          : 'bg-green-50 border-green-200 text-green-800 hover:bg-green-100 cursor-pointer'
+                          : 'bg-green-50 border-green-200 text-green-800 hover:bg-green-100 cursor-pointer hover:shadow-md transform hover:scale-105'
                       }`}
+                      onClick={() => !slot.isOccupied && handleTimeSlotClick(slot.time)}
                     >
                       <div className="flex items-center justify-center mb-1">
                         <Clock className="h-3 w-3 mr-1" />
@@ -316,9 +327,14 @@ export default function AppointmentCalendar() {
                           )}
                         </div>
                       ) : (
-                        <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                          Disponible
-                        </Badge>
+                        <div className="space-y-1">
+                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                            Disponible
+                          </Badge>
+                          <div className="text-xs text-green-600 font-medium">
+                            Clic para agendar
+                          </div>
+                        </div>
                       )}
                     </div>
                   ))}

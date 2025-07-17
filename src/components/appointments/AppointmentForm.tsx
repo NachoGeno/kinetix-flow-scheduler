@@ -46,9 +46,10 @@ interface AppointmentFormProps {
   onSuccess?: () => void;
   selectedDate?: Date;
   selectedDoctor?: string;
+  selectedTime?: string;
 }
 
-export default function AppointmentForm({ onSuccess, selectedDate, selectedDoctor }: AppointmentFormProps) {
+export default function AppointmentForm({ onSuccess, selectedDate, selectedDoctor, selectedTime }: AppointmentFormProps) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,7 +61,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     defaultValues: {
       doctor_id: selectedDoctor || '',
       appointment_date: selectedDate || undefined,
-      appointment_time: '',
+      appointment_time: selectedTime || '',
       reason: '',
     },
   });
