@@ -63,12 +63,7 @@ interface MedicalOrder {
   description: string;
   instructions: string | null;
   sessions_count?: number;
-  doctor: {
-    profile: {
-      first_name: string;
-      last_name: string;
-    };
-  };
+  doctor_name: string | null;
 }
 
 interface AppointmentFormProps {
@@ -184,9 +179,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           id,
           description,
           instructions,
-          doctor:doctors(
-            profile:profiles(first_name, last_name)
-          )
+          doctor_name
         `)
         .eq('patient_id', patientId)
         .eq('completed', false)
@@ -446,9 +439,11 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                       {medicalOrders.map((order) => (
                         <SelectItem key={order.id} value={order.id}>
                           {order.description.substring(0, 50)}...
-                          <span className="text-sm text-muted-foreground ml-2">
-                            (Dr. {order.doctor.profile.first_name} {order.doctor.profile.last_name})
-                          </span>
+                          {order.doctor_name && (
+                            <span className="text-sm text-muted-foreground ml-2">
+                              (Dr. {order.doctor_name})
+                            </span>
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
