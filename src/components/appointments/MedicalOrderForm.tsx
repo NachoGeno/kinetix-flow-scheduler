@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
-  doctor_id: z.string().min(1, 'Selecciona el médico que dio la orden'),
+  doctor_name: z.string().min(1, 'Ingresa el nombre del médico que dio la orden'),
   patient_id: z.string().min(1, 'Selecciona el paciente'),
   description: z.string().min(1, 'Describe la indicación médica'),
   instructions: z.string().optional(),
@@ -58,7 +58,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      doctor_id: editOrder?.doctor_id || '',
+      doctor_name: editOrder?.doctor_name || '',
       patient_id: editOrder?.patient_id || selectedPatient || '',
       description: editOrder?.description || '',
       instructions: editOrder?.instructions || '',
@@ -69,7 +69,6 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
   });
 
   useEffect(() => {
-    fetchDoctors();
     fetchPatients();
   }, []);
 
@@ -154,7 +153,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
       setLoading(true);
 
       const orderData = {
-        doctor_id: values.doctor_id,
+        doctor_name: values.doctor_name,
         patient_id: values.patient_id,
         description: values.description,
         instructions: values.instructions || null,
@@ -268,27 +267,16 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
 
         <FormField
           control={form.control}
-          name="doctor_id"
+          name="doctor_name"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Médico que emitió la orden</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar médico" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {doctors.map((doctor) => (
-                    <SelectItem key={doctor.id} value={doctor.id}>
-                      Dr. {doctor.profile.first_name} {doctor.profile.last_name}
-                      <span className="text-sm text-muted-foreground ml-2">
-                        ({doctor.specialty.name})
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FormControl>
+                <Input
+                  placeholder="Nombre del médico..."
+                  {...field}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
