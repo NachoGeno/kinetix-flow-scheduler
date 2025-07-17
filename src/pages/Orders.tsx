@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import MedicalOrderForm from '@/components/appointments/MedicalOrderForm';
 import AppointmentForm from '@/components/appointments/AppointmentForm';
+import MultiSessionAppointmentForm from '@/components/appointments/MultiSessionAppointmentForm';
 
 interface MedicalOrder {
   id: string;
@@ -28,6 +29,7 @@ interface MedicalOrder {
   art_authorization_number: string | null;
   attachment_url: string | null;
   attachment_name: string | null;
+  sessions_count?: number;
   patient: {
     id: string;
     profile: {
@@ -71,6 +73,7 @@ export default function Orders() {
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [isEditOrderOpen, setIsEditOrderOpen] = useState(false);
   const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
+  const [isMultiSessionOpen, setIsMultiSessionOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<MedicalOrder | null>(null);
   const [editingOrder, setEditingOrder] = useState<MedicalOrder | null>(null);
   const { profile } = useAuth();
@@ -184,12 +187,18 @@ export default function Orders() {
 
   const handleScheduleAppointment = (order: MedicalOrder) => {
     setSelectedOrder(order);
-    setIsAppointmentOpen(true);
+    // Si la orden tiene múltiples sesiones, usar el formulario de múltiples sesiones
+    if (order.sessions_count && order.sessions_count > 1) {
+      setIsMultiSessionOpen(true);
+    } else {
+      setIsAppointmentOpen(true);
+    }
   };
 
   const handleAppointmentCreated = () => {
     fetchOrders();
     setIsAppointmentOpen(false);
+    setIsMultiSessionOpen(false);
     setSelectedOrder(null);
   };
 
@@ -518,13 +527,31 @@ export default function Orders() {
         </DialogContent>
       </Dialog>
 
-      {/* Appointment Dialog */}
+      {/* Multi-Session Appointment Dialog */}
+      <Dialog open={isMultiSessionOpen} onOpenChange={setIsMultiSessionOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Programar Sesiones Múltiples</DialogTitle>
+            <DialogDescription>
+              Selecciona las fechas y horarios específicos para cada sesión de: {selectedOrder?.description}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedOrder && (
+            <MultiSessionAppointmentForm 
+              selectedOrder={selectedOrder}
+              onSuccess={handleAppointmentCreated}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Single Appointment Dialog */}
       <Dialog open={isAppointmentOpen} onOpenChange={setIsAppointmentOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Programar Citas</DialogTitle>
+            <DialogTitle>Programar Cita</DialogTitle>
             <DialogDescription>
-              Crear citas para la orden médica: {selectedOrder?.description}
+              Crear una cita para la orden médica: {selectedOrder?.description}
             </DialogDescription>
           </DialogHeader>
           {selectedOrder && (
