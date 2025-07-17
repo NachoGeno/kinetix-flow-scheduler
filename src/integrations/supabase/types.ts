@@ -313,6 +313,7 @@ export type Database = {
           id: string
           insurance_number: string | null
           insurance_provider: string | null
+          is_active: boolean | null
           medical_record_number: string | null
           profile_id: string
           updated_at: string
@@ -325,6 +326,7 @@ export type Database = {
           id?: string
           insurance_number?: string | null
           insurance_provider?: string | null
+          is_active?: boolean | null
           medical_record_number?: string | null
           profile_id: string
           updated_at?: string
@@ -337,6 +339,7 @@ export type Database = {
           id?: string
           insurance_number?: string | null
           insurance_provider?: string | null
+          is_active?: boolean | null
           medical_record_number?: string | null
           profile_id?: string
           updated_at?: string
