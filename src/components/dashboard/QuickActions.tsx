@@ -8,28 +8,28 @@ const quickActions = [
     title: "Nuevo Paciente",
     description: "Registrar un paciente en el sistema",
     icon: UserPlus,
-    href: "/pacientes/nuevo",
+    href: "/patients",
     variant: "default" as const,
   },
   {
     title: "Agendar Turno",
     description: "Programar una nueva cita",
     icon: CalendarPlus,
-    href: "/calendario/nuevo",
+    href: "/appointments",
     variant: "secondary" as const,
   },
   {
     title: "Cargar Orden",
     description: "Subir orden médica",
     icon: FileText,
-    href: "/ordenes/nueva",
+    href: "/orders",
     variant: "outline" as const,
   },
   {
-    title: "Ver Informes",
-    description: "Generar reportes",
+    title: "Ver Historias",
+    description: "Acceder a registros médicos",
     icon: BarChart3,
-    href: "/informes",
+    href: "/medical-records",
     variant: "outline" as const,
   },
 ];
@@ -38,23 +38,7 @@ export function QuickActions() {
   const navigate = useNavigate();
 
   const handleActionClick = (href: string) => {
-    switch (href) {
-      case "/pacientes/nuevo":
-        navigate("/pacientes");
-        break;
-      case "/calendario/nuevo":
-        navigate("/turnos");
-        break;
-      case "/ordenes/nueva":
-        navigate("/ordenes");
-        break;
-      case "/informes":
-        // TODO: Implement reports page
-        console.log("Función de informes pendiente de implementar");
-        break;
-      default:
-        navigate(href);
-    }
+    navigate(href);
   };
 
   return (
