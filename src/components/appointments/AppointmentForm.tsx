@@ -299,6 +299,49 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
       const medicalOrderId = values.medical_order_id === 'none' ? null : values.medical_order_id;
 
+      // Validar que el paciente tenga orden médica vigente con turnos disponibles
+      if (!medicalOrderId) {
+        // Verificar si el paciente tiene alguna orden médica vigente
+        const { data: patientOrders, error: ordersError } = await supabase
+          .from('medical_orders')
+          .select('id, total_sessions, sessions_used, description')
+          .eq('patient_id', values.patient_id)
+          .eq('completed', false);
+
+        if (ordersError) throw ordersError;
+
+        const ordersWithSessions = patientOrders?.filter(order => order.sessions_used < order.total_sessions) || [];
+
+        if (ordersWithSessions.length > 0) {
+          toast({
+            title: "Orden médica requerida",
+            description: "Este paciente tiene órdenes médicas vigentes. Selecciona una orden para agendar la cita.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        // Validar que la orden seleccionada tenga sesiones disponibles
+        const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
+        if (!selectedOrder) {
+          toast({
+            title: "Error",
+            description: "La orden médica seleccionada no es válida.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (selectedOrder.sessions_used >= selectedOrder.total_sessions) {
+          toast({
+            title: "Sin sesiones disponibles",
+            description: "La orden médica seleccionada no tiene sesiones disponibles.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       // Crear una sola cita
       const { error } = await supabase
         .from('appointments')
