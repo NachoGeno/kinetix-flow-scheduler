@@ -61,12 +61,15 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
       setLoading(true);
 
       // Verificar si ya existe un paciente con el mismo DNI
+      console.log('Verificando DNI duplicado:', data.dni);
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, first_name, last_name, dni')
         .eq('dni', data.dni)
         .eq('role', 'patient')
         .maybeSingle();
+
+      console.log('Resultado de búsqueda:', { existingProfile, checkError });
 
       if (checkError && checkError.code !== 'PGRST116') {
         console.error('Error checking existing patient:', checkError);
@@ -79,6 +82,7 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
       }
 
       if (existingProfile) {
+        console.log('Paciente encontrado con mismo DNI:', existingProfile);
         toast({
           title: "Error",
           description: "Ya existe un paciente con este DNI registrado. Por favor, verifique los datos.",
@@ -86,6 +90,8 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
         });
         return;
       }
+
+      console.log('No se encontró paciente duplicado, procediendo con la creación');
 
       // Crear perfil directamente sin crear usuario en auth
       const { data: profileData, error: profileError } = await supabase
