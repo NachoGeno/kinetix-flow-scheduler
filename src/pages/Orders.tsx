@@ -293,14 +293,16 @@ export default function Orders() {
               Nueva Orden
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Nueva Orden Médica</DialogTitle>
               <DialogDescription>
                 Crear una nueva orden médica para un paciente
               </DialogDescription>
             </DialogHeader>
-            <MedicalOrderForm onSuccess={handleNewOrderCreated} />
+            <div className="mt-4">
+              <MedicalOrderForm onSuccess={handleNewOrderCreated} />
+            </div>
           </DialogContent>
         </Dialog>
       </div>
@@ -416,15 +418,15 @@ export default function Orders() {
                     </div>
                   )}
 
-                  {(order.art_provider || order.art_authorization_number) && (
-                    <div>
-                      <strong>ART/Obra Social:</strong>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {order.art_provider && <p>Proveedor: {order.art_provider}</p>}
-                        {order.art_authorization_number && <p>Autorización: {order.art_authorization_number}</p>}
-                      </div>
-                    </div>
-                  )}
+                   {(order.art_provider || order.art_authorization_number) && (
+                     <div>
+                       <strong>ART/Obra Social:</strong>
+                       <div className="text-sm text-muted-foreground mt-1">
+                         {order.art_provider && <div>Proveedor: {order.art_provider}</div>}
+                         {order.art_authorization_number && <div>Autorización: {order.art_authorization_number}</div>}
+                       </div>
+                     </div>
+                   )}
 
                   {order.attachment_url && (
                     <div>
@@ -510,20 +512,22 @@ export default function Orders() {
 
       {/* Edit Order Dialog */}
       <Dialog open={isEditOrderOpen} onOpenChange={setIsEditOrderOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Orden Médica</DialogTitle>
             <DialogDescription>
               Modificar la información de la orden médica
             </DialogDescription>
           </DialogHeader>
-          {editingOrder && (
-            <MedicalOrderForm 
-              editOrder={editingOrder}
-              onSuccess={handleOrderUpdated}
-              onCancel={() => setIsEditOrderOpen(false)}
-            />
-          )}
+          <div className="mt-4">
+            {editingOrder && (
+              <MedicalOrderForm 
+                editOrder={editingOrder}
+                onSuccess={handleOrderUpdated}
+                onCancel={() => setIsEditOrderOpen(false)}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
