@@ -52,21 +52,21 @@ export function QuickActions() {
           Atajos para las tareas más comunes
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <CardContent className="grid grid-cols-2 gap-3">
         {quickActions.map((action, index) => (
           <Button
             key={index}
             variant={action.variant}
-            className="h-auto p-4 flex flex-col items-start gap-2 hover:shadow-soft transition-all duration-200"
+            className="h-20 p-3 flex flex-col items-center justify-center gap-2 hover:shadow-soft transition-all duration-200 text-center"
             onClick={() => handleActionClick(action.href)}
           >
-            <div className="flex items-center gap-2 w-full">
-              <action.icon className="w-5 h-5" />
-              <span className="font-medium">{action.title}</span>
+            <action.icon className="w-5 h-5 flex-shrink-0" />
+            <div className="flex flex-col items-center gap-1">
+              <span className="font-medium text-sm leading-tight">{action.title}</span>
+              <span className="text-xs opacity-70 leading-tight text-center max-w-full overflow-hidden">
+                {action.description}
+              </span>
             </div>
-            <span className="text-xs text-left opacity-70">
-              {action.description}
-            </span>
           </Button>
         ))}
       </CardContent>
