@@ -12,10 +12,9 @@ import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   doctor_name: z.string().min(1, 'Ingresa el nombre del médico que dio la orden'),
-  patient_id: z.string().min(1, 'Selecciona el paciente'),
   description: z.string().min(1, 'Describe la indicación médica'),
   instructions: z.string().optional(),
-  sessions_count: z.number().min(1, 'Debe tener al menos 1 sesión').max(20, 'Máximo 20 sesiones'),
+  sessions_count: z.number().min(1, 'Debe tener al menos 1 sesión').max(50, 'Máximo 50 sesiones'),
   art_provider: z.string().optional(),
   art_authorization_number: z.string().optional(),
 });
@@ -59,10 +58,9 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
     resolver: zodResolver(formSchema),
     defaultValues: {
       doctor_name: editOrder?.doctor_name || '',
-      patient_id: editOrder?.patient_id || selectedPatient || '',
       description: editOrder?.description || '',
       instructions: editOrder?.instructions || '',
-      sessions_count: 1,
+      sessions_count: editOrder?.total_sessions || 1,
       art_provider: editOrder?.art_provider || '',
       art_authorization_number: editOrder?.art_authorization_number || '',
     },
@@ -152,9 +150,18 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
     try {
       setLoading(true);
 
+      if (!selectedPatient) {
+        toast({
+          title: "Error",
+          description: "No se ha seleccionado un paciente",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const orderData = {
         doctor_name: values.doctor_name,
-        patient_id: values.patient_id,
+        patient_id: selectedPatient,
         description: values.description,
         instructions: values.instructions || null,
         order_type: 'prescription' as const,
@@ -234,38 +241,23 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
     }
   };
 
+  // Mostrar información del paciente seleccionado
+  const selectedPatientInfo = patients.find(p => p.id === selectedPatient);
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="patient_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Paciente</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} disabled={!!selectedPatient}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar paciente" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {patients.map((patient) => (
-                    <SelectItem key={patient.id} value={patient.id}>
-                      {patient.profile.first_name} {patient.profile.last_name}
-                      {patient.profile.dni && (
-                        <span className="text-sm text-muted-foreground ml-2">
-                          (DNI: {patient.profile.dni})
-                        </span>
-                      )}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {selectedPatient && selectedPatientInfo && (
+          <div className="p-3 bg-muted rounded-lg">
+            <h4 className="font-semibold text-sm">Paciente</h4>
+            <p className="text-sm text-muted-foreground">
+              {selectedPatientInfo.profile.first_name} {selectedPatientInfo.profile.last_name}
+              {selectedPatientInfo.profile.dni && (
+                <span className="ml-2">DNI: {selectedPatientInfo.profile.dni}</span>
+              )}
+            </p>
+          </div>
+        )}
 
         <FormField
           control={form.control}

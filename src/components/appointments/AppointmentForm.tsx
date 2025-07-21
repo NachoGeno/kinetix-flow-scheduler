@@ -182,14 +182,18 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           instructions,
           doctor_name,
           total_sessions,
-          sessions_used
+          sessions_used,
+          created_at
         `)
         .eq('patient_id', patientId)
         .eq('completed', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setMedicalOrders(data || []);
+      
+      // Solo mostrar órdenes que tengan sesiones disponibles
+      const availableOrders = (data || []).filter(order => order.sessions_used < order.total_sessions);
+      setMedicalOrders(availableOrders);
     } catch (error) {
       console.error('Error fetching medical orders:', error);
       toast({
@@ -336,9 +340,8 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         // Validar que la orden seleccionada tenga sesiones disponibles con datos frescos
         const { data: currentOrder, error: orderError } = await supabase
           .from('medical_orders')
-          .select('id, total_sessions, sessions_used, completed')
+          .select('id, total_sessions, sessions_used, completed, patient_id')
           .eq('id', medicalOrderId)
-          .eq('patient_id', values.patient_id)
           .single();
 
         if (orderError) {
@@ -354,6 +357,16 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           toast({
             title: "Error",
             description: "La orden médica seleccionada no es válida.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Validar que la orden pertenezca al paciente seleccionado
+        if (currentOrder.patient_id !== values.patient_id) {
+          toast({
+            title: "Error de asignación",
+            description: "Esta orden médica está asignada a otro paciente y no puede utilizarse.",
             variant: "destructive",
           });
           return;
@@ -617,27 +630,41 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                         <SelectValue placeholder="Seleccionar orden médica" />
                       </SelectTrigger>
                     </FormControl>
-                     <SelectContent>
-                       <SelectItem value="none">Sin orden médica</SelectItem>
-                       {medicalOrders.map((order) => {
-                         const sessionsRemaining = order.total_sessions - order.sessions_used;
-                         const isOrderComplete = sessionsRemaining <= 0;
-                         
-                         return (
-                           <SelectItem 
-                             key={order.id} 
-                             value={order.id}
-                             disabled={isOrderComplete}
-                           >
-                             {order.description.substring(0, 50)}...
-                             <span className="text-sm text-muted-foreground ml-2">
-                               {order.doctor_name && `Dr. ${order.doctor_name} - `}
-                               {sessionsRemaining} sesión{sessionsRemaining !== 1 ? 'es' : ''} restante{sessionsRemaining !== 1 ? 's' : ''}
-                             </span>
-                           </SelectItem>
-                         );
-                       })}
-                     </SelectContent>
+                      <SelectContent>
+                        <SelectItem value="none">Sin orden médica</SelectItem>
+                        {medicalOrders.length === 0 && form.watch('patient_id') && (
+                          <div className="text-sm text-muted-foreground p-2">
+                            No hay órdenes médicas disponibles para este paciente
+                          </div>
+                        )}
+                        {medicalOrders.map((order) => {
+                          const sessionsRemaining = order.total_sessions - order.sessions_used;
+                          
+                          return (
+                            <SelectItem 
+                              key={order.id} 
+                              value={order.id}
+                            >
+                              <div className="w-full">
+                                <div className="font-medium">
+                                  {order.description.length > 45 
+                                    ? `${order.description.substring(0, 45)}...` 
+                                    : order.description
+                                  }
+                                </div>
+                                <div className="text-sm text-muted-foreground flex justify-between">
+                                  <span>
+                                    {order.doctor_name && `Dr. ${order.doctor_name}`}
+                                  </span>
+                                  <span className="font-semibold text-primary">
+                                    {sessionsRemaining} sesión{sessionsRemaining !== 1 ? 'es' : ''} disponible{sessionsRemaining !== 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
                   </Select>
                   <Button
                     type="button"
