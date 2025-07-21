@@ -167,7 +167,7 @@ export default function AppointmentsList() {
     }
   };
 
-  const handleMarkAttendance = async (appointmentId: string, status: 'in_progress' | 'completed' | 'no_show') => {
+  const handleMarkAttendance = async (appointmentId: string, status: 'completed' | 'no_show') => {
     try {
       const { error } = await supabase
         .from('appointments')
@@ -177,8 +177,7 @@ export default function AppointmentsList() {
       if (error) throw error;
 
       const statusMessages = {
-        in_progress: 'Paciente marcado como presente',
-        completed: 'Cita marcada como completada',
+        completed: 'Paciente marcado como asistido - Historia habilitada para cerrar',
         no_show: 'Paciente marcado como no asistió'
       };
 
@@ -312,10 +311,10 @@ export default function AppointmentsList() {
                             variant="outline"
                             size="sm"
                             className="h-8 px-2 text-green-600 hover:text-green-700"
-                            onClick={() => handleMarkAttendance(appointment.id, 'in_progress')}
+                            onClick={() => handleMarkAttendance(appointment.id, 'completed')}
                           >
                             <UserCheck className="h-3 w-3 mr-1" />
-                            Presente
+                            Asistió
                           </Button>
                           <Button
                             variant="outline"
@@ -327,20 +326,6 @@ export default function AppointmentsList() {
                             No asistió
                           </Button>
                         </>
-                      )}
-                      
-                      {/* Botón completar para citas en progreso */}
-                      {(profile?.role === 'doctor' || profile?.role === 'admin') && 
-                       appointment.status === 'in_progress' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-2 text-purple-600 hover:text-purple-700"
-                          onClick={() => handleMarkAttendance(appointment.id, 'completed')}
-                        >
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Completar
-                        </Button>
                       )}
                       
                       {/* Botón cancelar */}
