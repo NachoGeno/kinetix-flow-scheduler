@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, UserPlus, CalendarPlus, FileText, BarChart3 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const quickActions = [
   {
@@ -34,6 +35,28 @@ const quickActions = [
 ];
 
 export function QuickActions() {
+  const navigate = useNavigate();
+
+  const handleActionClick = (href: string) => {
+    switch (href) {
+      case "/pacientes/nuevo":
+        navigate("/pacientes");
+        break;
+      case "/calendario/nuevo":
+        navigate("/turnos");
+        break;
+      case "/ordenes/nueva":
+        navigate("/ordenes");
+        break;
+      case "/informes":
+        // TODO: Implement reports page
+        console.log("Función de informes pendiente de implementar");
+        break;
+      default:
+        navigate(href);
+    }
+  };
+
   return (
     <Card className="bg-gradient-card shadow-card border-0">
       <CardHeader>
@@ -51,10 +74,7 @@ export function QuickActions() {
             key={index}
             variant={action.variant}
             className="h-auto p-4 flex flex-col items-start gap-2 hover:shadow-soft transition-all duration-200"
-            onClick={() => {
-              // TODO: Navigate to action.href
-              console.log(`Navigate to ${action.href}`);
-            }}
+            onClick={() => handleActionClick(action.href)}
           >
             <div className="flex items-center gap-2 w-full">
               <action.icon className="w-5 h-5" />
