@@ -331,9 +331,24 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           return;
         }
       } else {
-        // Validar que la orden seleccionada tenga sesiones disponibles
-        const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
-        if (!selectedOrder) {
+        // Validar que la orden seleccionada tenga sesiones disponibles con datos frescos
+        const { data: currentOrder, error: orderError } = await supabase
+          .from('medical_orders')
+          .select('id, total_sessions, sessions_used, completed')
+          .eq('id', medicalOrderId)
+          .eq('patient_id', values.patient_id)
+          .single();
+
+        if (orderError) {
+          toast({
+            title: "Error",
+            description: "No se pudo verificar la orden médica.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!currentOrder) {
           toast({
             title: "Error",
             description: "La orden médica seleccionada no es válida.",
@@ -342,7 +357,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           return;
         }
 
-        if (selectedOrder.sessions_used >= selectedOrder.total_sessions) {
+        if (currentOrder.completed || currentOrder.sessions_used >= currentOrder.total_sessions) {
           toast({
             title: "Sin sesiones disponibles",
             description: "La orden médica seleccionada no tiene sesiones disponibles.",
