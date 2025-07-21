@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import MedicalHistorySection from '@/components/medical-records/MedicalHistorySection';
 
 interface Patient {
   id: string;
@@ -480,6 +481,9 @@ export default function MedicalRecords() {
               )}
             </CardContent>
           </Card>
+
+          {/* Medical History Section with Progress Notes */}
+          <MedicalHistorySection patientId={selectedPatient.id} />
 
           {/* Medical Records Section */}
           <Card>

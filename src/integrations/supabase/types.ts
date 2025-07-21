@@ -417,6 +417,66 @@ export type Database = {
         }
         Relationships: []
       }
+      progress_notes: {
+        Row: {
+          appointment_id: string
+          attachment_name: string | null
+          attachment_url: string | null
+          content: string
+          created_at: string
+          created_by: string
+          id: string
+          medical_order_id: string | null
+          note_type: string
+          patient_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id: string
+          attachment_name?: string | null
+          attachment_url?: string | null
+          content: string
+          created_at?: string
+          created_by: string
+          id?: string
+          medical_order_id?: string | null
+          note_type?: string
+          patient_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          attachment_name?: string | null
+          attachment_url?: string | null
+          content?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          medical_order_id?: string | null
+          note_type?: string
+          patient_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_progress_notes_appointment"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_progress_notes_patient"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       specialties: {
         Row: {
           color: string | null
