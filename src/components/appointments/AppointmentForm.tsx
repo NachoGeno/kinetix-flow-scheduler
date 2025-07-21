@@ -81,6 +81,8 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   const [loading, setLoading] = useState(false);
   const [isNewPatientDialogOpen, setIsNewPatientDialogOpen] = useState(false);
   const [isNewOrderDialogOpen, setIsNewOrderDialogOpen] = useState(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [appointmentSummary, setAppointmentSummary] = useState<any>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -303,6 +305,117 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     });
   };
 
+  const handleShowSummary = async (values: z.infer<typeof formSchema>) => {
+    try {
+      setLoading(true);
+
+      const medicalOrderId = values.medical_order_id === 'none' ? null : values.medical_order_id;
+
+      // Validar que el paciente tenga orden médica vigente con turnos disponibles
+      if (!medicalOrderId) {
+        // Verificar si el paciente tiene alguna orden médica vigente
+        const { data: patientOrders, error: ordersError } = await supabase
+          .from('medical_orders')
+          .select('id, total_sessions, sessions_used, description')
+          .eq('patient_id', values.patient_id)
+          .eq('completed', false);
+
+        if (ordersError) throw ordersError;
+
+        const ordersWithSessions = patientOrders?.filter(order => order.sessions_used < order.total_sessions) || [];
+
+        if (ordersWithSessions.length > 0) {
+          toast({
+            title: "Orden médica requerida",
+            description: "Este paciente tiene órdenes médicas vigentes. Selecciona una orden para agendar la cita.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        // Validar que la orden seleccionada tenga sesiones disponibles con datos frescos
+        const { data: currentOrder, error: orderError } = await supabase
+          .from('medical_orders')
+          .select('id, total_sessions, sessions_used, completed')
+          .eq('id', medicalOrderId)
+          .eq('patient_id', values.patient_id)
+          .single();
+
+        if (orderError) {
+          toast({
+            title: "Error",
+            description: "No se pudo verificar la orden médica.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!currentOrder) {
+          toast({
+            title: "Error",
+            description: "La orden médica seleccionada no es válida.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (currentOrder.completed || currentOrder.sessions_used >= currentOrder.total_sessions) {
+          toast({
+            title: "Sin sesiones disponibles",
+            description: "La orden médica seleccionada no tiene sesiones disponibles.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Validar que no exista una cita duplicada
+      const { data: existingAppointment, error: duplicateError } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('patient_id', values.patient_id)
+        .eq('doctor_id', values.doctor_id)
+        .eq('appointment_date', format(values.appointment_date, 'yyyy-MM-dd'))
+        .eq('appointment_time', values.appointment_time)
+        .neq('status', 'cancelled')
+        .maybeSingle();
+
+      if (duplicateError) throw duplicateError;
+
+      if (existingAppointment) {
+        toast({
+          title: "Cita duplicada",
+          description: "Ya existe una cita programada para este paciente con el mismo profesional en la fecha y hora seleccionada.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Preparar el resumen
+      const selectedPatient = patients.find(p => p.id === values.patient_id);
+      const selectedDoctor = doctors.find(d => d.id === values.doctor_id);
+      const selectedOrder = medicalOrderId ? medicalOrders.find(o => o.id === medicalOrderId) : null;
+
+      setAppointmentSummary({
+        values,
+        patient: selectedPatient,
+        doctor: selectedDoctor,
+        order: selectedOrder,
+      });
+
+      setIsConfirmDialogOpen(true);
+    } catch (error) {
+      console.error('Error validating appointment:', error);
+      toast({
+        title: "Error",
+        description: "Error al validar la cita",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setLoading(true);
@@ -451,7 +564,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   return (
     <>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(handleShowSummary)} className="space-y-4">
           <FormField
             control={form.control}
             name="patient_id"
@@ -658,7 +771,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         />
 
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? 'Agendando...' : 'Agendar Cita'}
+          {loading ? 'Validando...' : 'Revisar y Confirmar'}
         </Button>
       </form>
     </Form>
@@ -691,6 +804,91 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           onCancel={() => setIsNewOrderDialogOpen(false)}
           selectedPatient={form.watch('patient_id')}
         />
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Confirmar Cita Médica</DialogTitle>
+          <DialogDescription>
+            Revisa los datos de la cita antes de confirmar
+          </DialogDescription>
+        </DialogHeader>
+        {appointmentSummary && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h4 className="font-semibold text-sm">Paciente</h4>
+                <p className="text-sm text-muted-foreground">
+                  {appointmentSummary.patient?.profile.first_name} {appointmentSummary.patient?.profile.last_name}
+                  {appointmentSummary.patient?.profile.dni && (
+                    <span className="block">DNI: {appointmentSummary.patient.profile.dni}</span>
+                  )}
+                </p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-sm">Profesional</h4>
+                <p className="text-sm text-muted-foreground">
+                  Dr. {appointmentSummary.doctor?.profile.first_name} {appointmentSummary.doctor?.profile.last_name}
+                  <span className="block">{appointmentSummary.doctor?.specialty.name}</span>
+                </p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h4 className="font-semibold text-sm">Fecha y Hora</h4>
+                <p className="text-sm text-muted-foreground">
+                  {format(appointmentSummary.values.appointment_date, "PPP", { locale: es })}
+                  <span className="block">{appointmentSummary.values.appointment_time.substring(0, 5)}</span>
+                </p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-sm">Orden Médica</h4>
+                <p className="text-sm text-muted-foreground">
+                  {appointmentSummary.order ? (
+                    <>
+                      {appointmentSummary.order.description.substring(0, 40)}...
+                      <span className="block">
+                        Sesiones restantes: {appointmentSummary.order.total_sessions - appointmentSummary.order.sessions_used - 1}
+                      </span>
+                    </>
+                  ) : (
+                    'Sin orden médica'
+                  )}
+                </p>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold text-sm">Motivo de la consulta</h4>
+              <p className="text-sm text-muted-foreground">
+                {appointmentSummary.values.reason}
+              </p>
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsConfirmDialogOpen(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={() => {
+                  setIsConfirmDialogOpen(false);
+                  onSubmit(appointmentSummary.values);
+                }}
+                disabled={loading}
+                className="flex-1"
+              >
+                {loading ? 'Confirmando...' : 'Confirmar Cita'}
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
     </>
