@@ -257,11 +257,21 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
       console.log('Slots generados:', slots);
 
-      // Filter out occupied slots
-      const occupiedTimes = (appointments || []).map(apt => apt.appointment_time);
-      const availableSlots = slots.filter(slot => !occupiedTimes.includes(slot));
+      // Contar citas por slot y filtrar los que tienen menos de 3 pacientes
+      const appointmentCounts = {};
+      (appointments || []).forEach(apt => {
+        appointmentCounts[apt.appointment_time] = (appointmentCounts[apt.appointment_time] || 0) + 1;
+      });
 
-      console.log('Slots disponibles:', availableSlots);
+      console.log('Conteo de citas por slot:', appointmentCounts);
+
+      // Mostrar solo slots con menos de 3 pacientes programados
+      const availableSlots = slots.filter(slot => {
+        const currentCount = appointmentCounts[slot] || 0;
+        return currentCount < 3;
+      });
+
+      console.log('Slots disponibles (máximo 3 por bloque):', availableSlots);
 
       setAvailableSlots(availableSlots);
     } catch (error) {
