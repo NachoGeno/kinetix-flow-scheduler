@@ -352,6 +352,28 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         }
       }
 
+      // Validar que no exista una cita duplicada (mismo paciente, doctor, día y hora)
+      const { data: existingAppointment, error: duplicateError } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('patient_id', values.patient_id)
+        .eq('doctor_id', values.doctor_id)
+        .eq('appointment_date', format(values.appointment_date, 'yyyy-MM-dd'))
+        .eq('appointment_time', values.appointment_time)
+        .neq('status', 'cancelled')
+        .maybeSingle();
+
+      if (duplicateError) throw duplicateError;
+
+      if (existingAppointment) {
+        toast({
+          title: "Cita duplicada",
+          description: "Ya existe una cita programada para este paciente con el mismo profesional en la fecha y hora seleccionada.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Crear una sola cita
       const { error } = await supabase
         .from('appointments')
