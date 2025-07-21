@@ -819,18 +819,20 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     </Dialog>
 
     <Dialog open={isNewOrderDialogOpen} onOpenChange={setIsNewOrderDialogOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nueva Orden Médica</DialogTitle>
           <DialogDescription>
             Crear una nueva orden médica para el paciente seleccionado
           </DialogDescription>
         </DialogHeader>
-        <MedicalOrderForm 
-          onSuccess={handleNewOrderCreated} 
-          onCancel={() => setIsNewOrderDialogOpen(false)}
-          selectedPatient={form.watch('patient_id')}
-        />
+        <div className="mt-4">
+          <MedicalOrderForm 
+            onSuccess={handleNewOrderCreated} 
+            onCancel={() => setIsNewOrderDialogOpen(false)}
+            selectedPatient={form.watch('patient_id')}
+          />
+        </div>
       </DialogContent>
     </Dialog>
 
