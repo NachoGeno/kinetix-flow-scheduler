@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, FileText, Edit, Eye, Plus, User } from 'lucide-react';
+import { Calendar, Clock, FileText, Edit, Eye, Plus, User, AlertTriangle, CheckCircle, Filter } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -54,6 +56,7 @@ interface MedicalHistorySectionProps {
 export default function MedicalHistorySection({ patientId }: MedicalHistorySectionProps) {
   const [attendedAppointments, setAttendedAppointments] = useState<AttendedAppointment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [viewFilter, setViewFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [progressNoteForm, setProgressNoteForm] = useState<{
     isOpen: boolean;
     appointmentId?: string;
@@ -188,7 +191,7 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
     }
   };
 
-  // Group appointments by medical order
+  // Group appointments by medical order and separate by progress note status
   const groupedAppointments = attendedAppointments.reduce((groups, appointment) => {
     const orderId = appointment.medical_order?.id || 'sin-orden';
     if (!groups[orderId]) {
@@ -197,6 +200,25 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
     groups[orderId].push(appointment);
     return groups;
   }, {} as Record<string, AttendedAppointment[]>);
+
+  // Separate appointments into pending and completed
+  const pendingAppointments = attendedAppointments.filter(apt => !apt.progress_note);
+  const completedAppointments = attendedAppointments.filter(apt => apt.progress_note);
+  const pendingCount = pendingAppointments.length;
+
+  // Filter appointments based on selected view
+  const getFilteredAppointments = () => {
+    switch (viewFilter) {
+      case 'pending':
+        return pendingAppointments;
+      case 'completed':
+        return completedAppointments;
+      default:
+        return attendedAppointments;
+    }
+  };
+
+  const filteredAppointments = getFilteredAppointments();
 
   if (loading) {
     return (
@@ -233,17 +255,62 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Historia Clínica
-          </CardTitle>
-          <CardDescription>
-            Historial cronológico de turnos asistidos y evolutivos agrupados por orden médica
-          </CardDescription>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Historia Clínica
+                {pendingCount > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    {pendingCount} pendientes
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Historial cronológico de turnos asistidos y evolutivos agrupados por orden médica
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={viewFilter} onValueChange={(value: any) => setViewFilter(value)}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="pending">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-orange-500" />
+                      Pendientes
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="completed">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      Completados
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
+          {/* Pending Appointments Alert */}
+          {pendingCount > 0 && viewFilter !== 'completed' && (
+            <Alert className="mb-6 border-orange-200 bg-orange-50">
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-800">
+                <strong>{pendingCount} turnos asistidos</strong> requieren carga de evolutivo por parte del profesional asignado.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="space-y-6">
-            {Object.entries(groupedAppointments).map(([orderId, appointments]) => (
+            {/* Render appointments based on filter */}
+            {viewFilter === 'all' ? (
+              // Show grouped view when showing all appointments
+              Object.entries(groupedAppointments).map(([orderId, appointments]) => (
               <div key={orderId} className="border rounded-lg p-4">
                 {/* Medical Order Header */}
                 {orderId !== 'sin-orden' && appointments[0].medical_order ? (
@@ -270,8 +337,15 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline" className="text-xs">
+                            {!appointment.progress_note && (
+                              <AlertTriangle className="h-4 w-4 text-orange-500" />
+                            )}
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${!appointment.progress_note ? 'border-orange-500 text-orange-700' : ''}`}
+                            >
                               {orderId !== 'sin-orden' ? `Sesión ${index + 1}` : 'Consulta'}
+                              {!appointment.progress_note && ' - Pendiente'}
                             </Badge>
                             <span className="text-sm text-muted-foreground">
                               {format(new Date(appointment.appointment_date), 'PPP', { locale: es })}
@@ -318,13 +392,17 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
                         <div className="ml-4">
                           {appointment.progress_note ? (
                             <div className="flex gap-2">
+                              <Badge variant="default" className="bg-green-100 text-green-800 border-green-300">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Evolutivo Cargado
+                              </Badge>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleOpenProgressNoteForm(appointment)}
                               >
                                 <Eye className="h-4 w-4 mr-1" />
-                                Ver Evolutivo
+                                Ver
                               </Button>
                               {canEditProgressNote(appointment) && appointment.progress_note.status === 'draft' && (
                                 <Button
@@ -338,15 +416,22 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
                               )}
                             </div>
                           ) : (
-                            canEditProgressNote(appointment) && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleOpenProgressNoteForm(appointment)}
-                              >
-                                <Plus className="h-4 w-4 mr-1" />
-                                Cargar Evolutivo
-                              </Button>
-                            )
+                            <div className="flex items-center gap-2">
+                              <Badge variant="destructive" className="bg-orange-100 text-orange-800 border-orange-300">
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                Pendiente
+                              </Badge>
+                              {canEditProgressNote(appointment) && (
+                                <Button
+                                  size="sm"
+                                  className="bg-orange-600 hover:bg-orange-700"
+                                  onClick={() => handleOpenProgressNoteForm(appointment)}
+                                >
+                                  <Plus className="h-4 w-4 mr-1" />
+                                  Cargar Evolutivo
+                                </Button>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -383,7 +468,155 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
                   ))}
                 </div>
               </div>
-            ))}
+            ))
+            ) : (
+              // Show simple list view when filtering
+              <div className="space-y-4">
+                {filteredAppointments.map((appointment) => (
+                  <div key={appointment.id} className="border rounded-md p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          {!appointment.progress_note && (
+                            <AlertTriangle className="h-4 w-4 text-orange-500" />
+                          )}
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${!appointment.progress_note ? 'border-orange-500 text-orange-700' : ''}`}
+                          >
+                            {appointment.medical_order ? 
+                              `Sesión ${appointment.medical_order.sessions_used}/${appointment.medical_order.total_sessions}` : 
+                              'Consulta'
+                            }
+                            {!appointment.progress_note && ' - Pendiente'}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {format(new Date(appointment.appointment_date), 'PPP', { locale: es })}
+                          </span>
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">
+                            {appointment.appointment_time}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 mb-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">
+                            Dr. {appointment.doctor.profile.first_name} {appointment.doctor.profile.last_name}
+                          </span>
+                          <Badge 
+                            variant="secondary" 
+                            style={{ backgroundColor: appointment.doctor.specialty.color + '20', color: appointment.doctor.specialty.color }}
+                          >
+                            {appointment.doctor.specialty.name}
+                          </Badge>
+                        </div>
+
+                        {appointment.medical_order && (
+                          <p className="text-sm text-muted-foreground mb-1">
+                            <strong>Orden:</strong> {appointment.medical_order.description}
+                          </p>
+                        )}
+
+                        {appointment.reason && (
+                          <p className="text-sm text-muted-foreground mb-1">
+                            <strong>Motivo:</strong> {appointment.reason}
+                          </p>
+                        )}
+                        
+                        {appointment.diagnosis && (
+                          <p className="text-sm text-muted-foreground mb-1">
+                            <strong>Diagnóstico:</strong> {appointment.diagnosis}
+                          </p>
+                        )}
+
+                        {appointment.treatment_plan && (
+                          <p className="text-sm text-muted-foreground">
+                            <strong>Tratamiento:</strong> {appointment.treatment_plan}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Progress Note Actions */}
+                      <div className="ml-4">
+                        {appointment.progress_note ? (
+                          <div className="flex gap-2">
+                            <Badge variant="default" className="bg-green-100 text-green-800 border-green-300">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Completado
+                            </Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenProgressNoteForm(appointment)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Ver
+                            </Button>
+                            {canEditProgressNote(appointment) && appointment.progress_note.status === 'draft' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenProgressNoteForm(appointment)}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Editar
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="destructive" className="bg-orange-100 text-orange-800 border-orange-300">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              Pendiente
+                            </Badge>
+                            {canEditProgressNote(appointment) && (
+                              <Button
+                                size="sm"
+                                className="bg-orange-600 hover:bg-orange-700"
+                                onClick={() => handleOpenProgressNoteForm(appointment)}
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Cargar Evolutivo
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Progress Note Summary */}
+                    {appointment.progress_note && (
+                      <>
+                        <Separator className="my-3" />
+                        <div className="bg-muted/30 p-3 rounded-md">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              {getProgressNoteTypeIcon(appointment.progress_note.note_type)}
+                              <span className="text-sm font-medium">Evolutivo</span>
+                              <Badge variant={appointment.progress_note.status === 'final' ? 'default' : 'secondary'}>
+                                {appointment.progress_note.status === 'final' ? 'Final' : 'Borrador'}
+                              </Badge>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(appointment.progress_note.created_at), 'PPp', { locale: es })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-3">
+                            {appointment.progress_note.content}
+                          </p>
+                          {appointment.progress_note.attachment_url && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              📎 {appointment.progress_note.attachment_name || 'Archivo adjunto'}
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
