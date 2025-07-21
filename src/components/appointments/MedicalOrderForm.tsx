@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
+  patient_id: z.string().min(1, 'Selecciona un paciente'),
   doctor_name: z.string().min(1, 'Ingresa el nombre del médico que dio la orden'),
   description: z.string().min(1, 'Describe la indicación médica'),
   instructions: z.string().optional(),
@@ -57,6 +58,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      patient_id: selectedPatient || editOrder?.patient_id || '',
       doctor_name: editOrder?.doctor_name || '',
       description: editOrder?.description || '',
       instructions: editOrder?.instructions || '',
@@ -150,18 +152,9 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
     try {
       setLoading(true);
 
-      if (!selectedPatient) {
-        toast({
-          title: "Error",
-          description: "No se ha seleccionado un paciente",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const orderData = {
         doctor_name: values.doctor_name,
-        patient_id: selectedPatient,
+        patient_id: values.patient_id,
         description: values.description,
         instructions: values.instructions || null,
         order_type: 'prescription' as const,
@@ -258,6 +251,36 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
             </p>
           </div>
         )}
+
+        <FormField
+          control={form.control}
+          name="patient_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Paciente</FormLabel>
+              <FormControl>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un paciente..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {patients.map((patient) => (
+                      <SelectItem key={patient.id} value={patient.id}>
+                        {patient.profile.first_name} {patient.profile.last_name}
+                        {patient.profile.dni && (
+                          <span className="ml-2 text-muted-foreground">
+                            DNI: {patient.profile.dni}
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}
