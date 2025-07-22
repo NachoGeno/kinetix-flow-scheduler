@@ -67,6 +67,7 @@ export default function Presentaciones() {
           medical_orders(
             id,
             attachment_url,
+            total_sessions,
             unified_medical_histories(
               id,
               template_data,
@@ -75,8 +76,7 @@ export default function Presentaciones() {
           ),
           appointments(
             id,
-            status,
-            medical_records(id, diagnosis, treatment)
+            status
           )
         `)
         .eq("obra_social_art_id", selectedObraSocial)
@@ -88,18 +88,26 @@ export default function Presentaciones() {
       const transformedData: PatientPresentation[] = data.map(patient => {
         const medicalOrder = patient.medical_orders?.[0];
         const unifiedHistory = medicalOrder?.unified_medical_histories?.[0];
-        const hasSessionEntries = (unifiedHistory?.medical_history_entries?.length || 0) > 0;
+        const totalSessions = medicalOrder?.total_sessions || 0;
+        
+        // Count completed appointments for this medical order
+        const completedAppointments = patient.appointments?.filter(app => 
+          app.status === 'completed'
+        ).length || 0;
+        
+        // Count medical history entries (should match completed appointments)
+        const sessionEntries = unifiedHistory?.medical_history_entries?.length || 0;
+        
+        // Check if final summary exists
         const hasFinalSummary = unifiedHistory?.template_data?.final_summary ? true : false;
         
-        // Check if patient has any medical records from appointments
-        const hasMedicalRecords = (patient.appointments?.some(app => 
-          app.medical_records && app.medical_records.length > 0
-        )) || false;
-        
-        // Patient has clinical evolution if:
-        // 1. Has unified history with session entries AND final summary, OR
-        // 2. Has any medical records from appointments
-        const hasClinicalEvolution = (hasSessionEntries && hasFinalSummary) || hasMedicalRecords;
+        // Clinical evolution is complete if:
+        // 1. All required sessions are completed (completedAppointments === totalSessions)
+        // 2. All sessions have their medical history entries (sessionEntries === completedAppointments)
+        // 3. Final summary has been generated (hasFinalSummary)
+        const allSessionsCompleted = completedAppointments === totalSessions;
+        const allEntriesExist = sessionEntries === completedAppointments;
+        const hasClinicalEvolution = allSessionsCompleted && allEntriesExist && hasFinalSummary;
         
         return {
           patient_id: patient.id,
