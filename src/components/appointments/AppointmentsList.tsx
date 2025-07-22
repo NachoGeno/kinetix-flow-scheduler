@@ -167,7 +167,7 @@ export default function AppointmentsList() {
     }
   };
 
-  const handleMarkAttendance = async (appointmentId: string, status: 'completed' | 'no_show') => {
+  const handleMarkAttendance = async (appointmentId: string, status: 'in_progress' | 'no_show') => {
     try {
       const { error } = await supabase
         .from('appointments')
@@ -177,7 +177,7 @@ export default function AppointmentsList() {
       if (error) throw error;
 
       const statusMessages = {
-        completed: 'Paciente marcado como asistido - Historia habilitada para cerrar',
+        in_progress: 'Paciente marcado como asistido - Historia habilitada para cargar',
         no_show: 'Paciente marcado como no asistió'
       };
 
@@ -311,7 +311,7 @@ export default function AppointmentsList() {
                             variant="outline"
                             size="sm"
                             className="h-8 px-2 text-green-600 hover:text-green-700"
-                            onClick={() => handleMarkAttendance(appointment.id, 'completed')}
+                            onClick={() => handleMarkAttendance(appointment.id, 'in_progress')}
                           >
                             <UserCheck className="h-3 w-3 mr-1" />
                             Asistió

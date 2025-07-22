@@ -103,7 +103,7 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
           )
         `)
         .eq('patient_id', patientId)
-        .eq('status', 'completed')
+        .eq('status', 'in_progress')
         .order('appointment_date', { ascending: false })
         .order('appointment_time', { ascending: false });
 
@@ -178,12 +178,20 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
   const handleCloseAppointment = async (appointmentId: string) => {
     try {
       // Finalizar el evolutivo cambiando el status a 'final'
-      const { error } = await supabase
+      const { error: noteError } = await supabase
         .from('progress_notes')
         .update({ status: 'final' })
         .eq('appointment_id', appointmentId);
 
-      if (error) throw error;
+      if (noteError) throw noteError;
+
+      // Cambiar el status del turno a 'completed'
+      const { error: appointmentError } = await supabase
+        .from('appointments')
+        .update({ status: 'completed' })
+        .eq('id', appointmentId);
+
+      if (appointmentError) throw appointmentError;
 
       toast({
         title: "Éxito",

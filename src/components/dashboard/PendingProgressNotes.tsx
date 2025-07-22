@@ -82,7 +82,7 @@ export default function PendingProgressNotes() {
           progress_notes!left(id)
         `)
         .eq('doctor_id', doctorData.id)
-        .eq('status', 'completed')
+        .eq('status', 'in_progress')
         .is('progress_notes.id', null)
         .order('appointment_date', { ascending: false });
 
