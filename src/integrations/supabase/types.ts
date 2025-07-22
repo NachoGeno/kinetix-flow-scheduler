@@ -710,6 +710,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_final_summary_for_completed_order: {
+        Args: { order_id: string }
+        Returns: boolean
+      }
       get_appointment_stats: {
         Args: { start_date?: string; end_date?: string; doctor_filter?: string }
         Returns: {
