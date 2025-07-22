@@ -511,11 +511,70 @@ export type Database = {
         }
         Relationships: []
       }
+      valores_honorarios: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          fecha_vigencia_desde: string
+          fecha_vigencia_hasta: string | null
+          id: string
+          is_active: boolean
+          updated_at: string
+          valor_por_sesion: number
+        }
+        Insert: {
+          created_at?: string
+          doctor_id: string
+          fecha_vigencia_desde?: string
+          fecha_vigencia_hasta?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          valor_por_sesion?: number
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          fecha_vigencia_desde?: string
+          fecha_vigencia_hasta?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          valor_por_sesion?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      get_appointment_stats: {
+        Args: { start_date?: string; end_date?: string; doctor_filter?: string }
+        Returns: {
+          status: string
+          count: number
+          percentage: number
+        }[]
+      }
+      get_patients_attended_by_month: {
+        Args: { start_date?: string; end_date?: string; doctor_filter?: string }
+        Returns: {
+          year: number
+          month: number
+          month_name: string
+          patients_attended: number
+        }[]
+      }
+      get_patients_by_doctor: {
+        Args: { start_date?: string; end_date?: string }
+        Returns: {
+          doctor_id: string
+          doctor_name: string
+          patients_attended: number
+          percentage: number
+        }[]
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]

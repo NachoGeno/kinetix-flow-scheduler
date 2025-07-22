@@ -13,6 +13,7 @@ import Doctors from "./pages/Doctors";
 import Orders from "./pages/Orders";
 import MedicalRecords from "./pages/MedicalRecords";
 import Configuration from "./pages/Configuration";
+import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -73,6 +74,11 @@ const App = () => (
             <Route path="/configuracion" element={
               <ProtectedRoute>
                 <Configuration />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <ProtectedRoute>
+                <Reports />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
