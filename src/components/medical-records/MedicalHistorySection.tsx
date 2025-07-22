@@ -92,7 +92,7 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
             profile:profiles(first_name, last_name, user_id),
             specialty:specialties(name, color)
           ),
-          progress_notes(
+          progress_notes!progress_notes_appointment_id_fkey(
             id,
             content,
             note_type,
@@ -130,7 +130,9 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
       const combinedData = data?.map(appointment => ({
         ...appointment,
         medical_order: medicalOrdersData.find(order => order.appointment_id === appointment.id),
-        progress_note: appointment.progress_notes?.[0] || null
+        progress_note: Array.isArray(appointment.progress_notes) 
+          ? appointment.progress_notes[0] || null 
+          : appointment.progress_notes || null
       })) || [];
 
       setAttendedAppointments(combinedData);
