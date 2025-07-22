@@ -68,6 +68,7 @@ export default function Presentaciones() {
             id,
             attachment_url,
             total_sessions,
+            completed,
             unified_medical_histories(
               id,
               template_data,
@@ -102,12 +103,10 @@ export default function Presentaciones() {
         const hasFinalSummary = unifiedHistory?.template_data?.final_summary ? true : false;
         
         // Clinical evolution is complete if:
-        // 1. All required sessions are completed (completedAppointments === totalSessions)
-        // 2. All sessions have their medical history entries (sessionEntries === completedAppointments)
-        // 3. Final summary has been generated (hasFinalSummary)
-        const allSessionsCompleted = completedAppointments === totalSessions;
-        const allEntriesExist = sessionEntries === completedAppointments;
-        const hasClinicalEvolution = allSessionsCompleted && allEntriesExist && hasFinalSummary;
+        // 1. Medical order is marked as completed
+        // 2. Final summary has been generated (automatically or manually)
+        const isOrderCompleted = medicalOrder?.completed === true;
+        const hasClinicalEvolution = isOrderCompleted && hasFinalSummary;
         
         return {
           patient_id: patient.id,
