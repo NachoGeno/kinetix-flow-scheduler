@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import AppointmentForm from './AppointmentForm';
+import { useUnifiedMedicalHistory } from '@/hooks/useUnifiedMedicalHistory';
 
 interface Appointment {
   id: string;
@@ -20,13 +21,17 @@ interface Appointment {
   appointment_time: string;
   status: string;
   reason: string;
+  patient_id: string;
+  doctor_id: string;
   patient: {
+    id: string;
     profile: {
       first_name: string;
       last_name: string;
     };
   };
   doctor: {
+    id: string;
     profile: {
       first_name: string;
       last_name: string;
@@ -64,6 +69,7 @@ export default function AppointmentsList() {
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = useState(false);
   const { profile } = useAuth();
   const { toast } = useToast();
+  const { createOrUpdateMedicalHistoryEntry } = useUnifiedMedicalHistory();
 
   useEffect(() => {
     fetchAppointments();
@@ -79,9 +85,11 @@ export default function AppointmentsList() {
         .select(`
           *,
           patient:patients(
+            id,
             profile:profiles(first_name, last_name)
           ),
           doctor:doctors(
+            id,
             profile:profiles(first_name, last_name),
             specialty:specialties(name, color)
           )
@@ -169,6 +177,13 @@ export default function AppointmentsList() {
 
   const handleMarkAttendance = async (appointmentId: string, status: 'in_progress' | 'no_show') => {
     try {
+      // Get the appointment details first
+      const appointment = appointments.find(apt => apt.id === appointmentId);
+      if (!appointment) {
+        throw new Error('Appointment not found');
+      }
+
+      // Update appointment status
       const { error } = await supabase
         .from('appointments')
         .update({ status })
@@ -176,8 +191,32 @@ export default function AppointmentsList() {
 
       if (error) throw error;
 
+      // If marking as attended, create unified medical history entry
+      if (status === 'in_progress') {
+        // Check if there's a medical order for this appointment
+        const { data: medicalOrderData, error: orderError } = await supabase
+          .from('medical_orders')
+          .select('id')
+          .eq('appointment_id', appointmentId)
+          .maybeSingle();
+
+        if (orderError) {
+          console.error('Error fetching medical order:', orderError);
+        }
+
+        // Create medical history entry
+        await createOrUpdateMedicalHistoryEntry(
+          appointmentId,
+          medicalOrderData?.id || null,
+          appointment.patient_id,
+          appointment.doctor_id,
+          `${appointment.doctor.profile.first_name} ${appointment.doctor.profile.last_name}`,
+          appointment.appointment_date
+        );
+      }
+
       const statusMessages = {
-        in_progress: 'Paciente marcado como asistido - Historia habilitada para cargar',
+        in_progress: 'Paciente marcado como asistido - Historia clínica unificada creada',
         no_show: 'Paciente marcado como no asistió'
       };
 

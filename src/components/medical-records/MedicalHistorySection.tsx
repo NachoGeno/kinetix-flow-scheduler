@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, FileText, Edit, Eye, Plus, User, AlertTriangle, CheckCircle, Filter } from 'lucide-react';
+import { Calendar, Clock, FileText, Edit, Eye, Plus, User, AlertTriangle, CheckCircle, Filter, History } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import ProgressNoteForm from './ProgressNoteForm';
+import { UnifiedMedicalHistory } from './UnifiedMedicalHistory';
 
 interface AttendedAppointment {
   id: string;
@@ -292,47 +294,74 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
     <>
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Historia Clínica
-                {pendingCount > 0 && (
-                  <Badge variant="destructive" className="ml-2">
-                    {pendingCount} pendientes
-                  </Badge>
-                )}
-              </CardTitle>
-              <CardDescription>
-                Historial cronológico de turnos asistidos y evolutivos agrupados por orden médica
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={viewFilter} onValueChange={(value: any) => setViewFilter(value)}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="pending">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-orange-500" />
-                      Pendientes
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="completed">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                      Completados
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Historia Clínica
+            {pendingCount > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {pendingCount} pendientes
+              </Badge>
+            )}
+          </CardTitle>
+          <CardDescription>
+            Gestión completa del historial médico del paciente
+          </CardDescription>
         </CardHeader>
         <CardContent>
+          <Tabs defaultValue="unified" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="unified" className="flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Historia Unificada
+              </TabsTrigger>
+              <TabsTrigger value="sessions" className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Sesiones Individuales
+                {pendingCount > 0 && (
+                  <Badge variant="destructive" className="ml-2 text-xs">
+                    {pendingCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="unified" className="mt-6">
+              <UnifiedMedicalHistory patientId={patientId} />
+            </TabsContent>
+            
+            <TabsContent value="sessions" className="mt-6">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-medium">Gestión de Sesiones</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Historial cronológico de turnos asistidos y evolutivos agrupados por orden médica
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <Select value={viewFilter} onValueChange={(value: any) => setViewFilter(value)}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="pending">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-orange-500" />
+                            Pendientes
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="completed">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            Completados
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
           {/* Pending Appointments Alert */}
           {pendingCount > 0 && viewFilter !== 'completed' && (
             <Alert className="mb-6 border-orange-200 bg-orange-50">
@@ -665,6 +694,9 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
               </div>
             )}
           </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 

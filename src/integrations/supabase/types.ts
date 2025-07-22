@@ -149,6 +149,60 @@ export type Database = {
           },
         ]
       }
+      medical_history_entries: {
+        Row: {
+          appointment_date: string
+          appointment_id: string
+          created_at: string
+          evolution: string | null
+          id: string
+          observations: string | null
+          professional_id: string
+          professional_name: string
+          unified_medical_history_id: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_date: string
+          appointment_id: string
+          created_at?: string
+          evolution?: string | null
+          id?: string
+          observations?: string | null
+          professional_id: string
+          professional_name: string
+          unified_medical_history_id: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_date?: string
+          appointment_id?: string
+          created_at?: string
+          evolution?: string | null
+          id?: string
+          observations?: string | null
+          professional_id?: string
+          professional_name?: string
+          unified_medical_history_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_medical_history_entries_appointment"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_medical_history_entries_unified_history"
+            columns: ["unified_medical_history_id"]
+            isOneToOne: false
+            referencedRelation: "unified_medical_histories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medical_orders: {
         Row: {
           appointment_id: string | null
@@ -575,6 +629,48 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      unified_medical_histories: {
+        Row: {
+          created_at: string
+          id: string
+          medical_order_id: string
+          patient_id: string
+          template_data: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          medical_order_id: string
+          patient_id: string
+          template_data?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          medical_order_id?: string
+          patient_id?: string
+          template_data?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_unified_medical_histories_medical_order"
+            columns: ["medical_order_id"]
+            isOneToOne: true
+            referencedRelation: "medical_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_unified_medical_histories_patient"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       valores_honorarios: {
         Row: {
