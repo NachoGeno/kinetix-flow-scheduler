@@ -10,7 +10,8 @@ import {
   BarChart3,
   Settings,
   Heart,
-  Activity
+  Activity,
+  Building2
 } from "lucide-react";
 
 import {
@@ -60,6 +61,13 @@ const navigationItems = [
     url: "/orders",
     icon: FileText,
     description: "Órdenes y prescripciones médicas",
+    roles: ['admin', 'doctor']
+  },
+  {
+    title: "Obras Sociales / ART",
+    url: "/obras-sociales",
+    icon: Building2,
+    description: "Gestión de obras sociales y ART",
     roles: ['admin', 'doctor']
   },
   {

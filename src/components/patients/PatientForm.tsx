@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -6,6 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,9 +24,15 @@ const patientSchema = z.object({
   email: z.string().email('Email inválido'),
   phone: z.string().optional(),
   date_of_birth: z.string().optional(),
-  insurance_provider: z.string().optional(),
+  obra_social_art_id: z.string().optional(),
   insurance_number: z.string().optional(),
 });
+
+interface ObraSocial {
+  id: string;
+  nombre: string;
+  tipo: 'obra_social' | 'art';
+}
 
 type PatientFormData = z.infer<typeof patientSchema>;
 
@@ -30,6 +43,7 @@ interface PatientFormProps {
 
 export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
   const [loading, setLoading] = useState(false);
+  const [obrasSociales, setObrasSociales] = useState<ObraSocial[]>([]);
   const { toast } = useToast();
   const { profile } = useAuth();
 
@@ -42,10 +56,29 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
       email: '',
       phone: '',
       date_of_birth: '',
-      insurance_provider: '',
+      obra_social_art_id: '',
       insurance_number: '',
     },
   });
+
+  useEffect(() => {
+    fetchObrasSociales();
+  }, []);
+
+  const fetchObrasSociales = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('obras_sociales_art')
+        .select('id, nombre, tipo')
+        .eq('is_active', true)
+        .order('nombre');
+
+      if (error) throw error;
+      setObrasSociales(data || []);
+    } catch (error) {
+      console.error('Error fetching obras sociales:', error);
+    }
+  };
 
   const onSubmit = async (data: PatientFormData) => {
     if (!profile || (profile.role !== 'admin' && profile.role !== 'doctor')) {
@@ -140,7 +173,7 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
         .from('patients')
         .insert({
           profile_id: profileData.id,
-          insurance_provider: data.insurance_provider || null,
+          obra_social_art_id: data.obra_social_art_id || null,
           insurance_number: data.insurance_number || null,
         });
 
@@ -259,12 +292,22 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="insurance_provider">Obra Social / ART</Label>
-              <Input
-                id="insurance_provider"
-                {...form.register('insurance_provider')}
+              <Label htmlFor="obra_social_art_id">Obra Social / ART</Label>
+              <Select
+                onValueChange={(value) => form.setValue('obra_social_art_id', value)}
                 disabled={loading}
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una obra social" />
+                </SelectTrigger>
+                <SelectContent>
+                  {obrasSociales.map((obra) => (
+                    <SelectItem key={obra.id} value={obra.id}>
+                      {obra.nombre} ({obra.tipo === 'obra_social' ? 'Obra Social' : 'ART'})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2 md:col-span-2">

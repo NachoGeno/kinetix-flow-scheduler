@@ -11,6 +11,7 @@ import Appointments from "./pages/Appointments";
 import Patients from "./pages/Patients";
 import Doctors from "./pages/Doctors";
 import Orders from "./pages/Orders";
+import ObrasSociales from "./pages/ObrasSociales";
 import MedicalRecords from "./pages/MedicalRecords";
 import Configuration from "./pages/Configuration";
 import Reports from "./pages/Reports";
@@ -64,6 +65,11 @@ const App = () => (
             <Route path="/orders" element={
               <ProtectedRoute>
                 <Orders />
+              </ProtectedRoute>
+            } />
+            <Route path="/obras-sociales" element={
+              <ProtectedRoute>
+                <ObrasSociales />
               </ProtectedRoute>
             } />
             <Route path="/medical-records" element={

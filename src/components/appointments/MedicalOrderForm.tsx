@@ -16,6 +16,7 @@ const formSchema = z.object({
   description: z.string().min(1, 'Describe la indicación médica'),
   instructions: z.string().optional(),
   sessions_count: z.number().min(1, 'Debe tener al menos 1 sesión').max(50, 'Máximo 50 sesiones'),
+  obra_social_art_id: z.string().optional(),
   art_provider: z.string().optional(),
   art_authorization_number: z.string().optional(),
 });
@@ -38,6 +39,17 @@ interface Patient {
     last_name: string;
     dni: string | null;
   };
+  obra_social_art?: {
+    id: string;
+    nombre: string;
+    tipo: string;
+  } | null;
+}
+
+interface ObraSocial {
+  id: string;
+  nombre: string;
+  tipo: 'obra_social' | 'art';
 }
 
 interface MedicalOrderFormProps {
@@ -50,9 +62,11 @@ interface MedicalOrderFormProps {
 export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient, editOrder }: MedicalOrderFormProps) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [obrasSociales, setObrasSociales] = useState<ObraSocial[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedPatientData, setSelectedPatientData] = useState<Patient | null>(null);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -63,6 +77,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
       description: editOrder?.description || '',
       instructions: editOrder?.instructions || '',
       sessions_count: editOrder?.total_sessions || 1,
+      obra_social_art_id: editOrder?.obra_social_art_id || '',
       art_provider: editOrder?.art_provider || '',
       art_authorization_number: editOrder?.art_authorization_number || '',
     },
@@ -70,7 +85,22 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
 
   useEffect(() => {
     fetchPatients();
+    fetchObrasSociales();
   }, []);
+
+  // Watch for patient selection changes
+  const watchedPatientId = form.watch('patient_id');
+  useEffect(() => {
+    if (watchedPatientId) {
+      const patient = patients.find(p => p.id === watchedPatientId);
+      setSelectedPatientData(patient || null);
+      
+      // Auto-fill obra social if patient has one
+      if (patient?.obra_social_art?.id && !form.getValues('obra_social_art_id')) {
+        form.setValue('obra_social_art_id', patient.obra_social_art.id);
+      }
+    }
+  }, [watchedPatientId, patients, form]);
 
   const fetchDoctors = async () => {
     try {
@@ -101,7 +131,8 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
         .from('patients')
         .select(`
           id,
-          profile:profiles(first_name, last_name, dni)
+          profile:profiles(first_name, last_name, dni),
+          obra_social_art:obras_sociales_art(id, nombre, tipo)
         `)
         .order('profile(first_name)', { ascending: true });
 
@@ -114,6 +145,21 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
         description: "No se pudieron cargar los pacientes",
         variant: "destructive",
       });
+    }
+  };
+
+  const fetchObrasSociales = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('obras_sociales_art')
+        .select('id, nombre, tipo')
+        .eq('is_active', true)
+        .order('nombre');
+
+      if (error) throw error;
+      setObrasSociales(data || []);
+    } catch (error) {
+      console.error('Error fetching obras sociales:', error);
     }
   };
 
@@ -160,6 +206,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
         order_type: 'prescription' as const,
         urgent: false,
         completed: editOrder ? editOrder.completed : false,
+        obra_social_art_id: values.obra_social_art_id || null,
         art_provider: values.art_provider || null,
         art_authorization_number: values.art_authorization_number || null,
         total_sessions: values.sessions_count,
@@ -355,13 +402,43 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
 
         <FormField
           control={form.control}
+          name="obra_social_art_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Obra Social / ART</FormLabel>
+              <FormControl>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona una obra social..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {obrasSociales.map((obra) => (
+                      <SelectItem key={obra.id} value={obra.id}>
+                        {obra.nombre} ({obra.tipo === 'obra_social' ? 'Obra Social' : 'ART'})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormControl>
+              <FormMessage />
+              {selectedPatientData?.obra_social_art && (
+                <p className="text-sm text-muted-foreground">
+                  Obra social del paciente: {selectedPatientData.obra_social_art.nombre}
+                </p>
+              )}
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="art_provider"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>ART/Obra Social</FormLabel>
+              <FormLabel>ART/Obra Social (manual)</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="Nombre de la ART o obra social..."
+                  placeholder="Solo si no está en la lista anterior..."
                   {...field}
                 />
               </FormControl>
