@@ -12,13 +12,25 @@ export function useUnifiedMedicalHistory() {
     appointmentDate: string
   ) => {
     try {
-      // Check if medical order exists
+      // For appointments without medical orders, we don't create unified history
       if (!medicalOrderId) {
-        console.log('No medical order found for appointment, skipping unified history creation');
+        console.log('No medical order found for appointment, creating individual entry only');
         return;
       }
 
-      // First, ensure unified medical history exists for this medical order
+      // Get the medical order to ensure it exists and get patient_id
+      const { data: medicalOrder, error: orderError } = await supabase
+        .from('medical_orders')
+        .select('id, patient_id')
+        .eq('id', medicalOrderId)
+        .single();
+
+      if (orderError || !medicalOrder) {
+        console.error('Medical order not found:', orderError);
+        return;
+      }
+
+      // Ensure unified medical history exists for this medical order
       let { data: existingHistory, error: historyError } = await supabase
         .from('unified_medical_histories')
         .select('id')
@@ -30,12 +42,12 @@ export function useUnifiedMedicalHistory() {
       let unifiedHistoryId: string;
 
       if (!existingHistory) {
-        // Create new unified medical history
+        // Create new unified medical history linked to the medical order
         const { data: newHistory, error: createHistoryError } = await supabase
           .from('unified_medical_histories')
           .insert({
             medical_order_id: medicalOrderId,
-            patient_id: patientId,
+            patient_id: medicalOrder.patient_id,
             template_data: {}
           })
           .select('id')
@@ -43,8 +55,10 @@ export function useUnifiedMedicalHistory() {
 
         if (createHistoryError) throw createHistoryError;
         unifiedHistoryId = newHistory.id;
+        console.log('Created new unified medical history for order:', medicalOrderId);
       } else {
         unifiedHistoryId = existingHistory.id;
+        console.log('Using existing unified medical history:', unifiedHistoryId);
       }
 
       // Check if entry already exists for this appointment
@@ -57,7 +71,7 @@ export function useUnifiedMedicalHistory() {
       if (entryCheckError) throw entryCheckError;
 
       if (!existingEntry) {
-        // Create new medical history entry
+        // Create new medical history entry for this session
         const { error: entryError } = await supabase
           .from('medical_history_entries')
           .insert({
@@ -72,9 +86,9 @@ export function useUnifiedMedicalHistory() {
 
         if (entryError) throw entryError;
         
-        console.log('Medical history entry created successfully');
+        console.log('Medical history entry created successfully for appointment:', appointmentId);
       } else {
-        console.log('Medical history entry already exists for this appointment');
+        console.log('Medical history entry already exists for appointment:', appointmentId);
       }
     } catch (error) {
       console.error('Error creating/updating medical history entry:', error);

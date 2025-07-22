@@ -7,15 +7,19 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Calendar, User, FileText, Plus, Edit2, Save, X } from 'lucide-react';
+import { Calendar, User, FileText, Plus, Edit2, Save, X, FileSignature, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { FinalClinicalHistoryForm } from './FinalClinicalHistoryForm';
 
 interface MedicalOrder {
   id: string;
   description: string;
   total_sessions: number;
   sessions_used: number;
+  order_type: string;
+  created_at: string;
+  completed: boolean;
 }
 
 interface MedicalHistoryEntry {
@@ -68,7 +72,10 @@ export function UnifiedMedicalHistory({ patientId }: UnifiedMedicalHistoryProps)
             id,
             description,
             total_sessions,
-            sessions_used
+            sessions_used,
+            order_type,
+            created_at,
+            completed
           )
         `)
         .eq('patient_id', patientId)
@@ -76,21 +83,24 @@ export function UnifiedMedicalHistory({ patientId }: UnifiedMedicalHistoryProps)
 
       if (error) throw error;
 
+      // Filter out histories without valid medical orders
+      const validHistories = (histories || []).filter(h => h.medical_order && typeof h.medical_order === 'object');
+
       // Fetch entries for each history
       const historiesWithEntries = await Promise.all(
-        (histories || []).map(async (history) => {
+        validHistories.map(async (history) => {
           const { data: entries, error: entriesError } = await supabase
             .from('medical_history_entries')
             .select('*')
             .eq('unified_medical_history_id', history.id)
-            .order('appointment_date', { ascending: false });
+            .order('appointment_date', { ascending: true }); // Chronological order
 
           if (entriesError) throw entriesError;
 
           return {
             ...history,
             entries: entries || []
-          };
+          } as UnifiedMedicalHistory;
         })
       );
 
@@ -180,21 +190,41 @@ export function UnifiedMedicalHistory({ patientId }: UnifiedMedicalHistoryProps)
           <Card key={history.id} className="w-full">
             <CardHeader>
               <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <CardTitle className="text-lg">
-                    {history.medical_order.description}
-                  </CardTitle>
-                  <div className="flex items-center gap-4">
-                    <Badge variant="outline">
-                      {history.medical_order.sessions_used} / {history.medical_order.total_sessions} sesiones
-                    </Badge>
-                    <Badge 
-                      variant={progress.remaining === 0 ? "default" : "secondary"}
-                    >
-                      {progress.remaining} sesiones restantes
-                    </Badge>
-                  </div>
-                </div>
+                 <div className="space-y-2">
+                   <CardTitle className="text-lg">
+                     {history.medical_order.description}
+                   </CardTitle>
+                   <div className="flex items-center gap-4">
+                     <Badge variant="outline">
+                       {history.entries.length} / {history.medical_order.total_sessions} sesiones
+                     </Badge>
+                     <Badge 
+                       variant={history.medical_order.completed ? "default" : "secondary"}
+                     >
+                       {history.medical_order.completed ? "Tratamiento completado" : `${Math.max(history.medical_order.total_sessions - history.entries.length, 0)} sesiones restantes`}
+                     </Badge>
+                   </div>
+                 </div>
+                 <div className="flex gap-2">
+                   {history.medical_order.completed ? (
+                     <Badge variant="default" className="gap-1">
+                       <CheckCircle className="h-3 w-3" />
+                       Historia Final Completada
+                     </Badge>
+                   ) : (
+                     <FinalClinicalHistoryForm
+                       medicalOrderId={history.medical_order.id}
+                       patientId={patientId}
+                       onSave={fetchUnifiedMedicalHistories}
+                       trigger={
+                         <Button variant="outline" size="sm" className="gap-1">
+                           <FileSignature className="h-3 w-3" />
+                           Completar Historia Final
+                         </Button>
+                       }
+                     />
+                   )}
+                 </div>
               </div>
             </CardHeader>
 
@@ -228,8 +258,8 @@ export function UnifiedMedicalHistory({ patientId }: UnifiedMedicalHistoryProps)
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">
-                                Sesión {history.entries.length - index}
+                             <Badge variant="outline" className="text-xs">
+                                Sesión {index + 1}
                               </Badge>
                               {editingEntry !== entry.id && (
                                 <Button

@@ -67,10 +67,11 @@ export default function Presentaciones() {
           medical_orders(
             id,
             attachment_url,
-            unified_medical_histories(
-              id,
-              medical_history_entries(id)
-            )
+          unified_medical_histories(
+            id,
+            template_data,
+            medical_history_entries(id)
+          )
           )
         `)
         .eq("obra_social_art_id", selectedObraSocial)
@@ -81,17 +82,19 @@ export default function Presentaciones() {
       // Transform data to include presentation status
       const transformedData: PatientPresentation[] = data.map(patient => {
         const medicalOrder = patient.medical_orders?.[0];
-        const hasEvolution = medicalOrder?.unified_medical_histories?.[0]?.medical_history_entries?.length > 0;
+        const unifiedHistory = medicalOrder?.unified_medical_histories?.[0];
+        const hasSessionEntries = unifiedHistory?.medical_history_entries?.length > 0;
+        const hasFinalSummary = unifiedHistory?.template_data?.final_summary ? true : false;
         
         return {
           patient_id: patient.id,
           patient_name: `${patient.profiles?.first_name} ${patient.profiles?.last_name}`,
           medical_order_id: medicalOrder?.id || "",
           medical_order_attachment: medicalOrder?.attachment_url || null,
-          has_clinical_evolution: hasEvolution || false,
+          has_clinical_evolution: hasSessionEntries && hasFinalSummary,
           has_attendance_file: false, // Will be updated based on storage
           attendance_file_url: null,
-          is_complete: false
+          is_complete: (medicalOrder?.attachment_url ? true : false) && hasSessionEntries && hasFinalSummary
         };
       });
 
