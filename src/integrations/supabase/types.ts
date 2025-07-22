@@ -164,6 +164,7 @@ export type Database = {
           doctor_name: string | null
           id: string
           instructions: string | null
+          obra_social_art_id: string | null
           order_type: Database["public"]["Enums"]["order_type"]
           patient_id: string
           results: string | null
@@ -186,6 +187,7 @@ export type Database = {
           doctor_name?: string | null
           id?: string
           instructions?: string | null
+          obra_social_art_id?: string | null
           order_type: Database["public"]["Enums"]["order_type"]
           patient_id: string
           results?: string | null
@@ -208,6 +210,7 @@ export type Database = {
           doctor_name?: string | null
           id?: string
           instructions?: string | null
+          obra_social_art_id?: string | null
           order_type?: Database["public"]["Enums"]["order_type"]
           patient_id?: string
           results?: string | null
@@ -229,6 +232,13 @@ export type Database = {
             columns: ["doctor_id"]
             isOneToOne: false
             referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_orders_obra_social_art_id_fkey"
+            columns: ["obra_social_art_id"]
+            isOneToOne: false
+            referencedRelation: "obras_sociales_art"
             referencedColumns: ["id"]
           },
           {
@@ -313,6 +323,51 @@ export type Database = {
           },
         ]
       }
+      obras_sociales_art: {
+        Row: {
+          condicion_iva: string | null
+          created_at: string
+          cuit: string | null
+          domicilio: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          nombre: string
+          responsable_contacto: string | null
+          telefono: string | null
+          tipo: Database["public"]["Enums"]["insurance_type"]
+          updated_at: string
+        }
+        Insert: {
+          condicion_iva?: string | null
+          created_at?: string
+          cuit?: string | null
+          domicilio?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          nombre: string
+          responsable_contacto?: string | null
+          telefono?: string | null
+          tipo: Database["public"]["Enums"]["insurance_type"]
+          updated_at?: string
+        }
+        Update: {
+          condicion_iva?: string | null
+          created_at?: string
+          cuit?: string | null
+          domicilio?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          nombre?: string
+          responsable_contacto?: string | null
+          telefono?: string | null
+          tipo?: Database["public"]["Enums"]["insurance_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       patients: {
         Row: {
           allergies: string[] | null
@@ -324,6 +379,7 @@ export type Database = {
           insurance_provider: string | null
           is_active: boolean | null
           medical_record_number: string | null
+          obra_social_art_id: string | null
           profile_id: string
           updated_at: string
         }
@@ -337,6 +393,7 @@ export type Database = {
           insurance_provider?: string | null
           is_active?: boolean | null
           medical_record_number?: string | null
+          obra_social_art_id?: string | null
           profile_id: string
           updated_at?: string
         }
@@ -350,10 +407,18 @@ export type Database = {
           insurance_provider?: string | null
           is_active?: boolean | null
           medical_record_number?: string | null
+          obra_social_art_id?: string | null
           profile_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "patients_obra_social_art_id_fkey"
+            columns: ["obra_social_art_id"]
+            isOneToOne: false
+            referencedRelation: "obras_sociales_art"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "patients_profile_id_fkey"
             columns: ["profile_id"]
@@ -575,6 +640,18 @@ export type Database = {
           percentage: number
         }[]
       }
+      get_stats_by_obra_social: {
+        Args: { start_date?: string; end_date?: string }
+        Returns: {
+          obra_social_id: string
+          obra_social_name: string
+          tipo: Database["public"]["Enums"]["insurance_type"]
+          pacientes_atendidos: number
+          sesiones_realizadas: number
+          ordenes_medicas: number
+          costo_total: number
+        }[]
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
@@ -592,6 +669,7 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "no_show"
+      insurance_type: "obra_social" | "art"
       order_type: "laboratory" | "imaging" | "prescription" | "referral"
       user_role: "admin" | "doctor" | "patient"
     }
@@ -729,6 +807,7 @@ export const Constants = {
         "cancelled",
         "no_show",
       ],
+      insurance_type: ["obra_social", "art"],
       order_type: ["laboratory", "imaging", "prescription", "referral"],
       user_role: ["admin", "doctor", "patient"],
     },
