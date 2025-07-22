@@ -67,11 +67,16 @@ export default function Presentaciones() {
           medical_orders(
             id,
             attachment_url,
-          unified_medical_histories(
+            unified_medical_histories(
+              id,
+              template_data,
+              medical_history_entries(id, observations, evolution)
+            )
+          ),
+          appointments(
             id,
-            template_data,
-            medical_history_entries(id)
-          )
+            status,
+            medical_records(id, diagnosis, treatment)
           )
         `)
         .eq("obra_social_art_id", selectedObraSocial)
@@ -83,18 +88,28 @@ export default function Presentaciones() {
       const transformedData: PatientPresentation[] = data.map(patient => {
         const medicalOrder = patient.medical_orders?.[0];
         const unifiedHistory = medicalOrder?.unified_medical_histories?.[0];
-        const hasSessionEntries = unifiedHistory?.medical_history_entries?.length > 0;
+        const hasSessionEntries = (unifiedHistory?.medical_history_entries?.length || 0) > 0;
         const hasFinalSummary = unifiedHistory?.template_data?.final_summary ? true : false;
+        
+        // Check if patient has any medical records from appointments
+        const hasMedicalRecords = (patient.appointments?.some(app => 
+          app.medical_records && app.medical_records.length > 0
+        )) || false;
+        
+        // Patient has clinical evolution if:
+        // 1. Has unified history with session entries AND final summary, OR
+        // 2. Has any medical records from appointments
+        const hasClinicalEvolution = (hasSessionEntries && hasFinalSummary) || hasMedicalRecords;
         
         return {
           patient_id: patient.id,
           patient_name: `${patient.profiles?.first_name} ${patient.profiles?.last_name}`,
           medical_order_id: medicalOrder?.id || "",
           medical_order_attachment: medicalOrder?.attachment_url || null,
-          has_clinical_evolution: hasSessionEntries && hasFinalSummary,
+          has_clinical_evolution: hasClinicalEvolution,
           has_attendance_file: false, // Will be updated based on storage
           attendance_file_url: null,
-          is_complete: (medicalOrder?.attachment_url ? true : false) && hasSessionEntries && hasFinalSummary
+          is_complete: (medicalOrder?.attachment_url ? true : false) && hasClinicalEvolution
         };
       });
 
