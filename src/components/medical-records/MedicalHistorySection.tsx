@@ -175,6 +175,33 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
     handleCloseProgressNoteForm();
   };
 
+  const handleCloseAppointment = async (appointmentId: string) => {
+    try {
+      // Finalizar el evolutivo cambiando el status a 'final'
+      const { error } = await supabase
+        .from('progress_notes')
+        .update({ status: 'final' })
+        .eq('appointment_id', appointmentId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Éxito",
+        description: "Turno cerrado correctamente. El evolutivo ha sido finalizado.",
+      });
+
+      // Refresh the appointments list
+      fetchAttendedAppointments();
+    } catch (error) {
+      console.error('Error closing appointment:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cerrar el turno",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getProgressNoteTypeIcon = (noteType: string) => {
     switch (noteType) {
       case 'text': return <FileText className="h-4 w-4" />;
@@ -393,7 +420,7 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
                         {/* Progress Note Actions */}
                         <div className="ml-4">
                           {appointment.progress_note ? (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                               <Badge variant="default" className="bg-green-100 text-green-800 border-green-300">
                                 <CheckCircle className="h-3 w-3 mr-1" />
                                 Evolutivo Cargado
@@ -414,6 +441,16 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
                                 >
                                   <Edit className="h-4 w-4 mr-1" />
                                   Editar
+                                </Button>
+                              )}
+                              {canEditProgressNote(appointment) && appointment.progress_note.status === 'draft' && (
+                                <Button
+                                  size="sm"
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                  onClick={() => handleCloseAppointment(appointment.id)}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Cerrar Turno
                                 </Button>
                               )}
                             </div>
