@@ -71,6 +71,13 @@ const navigationItems = [
     roles: ['admin', 'doctor']
   },
   {
+    title: "Presentaciones",
+    url: "/presentaciones",
+    icon: FileText,
+    description: "Documentos para facturación por obra social",
+    roles: ['admin', 'doctor']
+  },
+  {
     title: "Historia Clínica",
     url: "/medical-records",
     icon: ClipboardList,
