@@ -205,11 +205,19 @@ export default function Presentaciones() {
 
   const viewMedicalOrderFile = async (attachmentUrl: string) => {
     try {
+      // El attachmentUrl ya viene con la ruta completa desde la base de datos
       const { data } = supabase.storage
         .from('medical-orders')
         .getPublicUrl(attachmentUrl);
       
-      window.open(data.publicUrl, '_blank');
+      // Verificar que la URL se genere correctamente
+      console.log('Generated URL:', data.publicUrl);
+      
+      if (data.publicUrl) {
+        window.open(data.publicUrl, '_blank');
+      } else {
+        toast.error("No se pudo generar la URL del archivo");
+      }
     } catch (error) {
       console.error("Error viewing medical order file:", error);
       toast.error("Error al abrir el archivo");
