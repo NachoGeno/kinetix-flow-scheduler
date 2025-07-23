@@ -86,7 +86,9 @@ export default function Presentaciones() {
       if (error) throw error;
 
       // Transform data to include presentation status
-      const transformedData: PatientPresentation[] = data.map(patient => {
+      const transformedData: PatientPresentation[] = data
+        .filter(patient => patient.medical_orders && patient.medical_orders.length > 0)
+        .map(patient => {
         const medicalOrder = patient.medical_orders?.[0];
         const unifiedHistory = medicalOrder?.unified_medical_histories?.[0];
         const totalSessions = medicalOrder?.total_sessions || 0;
