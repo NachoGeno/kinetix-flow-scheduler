@@ -102,7 +102,7 @@ export default function Presentaciones() {
 
       console.log("👥 Pacientes con órdenes médicas:", patientsWithOrders.length);
 
-      const transformedData: PatientPresentation[] = patientsWithOrders.map(patient => {
+      const transformedData: PatientPresentation[] = await Promise.all(patientsWithOrders.map(async patient => {
         console.log(`🔍 Procesando paciente: ${patient.profiles?.first_name} ${patient.profiles?.last_name}`);
         const medicalOrder = patient.medical_orders?.[0];
         const unifiedHistory = patient.unified_medical_histories?.[0];
@@ -132,20 +132,43 @@ export default function Presentaciones() {
         
         console.log(`📊 ${patient.profiles?.first_name}: Orden completada=${isOrderCompleted}, Resumen final=${hasFinalSummary}, Evolutivo=${hasClinicalEvolution}`);
 
+        // Check if attendance file exists in storage
+        const attendanceFileName = `attendance/${patient.id}_attendance`;
+        let hasAttendanceFile = false;
+        let attendanceFileUrl = null;
+        
+        try {
+          const { data: files } = await supabase.storage
+            .from('medical-orders')
+            .list('attendance', {
+              search: `${patient.id}_attendance`
+            });
+          
+          if (files && files.length > 0) {
+            hasAttendanceFile = true;
+            const { data } = supabase.storage
+              .from('medical-orders')
+              .getPublicUrl(`attendance/${files[0].name}`);
+            attendanceFileUrl = data.publicUrl;
+          }
+        } catch (error) {
+          console.error('Error checking attendance file:', error);
+        }
+
         const result = {
           patient_id: patient.id,
           patient_name: `${patient.profiles?.first_name} ${patient.profiles?.last_name}`,
           medical_order_id: medicalOrder?.id || "",
           medical_order_attachment: medicalOrder?.attachment_url || null,
           has_clinical_evolution: hasClinicalEvolution,
-          has_attendance_file: false, // Will be updated based on storage
-          attendance_file_url: null,
-          is_complete: (medicalOrder?.attachment_url ? true : false) && hasClinicalEvolution
+          has_attendance_file: hasAttendanceFile,
+          attendance_file_url: attendanceFileUrl,
+          is_complete: (medicalOrder?.attachment_url ? true : false) && hasClinicalEvolution && hasAttendanceFile
         };
 
         console.log(`✅ Resultado para ${patient.profiles?.first_name}:`, result);
         return result;
-      });
+      }));
 
       console.log("🎯 Datos transformados finales:", transformedData);
       return transformedData;
