@@ -58,11 +58,14 @@ export default function Presentaciones() {
     queryFn: async () => {
       if (!selectedObraSocial) return [];
 
+      console.log("🔍 Buscando pacientes para obra social:", selectedObraSocial);
+
       const { data, error } = await supabase
         .from("patients")
         .select(`
           id,
           profile_id,
+          obra_social_art_id,
           profiles(first_name, last_name),
           medical_orders(
             id,
@@ -83,12 +86,25 @@ export default function Presentaciones() {
         .eq("obra_social_art_id", selectedObraSocial)
         .eq("is_active", true);
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Error consultando pacientes:", error);
+        throw error;
+      }
+
+      console.log("📋 Datos obtenidos de la consulta:", data);
 
       // Transform data to include presentation status
-      const transformedData: PatientPresentation[] = data
-        .filter(patient => patient.medical_orders && patient.medical_orders.length > 0)
-        .map(patient => {
+      console.log("🔄 Filtrando pacientes con órdenes médicas...");
+      const patientsWithOrders = data.filter(patient => {
+        const hasOrders = patient.medical_orders && patient.medical_orders.length > 0;
+        console.log(`👤 ${patient.profiles?.first_name} ${patient.profiles?.last_name}: ${hasOrders ? '✅ Tiene órdenes' : '❌ Sin órdenes'}`);
+        return hasOrders;
+      });
+
+      console.log("👥 Pacientes con órdenes médicas:", patientsWithOrders.length);
+
+      const transformedData: PatientPresentation[] = patientsWithOrders.map(patient => {
+        console.log(`🔍 Procesando paciente: ${patient.profiles?.first_name} ${patient.profiles?.last_name}`);
         const medicalOrder = patient.medical_orders?.[0];
         const unifiedHistory = medicalOrder?.unified_medical_histories?.[0];
         const totalSessions = medicalOrder?.total_sessions || 0;
@@ -110,7 +126,9 @@ export default function Presentaciones() {
         const isOrderCompleted = medicalOrder?.completed === true;
         const hasClinicalEvolution = isOrderCompleted && hasFinalSummary;
         
-        return {
+        console.log(`📊 ${patient.profiles?.first_name}: Orden completada=${isOrderCompleted}, Resumen final=${hasFinalSummary}, Evolutivo=${hasClinicalEvolution}`);
+
+        const result = {
           patient_id: patient.id,
           patient_name: `${patient.profiles?.first_name} ${patient.profiles?.last_name}`,
           medical_order_id: medicalOrder?.id || "",
@@ -120,8 +138,12 @@ export default function Presentaciones() {
           attendance_file_url: null,
           is_complete: (medicalOrder?.attachment_url ? true : false) && hasClinicalEvolution
         };
+
+        console.log(`✅ Resultado para ${patient.profiles?.first_name}:`, result);
+        return result;
       });
 
+      console.log("🎯 Datos transformados finales:", transformedData);
       return transformedData;
     },
     enabled: !!selectedObraSocial
