@@ -203,6 +203,19 @@ export default function Presentaciones() {
     toast.success("Presentación marcada como lista para enviar");
   };
 
+  const viewMedicalOrderFile = async (attachmentUrl: string) => {
+    try {
+      const { data } = supabase.storage
+        .from('medical-orders')
+        .getPublicUrl(attachmentUrl);
+      
+      window.open(data.publicUrl, '_blank');
+    } catch (error) {
+      console.error("Error viewing medical order file:", error);
+      toast.error("Error al abrir el archivo");
+    }
+  };
+
   const exportPresentation = async () => {
     // Logic to export complete presentation
     toast.success("Exportando presentación...");
@@ -316,7 +329,12 @@ export default function Presentaciones() {
                         )}
                       </div>
                       {patient.medical_order_attachment ? (
-                        <Button variant="outline" size="sm" className="w-full gap-1">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full gap-1"
+                          onClick={() => viewMedicalOrderFile(patient.medical_order_attachment!)}
+                        >
                           <Download className="h-3 w-3" />
                           Ver escaneado
                         </Button>
