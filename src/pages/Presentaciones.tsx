@@ -67,16 +67,15 @@ export default function Presentaciones() {
           profile_id,
           obra_social_art_id,
           profiles(first_name, last_name),
-          medical_orders(
+          medical_orders!inner(
             id,
             attachment_url,
             total_sessions,
-            completed,
-            unified_medical_histories(
-              id,
-              template_data,
-              medical_history_entries(id, observations, evolution)
-            )
+            completed
+          ),
+          unified_medical_histories!inner(
+            id,
+            template_data
           ),
           appointments(
             id,
@@ -106,7 +105,7 @@ export default function Presentaciones() {
       const transformedData: PatientPresentation[] = patientsWithOrders.map(patient => {
         console.log(`🔍 Procesando paciente: ${patient.profiles?.first_name} ${patient.profiles?.last_name}`);
         const medicalOrder = patient.medical_orders?.[0];
-        const unifiedHistory = medicalOrder?.unified_medical_histories?.[0];
+        const unifiedHistory = patient.unified_medical_histories?.[0];
         const totalSessions = medicalOrder?.total_sessions || 0;
         
         // Count completed appointments for this medical order
@@ -114,11 +113,16 @@ export default function Presentaciones() {
           app.status === 'completed'
         ).length || 0;
         
-        // Count medical history entries (should match completed appointments)
-        const sessionEntries = unifiedHistory?.medical_history_entries?.length || 0;
+        // Check if final summary exists in template_data
+        const templateData = unifiedHistory?.template_data;
+        const hasFinalSummary = templateData && 
+          typeof templateData === 'object' && 
+          'final_summary' in templateData &&
+          templateData.final_summary &&
+          typeof templateData.final_summary === 'object';
         
-        // Check if final summary exists
-        const hasFinalSummary = unifiedHistory?.template_data?.final_summary ? true : false;
+        console.log(`📋 Template data:`, templateData);
+        console.log(`🏁 Final summary exists:`, hasFinalSummary);
         
         // Clinical evolution is complete if:
         // 1. Medical order is marked as completed
