@@ -833,7 +833,7 @@ export type Database = {
         | "no_show"
       insurance_type: "obra_social" | "art"
       order_type: "laboratory" | "imaging" | "prescription" | "referral"
-      user_role: "admin" | "doctor" | "patient"
+      user_role: "admin" | "doctor" | "patient" | "reception"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -971,7 +971,7 @@ export const Constants = {
       ],
       insurance_type: ["obra_social", "art"],
       order_type: ["laboratory", "imaging", "prescription", "referral"],
-      user_role: ["admin", "doctor", "patient"],
+      user_role: ["admin", "doctor", "patient", "reception"],
     },
   },
 } as const
