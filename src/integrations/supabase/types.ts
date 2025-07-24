@@ -714,12 +714,49 @@ export type Database = {
         Args: { order_id: string }
         Returns: boolean
       }
+      get_active_patients_in_treatment: {
+        Args: {
+          start_date?: string
+          end_date?: string
+          obra_social_filter?: string
+        }
+        Returns: {
+          patient_id: string
+          patient_name: string
+          obra_social_name: string
+          active_orders: number
+          last_appointment_date: string
+        }[]
+      }
       get_appointment_stats: {
         Args: { start_date?: string; end_date?: string; doctor_filter?: string }
         Returns: {
           status: string
           count: number
           percentage: number
+        }[]
+      }
+      get_appointments_by_time_slot: {
+        Args: { start_date?: string; end_date?: string; doctor_filter?: string }
+        Returns: {
+          time_slot: string
+          total_appointments: number
+          completed_appointments: number
+          cancelled_appointments: number
+          completion_rate: number
+        }[]
+      }
+      get_new_patients_by_month: {
+        Args: {
+          start_date?: string
+          end_date?: string
+          obra_social_filter?: string
+        }
+        Returns: {
+          year: number
+          month: number
+          month_name: string
+          new_patients: number
         }[]
       }
       get_patients_attended_by_month: {
@@ -738,6 +775,31 @@ export type Database = {
           doctor_name: string
           patients_attended: number
           percentage: number
+        }[]
+      }
+      get_patients_without_closed_history: {
+        Args: {
+          start_date?: string
+          end_date?: string
+          obra_social_filter?: string
+        }
+        Returns: {
+          patient_id: string
+          patient_name: string
+          obra_social_name: string
+          completed_sessions: number
+          has_final_summary: boolean
+        }[]
+      }
+      get_professional_work_hours: {
+        Args: { start_date?: string; end_date?: string; doctor_filter?: string }
+        Returns: {
+          doctor_id: string
+          doctor_name: string
+          specialty_name: string
+          patients_attended: number
+          appointments_completed: number
+          estimated_hours: number
         }[]
       }
       get_stats_by_obra_social: {

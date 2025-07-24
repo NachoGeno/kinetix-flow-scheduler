@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Download, BarChart3, PieChart, Users, TrendingUp, DollarSign } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CalendarIcon, Download, BarChart3, PieChart, Users, TrendingUp, DollarSign, Clock, FileText, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,51 @@ interface AppointmentStats {
   percentage: number;
 }
 
+interface NewPatients {
+  year: number;
+  month: number;
+  month_name: string;
+  new_patients: number;
+}
+
+interface ActivePatients {
+  patient_id: string;
+  patient_name: string;
+  obra_social_name: string;
+  active_orders: number;
+  last_appointment_date: string;
+}
+
+interface PatientsWithoutHistory {
+  patient_id: string;
+  patient_name: string;
+  obra_social_name: string;
+  completed_sessions: number;
+  has_final_summary: boolean;
+}
+
+interface ProfessionalWorkHours {
+  doctor_id: string;
+  doctor_name: string;
+  specialty_name: string;
+  patients_attended: number;
+  appointments_completed: number;
+  estimated_hours: number;
+}
+
+interface AppointmentsByTime {
+  time_slot: string;
+  total_appointments: number;
+  completed_appointments: number;
+  cancelled_appointments: number;
+  completion_rate: number;
+}
+
+interface ObraSocial {
+  id: string;
+  nombre: string;
+}
+
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 const statusTranslations = {
@@ -55,21 +101,35 @@ export default function Reports() {
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [selectedDoctor, setSelectedDoctor] = useState<string>("all");
+  const [selectedObraSocial, setSelectedObraSocial] = useState<string>("all");
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [obrasSociales, setObrasSociales] = useState<ObraSocial[]>([]);
+  
+  // Existing data
   const [patientsByMonth, setPatientsByMonth] = useState<PatientsByMonth[]>([]);
   const [patientsByDoctor, setPatientsByDoctor] = useState<PatientsByDoctor[]>([]);
   const [appointmentStats, setAppointmentStats] = useState<AppointmentStats[]>([]);
+  
+  // New reports data
+  const [newPatients, setNewPatients] = useState<NewPatients[]>([]);
+  const [activePatients, setActivePatients] = useState<ActivePatients[]>([]);
+  const [patientsWithoutHistory, setPatientsWithoutHistory] = useState<PatientsWithoutHistory[]>([]);
+  const [professionalWorkHours, setProfessionalWorkHours] = useState<ProfessionalWorkHours[]>([]);
+  const [appointmentsByTime, setAppointmentsByTime] = useState<AppointmentsByTime[]>([]);
+  const [economicStats, setEconomicStats] = useState<any[]>([]);
+  
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchDoctors();
+    fetchObrasSociales();
     fetchReportsData();
   }, []);
 
   useEffect(() => {
     fetchReportsData();
-  }, [startDate, endDate, selectedDoctor]);
+  }, [startDate, endDate, selectedDoctor, selectedObraSocial]);
 
   const fetchDoctors = async () => {
     try {
@@ -88,13 +148,34 @@ export default function Reports() {
     }
   };
 
+  const fetchObrasSociales = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("obras_sociales_art")
+        .select("id, nombre")
+        .eq("is_active", true)
+        .order("nombre");
+
+      if (error) throw error;
+      setObrasSociales(data || []);
+    } catch (error) {
+      console.error("Error fetching obras sociales:", error);
+    }
+  };
+
   const fetchReportsData = async () => {
     setLoading(true);
     try {
       await Promise.all([
         fetchPatientsByMonth(),
         fetchPatientsByDoctor(),
-        fetchAppointmentStats()
+        fetchAppointmentStats(),
+        fetchNewPatients(),
+        fetchActivePatients(),
+        fetchPatientsWithoutHistory(),
+        fetchProfessionalWorkHours(),
+        fetchAppointmentsByTime(),
+        fetchEconomicStats()
       ]);
     } catch (error) {
       console.error("Error fetching reports data:", error);
@@ -120,6 +201,95 @@ export default function Reports() {
       setPatientsByMonth(data || []);
     } catch (error) {
       console.error("Error fetching patients by month:", error);
+    }
+  };
+
+  const fetchNewPatients = async () => {
+    try {
+      const { data, error } = await supabase.rpc("get_new_patients_by_month", {
+        start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
+        end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
+        obra_social_filter: selectedObraSocial === "all" ? null : selectedObraSocial
+      });
+
+      if (error) throw error;
+      setNewPatients(data || []);
+    } catch (error) {
+      console.error("Error fetching new patients:", error);
+    }
+  };
+
+  const fetchActivePatients = async () => {
+    try {
+      const { data, error } = await supabase.rpc("get_active_patients_in_treatment", {
+        start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
+        end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
+        obra_social_filter: selectedObraSocial === "all" ? null : selectedObraSocial
+      });
+
+      if (error) throw error;
+      setActivePatients(data || []);
+    } catch (error) {
+      console.error("Error fetching active patients:", error);
+    }
+  };
+
+  const fetchPatientsWithoutHistory = async () => {
+    try {
+      const { data, error } = await supabase.rpc("get_patients_without_closed_history", {
+        start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
+        end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
+        obra_social_filter: selectedObraSocial === "all" ? null : selectedObraSocial
+      });
+
+      if (error) throw error;
+      setPatientsWithoutHistory(data || []);
+    } catch (error) {
+      console.error("Error fetching patients without history:", error);
+    }
+  };
+
+  const fetchProfessionalWorkHours = async () => {
+    try {
+      const { data, error } = await supabase.rpc("get_professional_work_hours", {
+        start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
+        end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
+        doctor_filter: selectedDoctor === "all" ? null : selectedDoctor
+      });
+
+      if (error) throw error;
+      setProfessionalWorkHours(data || []);
+    } catch (error) {
+      console.error("Error fetching professional work hours:", error);
+    }
+  };
+
+  const fetchAppointmentsByTime = async () => {
+    try {
+      const { data, error } = await supabase.rpc("get_appointments_by_time_slot", {
+        start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
+        end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
+        doctor_filter: selectedDoctor === "all" ? null : selectedDoctor
+      });
+
+      if (error) throw error;
+      setAppointmentsByTime(data || []);
+    } catch (error) {
+      console.error("Error fetching appointments by time:", error);
+    }
+  };
+
+  const fetchEconomicStats = async () => {
+    try {
+      const { data, error } = await supabase.rpc("get_stats_by_obra_social", {
+        start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
+        end_date: endDate ? format(endDate, "yyyy-MM-dd") : null
+      });
+
+      if (error) throw error;
+      setEconomicStats(data || []);
+    } catch (error) {
+      console.error("Error fetching economic stats:", error);
     }
   };
 
@@ -277,12 +447,30 @@ export default function Reports() {
             </Select>
           </div>
 
+          <div className="flex flex-col space-y-2">
+            <label className="text-sm font-medium">Obra Social</label>
+            <Select value={selectedObraSocial} onValueChange={setSelectedObraSocial}>
+              <SelectTrigger className="w-[280px]">
+                <SelectValue placeholder="Seleccionar obra social" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las obras sociales</SelectItem>
+                {obrasSociales.map((obraSocial) => (
+                  <SelectItem key={obraSocial.id} value={obraSocial.id}>
+                    {obraSocial.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-end">
             <Button 
               onClick={() => {
                 setStartDate(undefined);
                 setEndDate(undefined);
                 setSelectedDoctor("all");
+                setSelectedObraSocial("all");
               }}
               variant="outline"
             >
@@ -293,16 +481,345 @@ export default function Reports() {
       </Card>
 
       {/* Tabs de reportes */}
-      <Tabs defaultValue="patients-month" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="patients-month">Pacientes por Mes</TabsTrigger>
-          <TabsTrigger value="patients-doctor">Por Profesional</TabsTrigger>
-          <TabsTrigger value="appointments-stats">Estadísticas Turnos</TabsTrigger>
-          <TabsTrigger value="costs">Costos</TabsTrigger>
+      <Tabs defaultValue="patients" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="patients">Pacientes</TabsTrigger>
+          <TabsTrigger value="professionals">Profesionales</TabsTrigger>
+          <TabsTrigger value="appointments">Turnos</TabsTrigger>
+          <TabsTrigger value="economic">Económicos</TabsTrigger>
+          <TabsTrigger value="presentations">Presentaciones</TabsTrigger>
         </TabsList>
 
-        {/* Pacientes por mes */}
-        <TabsContent value="patients-month" className="space-y-4">
+        {/* Tab Pacientes */}
+        <TabsContent value="patients" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Pacientes nuevos por mes */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Pacientes Nuevos por Mes
+                  </CardTitle>
+                  <CardDescription>
+                    Cantidad de pacientes registrados cada mes
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={() => exportToCSV(newPatients, 'pacientes-nuevos-por-mes')}
+                  variant="outline" 
+                  size="sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={newPatients.map(item => ({
+                      name: `${item.month_name.trim()} ${item.year}`,
+                      pacientes: item.new_patients
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="pacientes" fill="#10b981" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Pacientes activos en tratamiento */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Pacientes Activos ({activePatients.length})
+                  </CardTitle>
+                  <CardDescription>
+                    Pacientes con órdenes médicas activas
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={() => exportToCSV(activePatients, 'pacientes-activos')}
+                  variant="outline" 
+                  size="sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-[300px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Paciente</TableHead>
+                        <TableHead>Obra Social</TableHead>
+                        <TableHead>Órdenes</TableHead>
+                        <TableHead>Último Turno</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {activePatients.slice(0, 10).map((patient) => (
+                        <TableRow key={patient.patient_id}>
+                          <TableCell className="font-medium">{patient.patient_name}</TableCell>
+                          <TableCell>{patient.obra_social_name || 'Sin obra social'}</TableCell>
+                          <TableCell>{patient.active_orders}</TableCell>
+                          <TableCell>
+                            {patient.last_appointment_date 
+                              ? format(new Date(patient.last_appointment_date), "dd/MM/yyyy")
+                              : 'Sin turnos'
+                            }
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Pacientes sin historia clínica cerrada */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                  Pacientes Sin Historia Clínica Cerrada ({patientsWithoutHistory.length})
+                </CardTitle>
+                <CardDescription>
+                  Pacientes con sesiones completadas que requieren cierre de historia clínica
+                </CardDescription>
+              </div>
+              <Button 
+                onClick={() => exportToCSV(patientsWithoutHistory, 'pacientes-sin-historia-cerrada')}
+                variant="outline" 
+                size="sm"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exportar
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Paciente</TableHead>
+                    <TableHead>Obra Social</TableHead>
+                    <TableHead>Sesiones Completadas</TableHead>
+                    <TableHead>Estado Historia</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {patientsWithoutHistory.map((patient) => (
+                    <TableRow key={patient.patient_id}>
+                      <TableCell className="font-medium">{patient.patient_name}</TableCell>
+                      <TableCell>{patient.obra_social_name || 'Sin obra social'}</TableCell>
+                      <TableCell>{patient.completed_sessions}</TableCell>
+                      <TableCell>
+                        <span className="text-yellow-600 font-medium">
+                          {patient.has_final_summary ? 'Resumen pendiente' : 'Historia pendiente'}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab Profesionales */}
+        <TabsContent value="professionals" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Pacientes atendidos por profesional */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Pacientes por Profesional
+                  </CardTitle>
+                  <CardDescription>
+                    Distribución de pacientes atendidos
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={() => exportToCSV(patientsByDoctor, 'pacientes-por-profesional')}
+                  variant="outline" 
+                  size="sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Tooltip formatter={(value, name) => [`${value} pacientes`, name]} />
+                      <Pie 
+                        dataKey="patients_attended" 
+                        data={patientsByDoctor} 
+                        cx="50%" 
+                        cy="50%" 
+                        outerRadius={80} 
+                        fill="#8884d8" 
+                        label={({ doctor_name, percentage }) => `${doctor_name} (${percentage}%)`}
+                      >
+                        {patientsByDoctor.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Horas trabajadas estimadas */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    Horas Trabajadas Estimadas
+                  </CardTitle>
+                  <CardDescription>
+                    Basado en duración de turnos completados
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={() => exportToCSV(professionalWorkHours, 'horas-trabajadas-profesionales')}
+                  variant="outline" 
+                  size="sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Profesional</TableHead>
+                      <TableHead>Especialidad</TableHead>
+                      <TableHead>Turnos</TableHead>
+                      <TableHead>Horas</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {professionalWorkHours.map((professional) => (
+                      <TableRow key={professional.doctor_id}>
+                        <TableCell className="font-medium">{professional.doctor_name}</TableCell>
+                        <TableCell>{professional.specialty_name}</TableCell>
+                        <TableCell>{professional.appointments_completed}</TableCell>
+                        <TableCell className="font-semibold">{professional.estimated_hours}h</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Tab Turnos */}
+        <TabsContent value="appointments" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Turnos por horario */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    Turnos por Horario
+                  </CardTitle>
+                  <CardDescription>
+                    Distribución de turnos por franja horaria
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={() => exportToCSV(appointmentsByTime, 'turnos-por-horario')}
+                  variant="outline" 
+                  size="sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={appointmentsByTime}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="time_slot" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="total_appointments" fill="#3b82f6" name="Total" />
+                      <Bar dataKey="completed_appointments" fill="#10b981" name="Completados" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Estadísticas de turnos por estado */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <PieChart className="h-5 w-5" />
+                    Estados de Turnos
+                  </CardTitle>
+                  <CardDescription>
+                    Distribución por estado
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={() => exportToCSV(appointmentStats, 'estados-turnos')}
+                  variant="outline" 
+                  size="sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Tooltip formatter={(value, name) => [`${value} turnos`, name]} />
+                      <Pie 
+                        dataKey="count" 
+                        data={appointmentStats.map(stat => ({
+                          ...stat,
+                          name: statusTranslations[stat.status as keyof typeof statusTranslations] || stat.status
+                        }))}
+                        cx="50%" 
+                        cy="50%" 
+                        outerRadius={80} 
+                        fill="#8884d8" 
+                        label={({ name, percentage }) => `${name} (${percentage}%)`}
+                      >
+                        {appointmentStats.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Pacientes atendidos por mes */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -311,11 +828,11 @@ export default function Reports() {
                   Pacientes Atendidos por Mes
                 </CardTitle>
                 <CardDescription>
-                  Cantidad total de pacientes únicos atendidos cada mes
+                  Evolución mensual de pacientes únicos atendidos
                 </CardDescription>
               </div>
               <Button 
-                onClick={() => exportToCSV(patientsByMonth, 'pacientes-por-mes')}
+                onClick={() => exportToCSV(patientsByMonth, 'pacientes-atendidos-por-mes')}
                 variant="outline" 
                 size="sm"
               >
@@ -326,7 +843,10 @@ export default function Reports() {
             <CardContent>
               <div className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartDataBarMonth}>
+                  <BarChart data={patientsByMonth.map(item => ({
+                    name: `${item.month_name.trim()} ${item.year}`,
+                    pacientes: item.patients_attended
+                  }))}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
@@ -339,21 +859,21 @@ export default function Reports() {
           </Card>
         </TabsContent>
 
-        {/* Pacientes por profesional */}
-        <TabsContent value="patients-doctor" className="space-y-4">
+        {/* Tab Económicos */}
+        <TabsContent value="economic" className="space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Pacientes por Profesional
+                  <DollarSign className="h-5 w-5" />
+                  Análisis Económico por Obra Social
                 </CardTitle>
                 <CardDescription>
-                  Distribución de pacientes atendidos por cada profesional
+                  Producción y costos por obra social
                 </CardDescription>
               </div>
               <Button 
-                onClick={() => exportToCSV(patientsByDoctor, 'pacientes-por-profesional')}
+                onClick={() => exportToCSV(economicStats, 'analisis-economico-obras-sociales')}
                 variant="outline" 
                 size="sm"
               >
@@ -362,131 +882,117 @@ export default function Reports() {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="h-[400px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsPieChart>
-                      <Tooltip 
-                        formatter={(value, name) => [`${value} pacientes`, name]}
-                      />
-                      <Pie dataKey="value" data={chartDataPieDoctor} cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
-                        {chartDataPieDoctor.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                    </RechartsPieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Detalles</h3>
-                  <div className="space-y-2">
-                    {patientsByDoctor.map((doctor, index) => (
-                      <div key={doctor.doctor_id} className="flex items-center justify-between p-2 rounded-lg border">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                          />
-                          <span className="font-medium">{doctor.doctor_name}</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold">{doctor.patients_attended} pacientes</div>
-                          <div className="text-sm text-muted-foreground">{doctor.percentage}%</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Obra Social</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Pacientes</TableHead>
+                    <TableHead>Sesiones</TableHead>
+                    <TableHead>Órdenes</TableHead>
+                    <TableHead>Costo Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {economicStats.map((stat) => (
+                    <TableRow key={stat.obra_social_id}>
+                      <TableCell className="font-medium">{stat.obra_social_name}</TableCell>
+                      <TableCell>
+                        <span className={cn(
+                          "px-2 py-1 rounded-full text-xs font-medium",
+                          stat.tipo === 'art' ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
+                        )}>
+                          {stat.tipo?.toUpperCase()}
+                        </span>
+                      </TableCell>
+                      <TableCell>{stat.pacientes_atendidos}</TableCell>
+                      <TableCell>{stat.sesiones_realizadas}</TableCell>
+                      <TableCell>{stat.ordenes_medicas}</TableCell>
+                      <TableCell className="font-semibold">
+                        ${Number(stat.costo_total).toLocaleString('es-AR', { 
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2 
+                        })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        {/* Estadísticas de turnos */}
-        <TabsContent value="appointments-stats" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <PieChart className="h-5 w-5" />
-                  Estadísticas de Turnos
-                </CardTitle>
-                <CardDescription>
-                  Distribución de turnos por estado
-                </CardDescription>
-              </div>
-              <Button 
-                onClick={() => exportToCSV(appointmentStats, 'estadisticas-turnos')}
-                variant="outline" 
-                size="sm"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Exportar
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="h-[400px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsPieChart>
-                      <Tooltip 
-                        formatter={(value, name) => [`${value} turnos`, name]}
-                      />
-                      <Pie dataKey="value" data={chartDataPieStats} cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
-                        {chartDataPieStats.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                    </RechartsPieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Detalles</h3>
-                  <div className="space-y-2">
-                    {appointmentStats.map((stat, index) => (
-                      <div key={stat.status} className="flex items-center justify-between p-2 rounded-lg border">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                          />
-                          <span className="font-medium">
-                            {statusTranslations[stat.status as keyof typeof statusTranslations] || stat.status}
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold">{stat.count} turnos</div>
-                          <div className="text-sm text-muted-foreground">{stat.percentage}%</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Costos */}
-        <TabsContent value="costs" className="space-y-4">
+          {/* Tab Presentaciones */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Gestión de Costos por Profesional
+                <FileText className="h-5 w-5" />
+                Gestión de Presentaciones
               </CardTitle>
               <CardDescription>
-                Configurar valores de honorarios y ver costos mensuales
+                Control de presentaciones a obras sociales - Próximamente
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">
-                  Funcionalidad de costos en desarrollo
+              <div className="text-center py-12">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Módulo de Presentaciones</h3>
+                <p className="text-muted-foreground mb-4">
+                  Esta sección incluirá el seguimiento de presentaciones enviadas, 
+                  pendientes e incompletas para cada obra social.
                 </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Se incluirá gestión de valores de honorarios y cálculo de costos mensuales
+                <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">0</div>
+                    <div className="text-sm text-muted-foreground">Enviadas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600">0</div>
+                    <div className="text-sm text-muted-foreground">Pendientes</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">0</div>
+                    <div className="text-sm text-muted-foreground">Incompletas</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab Presentaciones */}
+        <TabsContent value="presentations" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Gestión de Presentaciones
+              </CardTitle>
+              <CardDescription>
+                Control de presentaciones a obras sociales - Próximamente
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Módulo de Presentaciones</h3>
+                <p className="text-muted-foreground mb-4">
+                  Esta sección incluirá el seguimiento de presentaciones enviadas, 
+                  pendientes e incompletas para cada obra social.
                 </p>
+                <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">0</div>
+                    <div className="text-sm text-muted-foreground">Enviadas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600">0</div>
+                    <div className="text-sm text-muted-foreground">Pendientes</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">0</div>
+                    <div className="text-sm text-muted-foreground">Incompletas</div>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
