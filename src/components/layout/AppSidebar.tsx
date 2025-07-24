@@ -11,7 +11,8 @@ import {
   Settings,
   Heart,
   Activity,
-  Building2
+  Building2,
+  DollarSign
 } from "lucide-react";
 
 import {

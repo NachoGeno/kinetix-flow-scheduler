@@ -19,7 +19,7 @@ interface UserProfile {
   first_name: string;
   last_name: string;
   email: string;
-  role: 'admin' | 'doctor' | 'patient';
+  role: 'admin' | 'doctor' | 'patient' | 'reception';
   phone: string | null;
   created_at: string;
   avatar_url: string | null;
@@ -31,7 +31,7 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [newRole, setNewRole] = useState<'admin' | 'doctor' | 'patient'>('patient');
+  const [newRole, setNewRole] = useState<'admin' | 'doctor' | 'patient' | 'reception'>('patient');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function UserManagement() {
     }
   };
 
-  const updateUserRole = async (userId: string, newRole: 'admin' | 'doctor' | 'patient') => {
+  const updateUserRole = async (userId: string, newRole: 'admin' | 'doctor' | 'patient' | 'reception') => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -133,6 +133,8 @@ export default function UserManagement() {
         return 'Doctor';
       case 'patient':
         return 'Paciente';
+      case 'reception':
+        return 'Recepción';
       default:
         return role;
     }
@@ -250,7 +252,7 @@ export default function UserManagement() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="role">Rol</Label>
-                            <Select value={newRole} onValueChange={(value: 'admin' | 'doctor' | 'patient') => setNewRole(value)}>
+                            <Select value={newRole} onValueChange={(value: 'admin' | 'doctor' | 'patient' | 'reception') => setNewRole(value)}>
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
@@ -258,6 +260,7 @@ export default function UserManagement() {
                                 <SelectItem value="admin">Administrador</SelectItem>
                                 <SelectItem value="doctor">Doctor</SelectItem>
                                 <SelectItem value="patient">Paciente</SelectItem>
+                                <SelectItem value="reception">Recepción</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>

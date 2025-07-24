@@ -77,6 +77,45 @@ export type Database = {
           },
         ]
       }
+      daily_cash_control: {
+        Row: {
+          actual_cash_amount: number | null
+          closed_by: string
+          control_date: string
+          created_at: string
+          difference: number | null
+          expected_cash_amount: number
+          id: string
+          is_closed: boolean
+          observations: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_cash_amount?: number | null
+          closed_by: string
+          control_date?: string
+          created_at?: string
+          difference?: number | null
+          expected_cash_amount?: number
+          id?: string
+          is_closed?: boolean
+          observations?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_cash_amount?: number | null
+          closed_by?: string
+          control_date?: string
+          created_at?: string
+          difference?: number | null
+          expected_cash_amount?: number
+          id?: string
+          is_closed?: boolean
+          observations?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       doctors: {
         Row: {
           appointment_duration: number | null
@@ -482,6 +521,48 @@ export type Database = {
           },
         ]
       }
+      plus_payments: {
+        Row: {
+          amount: number
+          collected_by: string
+          created_at: string
+          id: string
+          medical_order_id: string
+          observations: string | null
+          patient_id: string
+          payment_date: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          professional_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          collected_by: string
+          created_at?: string
+          id?: string
+          medical_order_id: string
+          observations?: string | null
+          patient_id: string
+          payment_date?: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          professional_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          collected_by?: string
+          created_at?: string
+          id?: string
+          medical_order_id?: string
+          observations?: string | null
+          patient_id?: string
+          payment_date?: string
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          professional_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
@@ -710,6 +791,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_plus_payments: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       generate_final_summary_for_completed_order: {
         Args: { order_id: string }
         Returns: boolean
@@ -744,6 +829,16 @@ export type Database = {
           completed_appointments: number
           cancelled_appointments: number
           completion_rate: number
+        }[]
+      }
+      get_daily_plus_stats: {
+        Args: { target_date?: string }
+        Returns: {
+          total_amount: number
+          cash_amount: number
+          transfer_amount: number
+          mercado_pago_amount: number
+          total_payments: number
         }[]
       }
       get_new_patients_by_month: {
@@ -791,6 +886,24 @@ export type Database = {
           has_final_summary: boolean
         }[]
       }
+      get_plus_payments_report: {
+        Args: {
+          start_date?: string
+          end_date?: string
+          professional_filter?: string
+          payment_method_filter?: Database["public"]["Enums"]["payment_method"]
+        }
+        Returns: {
+          payment_id: string
+          patient_name: string
+          professional_name: string
+          obra_social_name: string
+          amount: number
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          payment_date: string
+          observations: string
+        }[]
+      }
       get_professional_work_hours: {
         Args: { start_date?: string; end_date?: string; doctor_filter?: string }
         Returns: {
@@ -833,6 +946,7 @@ export type Database = {
         | "no_show"
       insurance_type: "obra_social" | "art"
       order_type: "laboratory" | "imaging" | "prescription" | "referral"
+      payment_method: "cash" | "transfer" | "mercado_pago"
       user_role: "admin" | "doctor" | "patient" | "reception"
     }
     CompositeTypes: {
@@ -971,6 +1085,7 @@ export const Constants = {
       ],
       insurance_type: ["obra_social", "art"],
       order_type: ["laboratory", "imaging", "prescription", "referral"],
+      payment_method: ["cash", "transfer", "mercado_pago"],
       user_role: ["admin", "doctor", "patient", "reception"],
     },
   },
