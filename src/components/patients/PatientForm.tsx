@@ -20,7 +20,9 @@ import { useAuth } from '@/hooks/useAuth';
 const patientSchema = z.object({
   first_name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   last_name: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
-  dni: z.string().min(7, 'El DNI debe tener al menos 7 caracteres'),
+  dni: z.string()
+    .min(7, 'El DNI debe tener al menos 7 caracteres')
+    .regex(/^\d+$/, 'El DNI solo puede contener números'),
   email: z.string().email('Email inválido'),
   phone: z.string().optional(),
   date_of_birth: z.string().optional(),
@@ -249,6 +251,12 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
                 id="dni"
                 {...form.register('dni')}
                 disabled={loading}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                onInput={(e) => {
+                  const target = e.target as HTMLInputElement;
+                  target.value = target.value.replace(/[^0-9]/g, '');
+                }}
               />
               {form.formState.errors.dni && (
                 <p className="text-sm text-destructive">
