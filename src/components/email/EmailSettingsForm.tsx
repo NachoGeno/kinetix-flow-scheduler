@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ export default function EmailSettingsForm() {
   // Recipients state
   const [recipientEmail, setRecipientEmail] = useState("");
   const [recipientName, setRecipientName] = useState("");
-  const [recipientObra, setRecipientObra] = useState<string | undefined>(undefined);
+  const [recipientObra, setRecipientObra] = useState<string>('global');
   const [recipientType, setRecipientType] = useState<EmailType>("presentation");
   const [recipients, setRecipients] = useState<any[]>([]);
 
@@ -103,7 +103,7 @@ export default function EmailSettingsForm() {
           email: recipientEmail,
           name: recipientName || null,
           email_type: recipientType,
-          obra_social_art_id: recipientObra || null,
+          obra_social_art_id: recipientObra === 'global' ? null : recipientObra,
         })
         .select()
         .single();
@@ -177,7 +177,7 @@ export default function EmailSettingsForm() {
                 <SelectTrigger>
                   <SelectValue placeholder="Tipo de correo" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-popover">
                   <SelectItem value="presentation">Presentaciones</SelectItem>
                   <SelectItem value="social_appointments">Turnos sociales</SelectItem>
                 </SelectContent>
@@ -189,8 +189,8 @@ export default function EmailSettingsForm() {
                 <SelectTrigger>
                   <SelectValue placeholder="Global (todas)" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={"" as any}>Global (todas)</SelectItem>
+                <SelectContent className="z-50 bg-popover">
+                  <SelectItem value="global">Global (todas)</SelectItem>
                   {obras.map((o) => (
                     <SelectItem key={o.id} value={o.id}>{o.nombre} ({o.tipo})</SelectItem>
                   ))}

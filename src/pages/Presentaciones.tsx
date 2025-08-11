@@ -287,7 +287,7 @@ export default function Presentaciones() {
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar obra social" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-popover">
                   {obrasSociales?.map((obra) => (
                     <SelectItem key={obra.id} value={obra.id}>
                       {obra.nombre} ({obra.tipo})
