@@ -10,6 +10,26 @@ export default function Appointments() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div />
+        <Button
+          variant="default"
+          onClick={async () => {
+            try {
+              const today = new Date().toISOString().slice(0, 10);
+              const { error } = await (await import('@/integrations/supabase/client')).supabase.functions.invoke('send-email', {
+                body: { type: 'social_appointments', date_from: today, date_to: today }
+              });
+              if (error) throw error as any;
+              const { toast } = await import('sonner');
+              toast.success('Turnos sociales enviados por email');
+            } catch (e: any) {
+              const { toast } = await import('sonner');
+              toast.error(e.message || 'No se pudo enviar el email');
+            }
+          }}
+        >Enviar turnos sociales (hoy)</Button>
+      </div>
       <Tabs value={view} onValueChange={setView} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="calendar" className="flex items-center gap-2">

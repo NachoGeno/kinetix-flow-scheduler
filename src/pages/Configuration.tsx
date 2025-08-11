@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import UserManagement from '@/components/admin/UserManagement';
 import RoleManagement from '@/components/admin/RoleManagement';
+import EmailSettingsForm from '@/components/email/EmailSettingsForm';
 import { Shield, Users, Settings as SettingsIcon } from 'lucide-react';
 
 export default function Configuration() {
@@ -41,7 +42,7 @@ export default function Configuration() {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Gestión de Usuarios
@@ -49,6 +50,10 @@ export default function Configuration() {
           <TabsTrigger value="roles" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Gestión de Roles
+          </TabsTrigger>
+          <TabsTrigger value="email" className="flex items-center gap-2">
+            <SettingsIcon className="h-4 w-4" />
+            Email
           </TabsTrigger>
         </TabsList>
 
@@ -58,6 +63,11 @@ export default function Configuration() {
 
         <TabsContent value="roles" className="space-y-4">
           <RoleManagement />
+        </TabsContent>
+
+        <TabsContent value="email" className="space-y-4">
+          {/* Email Settings */}
+          <EmailSettingsForm />
         </TabsContent>
       </Tabs>
     </div>

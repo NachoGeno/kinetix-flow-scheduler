@@ -188,6 +188,74 @@ export type Database = {
           },
         ]
       }
+      email_recipients: {
+        Row: {
+          created_at: string
+          email: string
+          email_type: string
+          id: string
+          is_active: boolean
+          name: string | null
+          obra_social_art_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          email_type: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          obra_social_art_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          email_type?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          obra_social_art_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_recipients_obra_social_art_id_fkey"
+            columns: ["obra_social_art_id"]
+            isOneToOne: false
+            referencedRelation: "obras_sociales_art"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_settings: {
+        Row: {
+          created_at: string
+          default_sender_email: string
+          default_sender_name: string
+          id: string
+          reply_to: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_sender_email: string
+          default_sender_name?: string
+          id?: string
+          reply_to?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_sender_email?: string
+          default_sender_name?: string
+          id?: string
+          reply_to?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       medical_history_entries: {
         Row: {
           appointment_date: string

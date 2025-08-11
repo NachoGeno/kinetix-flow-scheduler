@@ -237,10 +237,38 @@ export default function Presentaciones() {
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Presentaciones</h1>
-        <Button onClick={exportPresentation} className="gap-2">
-          <Download className="h-4 w-4" />
-          Exportar Presentación
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={exportPresentation} className="gap-2">
+            <Download className="h-4 w-4" />
+            Exportar Presentación
+          </Button>
+          <Button
+            onClick={async () => {
+              if (!selectedObraSocial) {
+                toast.error('Seleccione una Obra Social/ART');
+                return;
+              }
+              try {
+                const { data, error } = await supabase.functions.invoke('send-email', {
+                  body: {
+                    type: 'presentation',
+                    obra_social_id: selectedObraSocial,
+                    items: filteredPresentations,
+                  }
+                });
+                if (error) throw error as any;
+                toast.success('Presentación enviada por email');
+              } catch (e: any) {
+                toast.error(e.message || 'No se pudo enviar el email');
+              }
+            }}
+            className="gap-2"
+            disabled={!filteredPresentations.length}
+          >
+            <Send className="h-4 w-4" />
+            Enviar por email
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
