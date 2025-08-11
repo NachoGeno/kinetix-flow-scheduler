@@ -335,9 +335,9 @@ export default function AppointmentCalendar() {
                             {slot.appointments.map((appointment, index) => (
                               <div 
                                 key={appointment.id}
-                                className="flex items-center text-xs p-2 bg-white rounded border"
+                                className="flex items-center text-xs p-2 bg-card rounded border"
                               >
-                                <User className="h-3 w-3 mr-1 text-blue-600" />
+                                <User className="h-3 w-3 mr-1 text-primary" />
                                 <span className="flex-1 truncate">
                                   {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
                                 </span>

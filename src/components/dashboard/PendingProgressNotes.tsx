@@ -60,7 +60,7 @@ export default function PendingProgressNotes() {
         .from('doctors')
         .select('id')
         .eq('profile_id', profile?.id)
-        .single();
+        .maybeSingle();
 
       if (doctorError || !doctorData) {
         console.error('Error fetching doctor data:', doctorError);

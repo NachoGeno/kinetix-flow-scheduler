@@ -109,7 +109,7 @@ export default function Orders() {
           .from('doctors')
           .select('id')
           .eq('profile_id', profile.id)
-          .single();
+          .maybeSingle();
         
         if (doctorData) {
           query = query.eq('doctor_id', doctorData.id);

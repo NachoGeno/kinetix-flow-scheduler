@@ -77,13 +77,13 @@ export function RecentActivity() {
               .from('patients')
               .select('profiles!inner(first_name, last_name)')
               .eq('id', apt.patient_id)
-              .single();
+              .maybeSingle();
 
             const { data: doctor } = await supabase
               .from('doctors')
               .select('profiles!inner(first_name, last_name)')
               .eq('id', apt.doctor_id)
-              .single();
+              .maybeSingle();
 
             const patientName = patient?.profiles ? `${patient.profiles.first_name} ${patient.profiles.last_name}` : 'Paciente';
             const doctorName = doctor?.profiles ? `${doctor.profiles.first_name} ${doctor.profiles.last_name}` : 'Doctor';
@@ -148,7 +148,7 @@ export function RecentActivity() {
               .from('patients')
               .select('profiles!inner(first_name, last_name)')
               .eq('id', order.patient_id)
-              .single();
+              .maybeSingle();
 
             const patientName = patient?.profiles ? `${patient.profiles.first_name} ${patient.profiles.last_name}` : 'Paciente';
             

@@ -155,7 +155,7 @@ export function FinalClinicalHistoryForm({
         .from('unified_medical_histories')
         .select('template_data')
         .eq('medical_order_id', medicalOrderId)
-        .single();
+        .maybeSingle();
 
       if (!existingHistoryError && existingHistory?.template_data) {
         const templateData = existingHistory.template_data as any;

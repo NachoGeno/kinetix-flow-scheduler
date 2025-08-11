@@ -103,7 +103,7 @@ export default function AppointmentsList() {
           .from('patients')
           .select('id')
           .eq('profile_id', profile.id)
-          .single();
+          .maybeSingle();
         
         if (patientData) {
           query = query.eq('patient_id', patientData.id);
@@ -113,7 +113,7 @@ export default function AppointmentsList() {
           .from('doctors')
           .select('id')
           .eq('profile_id', profile.id)
-          .single();
+          .maybeSingle();
         
         if (doctorData) {
           query = query.eq('doctor_id', doctorData.id);
