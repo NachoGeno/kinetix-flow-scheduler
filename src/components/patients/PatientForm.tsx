@@ -23,7 +23,7 @@ const patientSchema = z.object({
   dni: z.string()
     .min(7, 'El DNI debe tener al menos 7 caracteres')
     .regex(/^\d+$/, 'El DNI solo puede contener números'),
-  email: z.string().email('Email inválido'),
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
   phone: z.string().optional(),
   date_of_birth: z.string().optional(),
   obra_social_art_id: z.string().optional(),
@@ -266,7 +266,7 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
