@@ -983,6 +983,10 @@ export type Database = {
           total_appointments: number
         }[]
       }
+      get_current_user_profile_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_daily_plus_stats: {
         Args: { target_date?: string }
         Returns: {
