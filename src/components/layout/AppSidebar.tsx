@@ -12,7 +12,8 @@ import {
   Heart,
   Activity,
   Building2,
-  DollarSign
+  DollarSign,
+  MessageCircle
 } from "lucide-react";
 
 import {
@@ -84,6 +85,13 @@ const navigationItems = [
     icon: ClipboardList,
     description: "Historiales clínicos",
     roles: ['admin', 'doctor', 'patient']
+  },
+  {
+    title: "Novedades",
+    url: "/novedades",
+    icon: MessageCircle,
+    description: "Comunicación interna del equipo",
+    roles: ['admin', 'doctor', 'reception']
   },
   {
     title: "Reportes",

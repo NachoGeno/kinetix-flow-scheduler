@@ -15,6 +15,7 @@ import ObrasSociales from "./pages/ObrasSociales";
 import Presentaciones from "./pages/Presentaciones";
 import PlusPayments from "./pages/PlusPayments";
 import MedicalRecords from "./pages/MedicalRecords";
+import Novedades from "./pages/Novedades";
 import Configuration from "./pages/Configuration";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
@@ -87,6 +88,11 @@ const App = () => (
             <Route path="/medical-records" element={
               <ProtectedRoute>
                 <MedicalRecords />
+              </ProtectedRoute>
+            } />
+            <Route path="/novedades" element={
+              <ProtectedRoute>
+                <Novedades />
               </ProtectedRoute>
             } />
             <Route path="/configuracion" element={

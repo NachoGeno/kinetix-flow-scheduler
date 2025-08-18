@@ -502,6 +502,42 @@ export type Database = {
           },
         ]
       }
+      novedades: {
+        Row: {
+          autor_id: string
+          categoria: Database["public"]["Enums"]["news_category"] | null
+          contenido: string
+          created_at: string
+          fecha: string
+          id: string
+          turno: Database["public"]["Enums"]["shift_type"]
+          updated_at: string
+          urgente: boolean | null
+        }
+        Insert: {
+          autor_id: string
+          categoria?: Database["public"]["Enums"]["news_category"] | null
+          contenido: string
+          created_at?: string
+          fecha?: string
+          id?: string
+          turno?: Database["public"]["Enums"]["shift_type"]
+          updated_at?: string
+          urgente?: boolean | null
+        }
+        Update: {
+          autor_id?: string
+          categoria?: Database["public"]["Enums"]["news_category"] | null
+          contenido?: string
+          created_at?: string
+          fecha?: string
+          id?: string
+          turno?: Database["public"]["Enums"]["shift_type"]
+          updated_at?: string
+          urgente?: boolean | null
+        }
+        Relationships: []
+      }
       obras_sociales_art: {
         Row: {
           condicion_iva: string | null
@@ -1063,8 +1099,10 @@ export type Database = {
         | "no_show_rescheduled"
         | "no_show_session_lost"
       insurance_type: "obra_social" | "art"
+      news_category: "tecnica" | "administrativa" | "medica" | "urgente"
       order_type: "laboratory" | "imaging" | "prescription" | "referral"
       payment_method: "cash" | "transfer" | "mercado_pago"
+      shift_type: "mañana" | "tarde" | "completo"
       user_role: "admin" | "doctor" | "patient" | "reception"
     }
     CompositeTypes: {
@@ -1204,8 +1242,10 @@ export const Constants = {
         "no_show_session_lost",
       ],
       insurance_type: ["obra_social", "art"],
+      news_category: ["tecnica", "administrativa", "medica", "urgente"],
       order_type: ["laboratory", "imaging", "prescription", "referral"],
       payment_method: ["cash", "transfer", "mercado_pago"],
+      shift_type: ["mañana", "tarde", "completo"],
       user_role: ["admin", "doctor", "patient", "reception"],
     },
   },
