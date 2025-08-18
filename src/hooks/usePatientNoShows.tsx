@@ -18,7 +18,8 @@ export function usePatientNoShows(patientId: string | null) {
           .from('appointments')
           .select('id')
           .eq('patient_id', patientId)
-          .in('status', ['no_show', 'no_show_rescheduled', 'no_show_session_lost']);
+          .in('status', ['no_show', 'no_show_rescheduled', 'no_show_session_lost'])
+          .is('pardoned_by', null); // Only count non-pardoned no-shows
 
         if (error) {
           console.error('Error fetching no-show count:', error);
@@ -56,7 +57,8 @@ export function usePatientNoShowsMultiple(patientIds: string[]) {
           .from('appointments')
           .select('patient_id')
           .in('patient_id', patientIds)
-          .in('status', ['no_show', 'no_show_rescheduled', 'no_show_session_lost']);
+          .in('status', ['no_show', 'no_show_rescheduled', 'no_show_session_lost'])
+          .is('pardoned_by', null); // Only count non-pardoned no-shows
 
         if (error) {
           console.error('Error fetching no-show counts:', error);

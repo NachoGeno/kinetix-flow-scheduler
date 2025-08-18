@@ -16,7 +16,9 @@ import AppointmentForm from './AppointmentForm';
 import { useUnifiedMedicalHistory } from '@/hooks/useUnifiedMedicalHistory';
 import NoShowOptionsDialog from './NoShowOptionsDialog';
 import PatientNoShowAlert from './PatientNoShowAlert';
+import ResetNoShowDialog from './ResetNoShowDialog';
 import { usePatientNoShowsMultiple } from '@/hooks/usePatientNoShows';
+import { usePatientNoShowResets } from '@/hooks/usePatientNoShowResets';
 
 interface Appointment {
   id: string;
@@ -77,7 +79,9 @@ export default function AppointmentsList() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = useState(false);
   const [noShowDialogOpen, setNoShowDialogOpen] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [selectedPatientForReset, setSelectedPatientForReset] = useState<{id: string, name: string, noShowCount: number} | null>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
   const { createOrUpdateMedicalHistoryEntry } = useUnifiedMedicalHistory();
@@ -85,6 +89,9 @@ export default function AppointmentsList() {
   // Get unique patient IDs for no-show tracking
   const patientIds = appointments.map(apt => apt.patient_id);
   const { noShowCounts } = usePatientNoShowsMultiple(patientIds);
+
+  // Check if user can reset no-shows
+  const canResetNoShows = profile?.role === 'admin' || profile?.role === 'reception';
 
   useEffect(() => {
     fetchAppointments();
@@ -246,6 +253,16 @@ export default function AppointmentsList() {
   const handleNoShow = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setNoShowDialogOpen(true);
+  };
+
+  const handleResetNoShows = (patientId: string, patientName: string, noShowCount: number) => {
+    setSelectedPatientForReset({ id: patientId, name: patientName, noShowCount });
+    setResetDialogOpen(true);
+  };
+
+  const handleResetSuccess = () => {
+    // Refresh appointments and no-show counts
+    fetchAppointments();
   };
 
   const handleNoShowConfirm = async (option: 'reschedule' | 'session_lost', reason?: string) => {
@@ -418,7 +435,10 @@ export default function AppointmentsList() {
                   <PatientNoShowAlert 
                     noShowCount={patientNoShowCount}
                     patientName={patientName}
+                    patientId={appointment.patient_id}
                     variant="default"
+                    canReset={canResetNoShows}
+                    onResetClick={() => handleResetNoShows(appointment.patient_id, patientName, patientNoShowCount)}
                   />
                 </div>
               )}
@@ -434,6 +454,7 @@ export default function AppointmentsList() {
                         <PatientNoShowAlert 
                           noShowCount={patientNoShowCount}
                           patientName={patientName}
+                          patientId={appointment.patient_id}
                           variant="compact"
                         />
                       )}
@@ -565,6 +586,19 @@ export default function AppointmentsList() {
         }}
         onConfirm={handleNoShowConfirm}
         patientName={selectedAppointment ? `${selectedAppointment.patient.profile.first_name} ${selectedAppointment.patient.profile.last_name}` : ''}
+      />
+
+      {/* Reset No Show Dialog */}
+      <ResetNoShowDialog
+        open={resetDialogOpen}
+        onClose={() => {
+          setResetDialogOpen(false);
+          setSelectedPatientForReset(null);
+        }}
+        onSuccess={handleResetSuccess}
+        patientId={selectedPatientForReset?.id || ''}
+        patientName={selectedPatientForReset?.name || ''}
+        currentNoShowCount={selectedPatientForReset?.noShowCount || 0}
       />
     </div>
   );

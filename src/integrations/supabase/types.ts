@@ -25,6 +25,9 @@ export type Database = {
           id: string
           no_show_reason: string | null
           notes: string | null
+          pardon_reason: string | null
+          pardoned_at: string | null
+          pardoned_by: string | null
           patient_id: string
           reason: string | null
           session_deducted: boolean | null
@@ -42,6 +45,9 @@ export type Database = {
           id?: string
           no_show_reason?: string | null
           notes?: string | null
+          pardon_reason?: string | null
+          pardoned_at?: string | null
+          pardoned_by?: string | null
           patient_id: string
           reason?: string | null
           session_deducted?: boolean | null
@@ -59,6 +65,9 @@ export type Database = {
           id?: string
           no_show_reason?: string | null
           notes?: string | null
+          pardon_reason?: string | null
+          pardoned_at?: string | null
+          pardoned_by?: string | null
           patient_id?: string
           reason?: string | null
           session_deducted?: boolean | null
@@ -532,6 +541,36 @@ export type Database = {
           telefono?: string | null
           tipo?: Database["public"]["Enums"]["insurance_type"]
           updated_at?: string
+        }
+        Relationships: []
+      }
+      patient_noshow_resets: {
+        Row: {
+          appointments_affected: number
+          created_at: string
+          id: string
+          patient_id: string
+          reason: string | null
+          reset_by: string
+          reset_date: string
+        }
+        Insert: {
+          appointments_affected?: number
+          created_at?: string
+          id?: string
+          patient_id: string
+          reason?: string | null
+          reset_by: string
+          reset_date?: string
+        }
+        Update: {
+          appointments_affected?: number
+          created_at?: string
+          id?: string
+          patient_id?: string
+          reason?: string | null
+          reset_by?: string
+          reset_date?: string
         }
         Relationships: []
       }
