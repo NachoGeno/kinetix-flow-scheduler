@@ -75,7 +75,7 @@ export function NovedadesForm({ open, onOpenChange, onSuccess }: NovedadesFormPr
   };
 
   const onSubmit = async (data: NovedadFormValues) => {
-    if (!profile?.id) {
+    if (!profile?.user_id) {
       toast({
         title: "Error",
         description: "No se pudo identificar el usuario",
@@ -95,7 +95,7 @@ export function NovedadesForm({ open, onOpenChange, onSuccess }: NovedadesFormPr
           turno: data.turno,
           categoria: data.categoria,
           urgente: data.urgente,
-          autor_id: profile.id,
+          autor_id: profile.user_id, // Usar user_id en lugar de profile.id
         });
 
       if (error) throw error;
