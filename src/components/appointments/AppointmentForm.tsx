@@ -469,9 +469,10 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           .select('id, total_sessions, sessions_used, completed')
           .eq('id', medicalOrderId)
           .eq('patient_id', values.patient_id)
-          .single();
+          .maybeSingle();
 
         if (orderError) {
+          console.error('Error al verificar orden médica:', orderError);
           toast({
             title: "Error",
             description: "No se pudo verificar la orden médica.",
@@ -483,7 +484,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         if (!currentOrder) {
           toast({
             title: "Error",
-            description: "La orden médica seleccionada no es válida.",
+            description: "La orden médica seleccionada no existe o no pertenece a este paciente.",
             variant: "destructive",
           });
           return;
