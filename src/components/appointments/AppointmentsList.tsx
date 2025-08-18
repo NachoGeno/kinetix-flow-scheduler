@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import AppointmentForm from './AppointmentForm';
 import { useUnifiedMedicalHistory } from '@/hooks/useUnifiedMedicalHistory';
+import NoShowOptionsDialog from './NoShowOptionsDialog';
 
 interface Appointment {
   id: string;
@@ -23,6 +24,8 @@ interface Appointment {
   reason: string;
   patient_id: string;
   doctor_id: string;
+  no_show_reason?: string;
+  session_deducted?: boolean;
   patient: {
     id: string;
     profile: {
@@ -50,6 +53,8 @@ const statusColors = {
   completed: 'bg-purple-100 text-purple-800',
   cancelled: 'bg-red-100 text-red-800',
   no_show: 'bg-gray-100 text-gray-800',
+  no_show_rescheduled: 'bg-orange-100 text-orange-800',
+  no_show_session_lost: 'bg-red-100 text-red-800',
 };
 
 const statusLabels = {
@@ -59,6 +64,8 @@ const statusLabels = {
   completed: 'Completada',
   cancelled: 'Cancelada',
   no_show: 'No Asistió',
+  no_show_rescheduled: 'No Asistió - Reprogramado',
+  no_show_session_lost: 'No Asistió - Sesión Descontada',
 };
 
 export default function AppointmentsList() {
@@ -67,6 +74,8 @@ export default function AppointmentsList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = useState(false);
+  const [noShowDialogOpen, setNoShowDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
   const { createOrUpdateMedicalHistoryEntry } = useUnifiedMedicalHistory();
@@ -175,7 +184,7 @@ export default function AppointmentsList() {
     }
   };
 
-  const handleMarkAttendance = async (appointmentId: string, status: 'in_progress' | 'no_show') => {
+  const handleMarkAttendance = async (appointmentId: string, status: 'in_progress') => {
     try {
       // Get the appointment details first
       const appointment = appointments.find(apt => apt.id === appointmentId);
@@ -191,38 +200,30 @@ export default function AppointmentsList() {
 
       if (error) throw error;
 
-      // If marking as attended, create unified medical history entry
-      if (status === 'in_progress') {
-        // Check if there's a medical order for this appointment
-        const { data: medicalOrderData, error: orderError } = await supabase
-          .from('medical_orders')
-          .select('id')
-          .eq('appointment_id', appointmentId)
-          .maybeSingle();
+      // Check if there's a medical order for this appointment
+      const { data: medicalOrderData, error: orderError } = await supabase
+        .from('medical_orders')
+        .select('id')
+        .eq('appointment_id', appointmentId)
+        .maybeSingle();
 
-        if (orderError) {
-          console.error('Error fetching medical order:', orderError);
-        }
-
-        // Create medical history entry
-        await createOrUpdateMedicalHistoryEntry(
-          appointmentId,
-          medicalOrderData?.id || null,
-          appointment.patient_id,
-          appointment.doctor_id,
-          `${appointment.doctor.profile.first_name} ${appointment.doctor.profile.last_name}`,
-          appointment.appointment_date
-        );
+      if (orderError) {
+        console.error('Error fetching medical order:', orderError);
       }
 
-      const statusMessages = {
-        in_progress: 'Paciente marcado como asistido - Historia clínica unificada creada',
-        no_show: 'Paciente marcado como no asistió'
-      };
+      // Create medical history entry
+      await createOrUpdateMedicalHistoryEntry(
+        appointmentId,
+        medicalOrderData?.id || null,
+        appointment.patient_id,
+        appointment.doctor_id,
+        `${appointment.doctor.profile.first_name} ${appointment.doctor.profile.last_name}`,
+        appointment.appointment_date
+      );
 
       toast({
         title: "Éxito",
-        description: statusMessages[status],
+        description: 'Paciente marcado como asistido - Historia clínica unificada creada',
       });
 
       fetchAppointments();
@@ -231,6 +232,84 @@ export default function AppointmentsList() {
       toast({
         title: "Error",
         description: "No se pudo actualizar el estado de la cita",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleNoShow = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setNoShowDialogOpen(true);
+  };
+
+  const handleNoShowConfirm = async (option: 'reschedule' | 'session_lost', reason?: string) => {
+    if (!selectedAppointment) return;
+
+    try {
+      const newStatus = option === 'reschedule' ? 'no_show_rescheduled' : 'no_show_session_lost';
+      const sessionDeducted = option === 'session_lost';
+
+      // Update appointment status
+      const { error } = await supabase
+        .from('appointments')
+        .update({ 
+          status: newStatus,
+          no_show_reason: reason,
+          session_deducted: sessionDeducted
+        })
+        .eq('id', selectedAppointment.id);
+
+      if (error) throw error;
+
+      // If session is to be deducted, update medical order
+      if (sessionDeducted) {
+        // Find the medical order for this patient
+        const { data: medicalOrderData, error: orderError } = await supabase
+          .from('medical_orders')
+          .select('id, sessions_used, total_sessions')
+          .eq('patient_id', selectedAppointment.patient_id)
+          .eq('completed', false)
+          .order('created_at', { ascending: false })
+          .maybeSingle();
+
+        if (orderError) {
+          console.error('Error fetching medical order:', orderError);
+        } else if (medicalOrderData) {
+          // Increment sessions_used
+          const newSessionsUsed = medicalOrderData.sessions_used + 1;
+          const isCompleted = newSessionsUsed >= medicalOrderData.total_sessions;
+
+          const { error: updateError } = await supabase
+            .from('medical_orders')
+            .update({ 
+              sessions_used: newSessionsUsed,
+              completed: isCompleted,
+              completed_at: isCompleted ? new Date().toISOString() : null
+            })
+            .eq('id', medicalOrderData.id);
+
+          if (updateError) {
+            console.error('Error updating medical order:', updateError);
+          }
+        }
+      }
+
+      const optionMessages = {
+        reschedule: 'Turno marcado como no asistido - Reprogramado (sesión no descontada)',
+        session_lost: 'Turno marcado como no asistido - Sesión descontada de la orden médica'
+      };
+
+      toast({
+        title: "Éxito",
+        description: optionMessages[option],
+      });
+
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error handling no-show:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo procesar la inasistencia",
         variant: "destructive",
       });
     }
@@ -305,6 +384,8 @@ export default function AppointmentsList() {
             <SelectItem value="completed">Completada</SelectItem>
             <SelectItem value="cancelled">Cancelada</SelectItem>
             <SelectItem value="no_show">No Asistió</SelectItem>
+            <SelectItem value="no_show_rescheduled">No Asistió - Reprogramado</SelectItem>
+            <SelectItem value="no_show_session_lost">No Asistió - Sesión Descontada</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -355,15 +436,15 @@ export default function AppointmentsList() {
                             <UserCheck className="h-3 w-3 mr-1" />
                             Asistió
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 px-2 text-gray-600 hover:text-gray-700"
-                            onClick={() => handleMarkAttendance(appointment.id, 'no_show')}
-                          >
-                            <UserX className="h-3 w-3 mr-1" />
-                            No asistió
-                          </Button>
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             className="h-8 px-2 text-gray-600 hover:text-gray-700"
+                             onClick={() => handleNoShow(appointment)}
+                           >
+                             <UserX className="h-3 w-3 mr-1" />
+                             No asistió
+                           </Button>
                         </>
                       )}
                       
@@ -426,16 +507,37 @@ export default function AppointmentsList() {
                     </span>
                   </div>
                 </div>
-                {appointment.reason && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    <strong>Motivo:</strong> {appointment.reason}
-                  </p>
-                )}
+                 {appointment.reason && (
+                   <p className="text-sm text-muted-foreground mt-2">
+                     <strong>Motivo:</strong> {appointment.reason}
+                   </p>
+                 )}
+                 {appointment.no_show_reason && (
+                   <p className="text-sm text-muted-foreground mt-2">
+                     <strong>Observaciones de inasistencia:</strong> {appointment.no_show_reason}
+                   </p>
+                 )}
+                 {appointment.session_deducted && (
+                   <p className="text-sm text-red-600 mt-2">
+                     <strong>Sesión descontada de la orden médica</strong>
+                   </p>
+                 )}
               </CardContent>
             </Card>
           ))
         )}
       </div>
+
+      {/* No Show Options Dialog */}
+      <NoShowOptionsDialog
+        open={noShowDialogOpen}
+        onClose={() => {
+          setNoShowDialogOpen(false);
+          setSelectedAppointment(null);
+        }}
+        onConfirm={handleNoShowConfirm}
+        patientName={selectedAppointment ? `${selectedAppointment.patient.profile.first_name} ${selectedAppointment.patient.profile.last_name}` : ''}
+      />
     </div>
   );
 }

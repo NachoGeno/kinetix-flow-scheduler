@@ -23,9 +23,11 @@ export type Database = {
           doctor_id: string
           duration_minutes: number | null
           id: string
+          no_show_reason: string | null
           notes: string | null
           patient_id: string
           reason: string | null
+          session_deducted: boolean | null
           status: Database["public"]["Enums"]["appointment_status"] | null
           treatment_plan: string | null
           updated_at: string
@@ -38,9 +40,11 @@ export type Database = {
           doctor_id: string
           duration_minutes?: number | null
           id?: string
+          no_show_reason?: string | null
           notes?: string | null
           patient_id: string
           reason?: string | null
+          session_deducted?: boolean | null
           status?: Database["public"]["Enums"]["appointment_status"] | null
           treatment_plan?: string | null
           updated_at?: string
@@ -53,9 +57,11 @@ export type Database = {
           doctor_id?: string
           duration_minutes?: number | null
           id?: string
+          no_show_reason?: string | null
           notes?: string | null
           patient_id?: string
           reason?: string | null
+          session_deducted?: boolean | null
           status?: Database["public"]["Enums"]["appointment_status"] | null
           treatment_plan?: string | null
           updated_at?: string
@@ -1012,6 +1018,8 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "no_show"
+        | "no_show_rescheduled"
+        | "no_show_session_lost"
       insurance_type: "obra_social" | "art"
       order_type: "laboratory" | "imaging" | "prescription" | "referral"
       payment_method: "cash" | "transfer" | "mercado_pago"
@@ -1150,6 +1158,8 @@ export const Constants = {
         "completed",
         "cancelled",
         "no_show",
+        "no_show_rescheduled",
+        "no_show_session_lost",
       ],
       insurance_type: ["obra_social", "art"],
       order_type: ["laboratory", "imaging", "prescription", "referral"],
