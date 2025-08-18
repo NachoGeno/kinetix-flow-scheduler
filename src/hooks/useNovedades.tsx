@@ -15,11 +15,7 @@ export function useNovedades(filters: NovedadesFilters = {}) {
       let query = supabase
         .from("novedades")
         .select(`
-          *,
-          profiles:autor_id (
-            first_name,
-            last_name
-          )
+          *
         `)
         .order("created_at", { ascending: false });
 
@@ -40,14 +36,28 @@ export function useNovedades(filters: NovedadesFilters = {}) {
         query = query.eq("autor_id", filters.autor);
       }
 
-      const { data, error } = await query;
+      const { data: novedadesData, error } = await query;
 
       if (error) {
         console.error("Error fetching novedades:", error);
         throw error;
       }
 
-      return data || [];
+      // Get author profiles separately
+      const authorIds = [...new Set(novedadesData?.map(n => n.autor_id) || [])];
+      
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name")
+        .in("id", authorIds);
+
+      // Combine data
+      const novedadesWithProfiles = novedadesData?.map(novedad => ({
+        ...novedad,
+        profiles: profiles?.find(p => p.id === novedad.autor_id) || null
+      })) || [];
+
+      return novedadesWithProfiles;
     },
   });
 }
