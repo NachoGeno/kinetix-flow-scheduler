@@ -19,6 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import PatientForm from '@/components/patients/PatientForm';
 import MedicalOrderForm from './MedicalOrderForm';
+import PendingDocumentAlert from './PendingDocumentAlert';
 
 const formSchema = z.object({
   patient_id: z.string().min(1, 'Selecciona un paciente'),
@@ -64,6 +65,7 @@ interface MedicalOrder {
   doctor_name: string | null;
   total_sessions: number;
   sessions_used: number;
+  document_status: 'pendiente' | 'completa';
 }
 
 interface AppointmentFormProps {
@@ -183,6 +185,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           doctor_name,
           total_sessions,
           sessions_used,
+          document_status,
           created_at
         `)
         .eq('patient_id', patientId)
@@ -193,7 +196,10 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       
       // Solo mostrar órdenes que tengan sesiones disponibles
       const availableOrders = (data || []).filter(order => order.sessions_used < order.total_sessions);
-      setMedicalOrders(availableOrders);
+      setMedicalOrders(availableOrders.map(order => ({
+        ...order,
+        document_status: (order.document_status as 'pendiente' | 'completa') || 'pendiente'
+      })));
     } catch (error) {
       console.error('Error fetching medical orders:', error);
       toast({
@@ -684,6 +690,24 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
             )}
           />
 
+          {/* Show pending document alert if selected order has pending status */}
+          {form.watch('medical_order_id') !== 'none' && (() => {
+            const selectedOrderId = form.watch('medical_order_id');
+            const selectedOrder = medicalOrders.find(o => o.id === selectedOrderId);
+            const selectedPatient = patients.find(p => p.id === form.watch('patient_id'));
+            
+            if (selectedOrder?.document_status === 'pendiente') {
+              return (
+                <PendingDocumentAlert
+                  medicalOrderId={selectedOrder.id}
+                  patientName={selectedPatient ? `${selectedPatient.profile.first_name} ${selectedPatient.profile.last_name}` : ''}
+                  orderDescription={selectedOrder.description}
+                  className="mb-4"
+                />
+              );
+            }
+            return null;
+          })()}
 
           <FormField
           control={form.control}

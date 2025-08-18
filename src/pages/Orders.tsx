@@ -15,6 +15,7 @@ import { es } from 'date-fns/locale';
 import MedicalOrderForm from '@/components/appointments/MedicalOrderForm';
 import AppointmentForm from '@/components/appointments/AppointmentForm';
 import MultiSessionAppointmentForm from '@/components/appointments/MultiSessionAppointmentForm';
+import PendingDocumentAlert from '@/components/appointments/PendingDocumentAlert';
 
 interface MedicalOrder {
   id: string;
@@ -29,6 +30,7 @@ interface MedicalOrder {
   art_authorization_number: string | null;
   attachment_url: string | null;
   attachment_name: string | null;
+  document_status: 'pendiente' | 'completa';
   sessions_count?: number;
   patient: {
     id: string;
@@ -127,7 +129,10 @@ export default function Orders() {
         return;
       }
 
-      setOrders(data || []);
+      setOrders((data || []).map(order => ({
+        ...order,
+        document_status: (order.document_status as 'pendiente' | 'completa') || 'pendiente'
+      })));
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast({
@@ -264,7 +269,8 @@ export default function Orders() {
     
     const matchesStatus = statusFilter === 'all' || 
                          (statusFilter === 'completed' && order.completed) ||
-                         (statusFilter === 'pending' && !order.completed);
+                         (statusFilter === 'pending' && !order.completed) ||
+                         (statusFilter === 'pending_document' && order.document_status === 'pendiente');
     
     const matchesType = typeFilter === 'all' || order.order_type === typeFilter;
     
@@ -326,6 +332,7 @@ export default function Orders() {
             <SelectItem value="all">Todos los estados</SelectItem>
             <SelectItem value="pending">Pendientes</SelectItem>
             <SelectItem value="completed">Completadas</SelectItem>
+            <SelectItem value="pending_document">Pendientes de documento</SelectItem>
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -393,11 +400,25 @@ export default function Orders() {
                     >
                       {order.completed ? 'Completada' : 'Pendiente'}
                     </Badge>
+                    {order.document_status === 'pendiente' && (
+                      <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">
+                        🔴 Sin documento
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+               <CardContent>
                 <div className="space-y-3">
+                  {order.document_status === 'pendiente' && (
+                    <PendingDocumentAlert
+                      medicalOrderId={order.id}
+                      patientName={`${order.patient?.profile?.first_name} ${order.patient?.profile?.last_name}`}
+                      orderDescription={order.description}
+                      showUploadButton={false}
+                      className="mb-3"
+                    />
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <strong>Médico:</strong> Dr. {order.doctor?.profile?.first_name} {order.doctor?.profile?.last_name}

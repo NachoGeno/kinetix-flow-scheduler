@@ -338,6 +338,7 @@ export type Database = {
           description: string
           doctor_id: string | null
           doctor_name: string | null
+          document_status: string
           id: string
           instructions: string | null
           obra_social_art_id: string | null
@@ -361,6 +362,7 @@ export type Database = {
           description: string
           doctor_id?: string | null
           doctor_name?: string | null
+          document_status?: string
           id?: string
           instructions?: string | null
           obra_social_art_id?: string | null
@@ -384,6 +386,7 @@ export type Database = {
           description?: string
           doctor_id?: string | null
           doctor_name?: string | null
+          document_status?: string
           id?: string
           instructions?: string | null
           obra_social_art_id?: string | null

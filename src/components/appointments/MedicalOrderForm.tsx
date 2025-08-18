@@ -466,6 +466,9 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
 
         <div className="space-y-2">
           <label className="text-sm font-medium">Archivo Adjunto (opcional)</label>
+          <p className="text-xs text-muted-foreground">
+            Si no cargas el documento ahora, la orden quedará marcada como "Pendiente de entrega"
+          </p>
           <Input
             type="file"
             accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
@@ -475,6 +478,11 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
           {selectedFile && (
             <p className="text-sm text-muted-foreground">
               Archivo seleccionado: {selectedFile.name}
+            </p>
+          )}
+          {editOrder && editOrder.attachment_url && !selectedFile && (
+            <p className="text-sm text-green-600">
+              ✓ Documento actual: {editOrder.attachment_name}
             </p>
           )}
         </div>
