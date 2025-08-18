@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -869,70 +869,70 @@ export type Database = {
       }
       get_active_patients_in_treatment: {
         Args: {
-          start_date?: string
           end_date?: string
           obra_social_filter?: string
+          start_date?: string
         }
         Returns: {
-          patient_id: string
-          patient_name: string
-          obra_social_name: string
           active_orders: number
           last_appointment_date: string
+          obra_social_name: string
+          patient_id: string
+          patient_name: string
         }[]
       }
       get_appointment_stats: {
-        Args: { start_date?: string; end_date?: string; doctor_filter?: string }
+        Args: { doctor_filter?: string; end_date?: string; start_date?: string }
         Returns: {
-          status: string
           count: number
           percentage: number
+          status: string
         }[]
       }
       get_appointments_by_time_slot: {
-        Args: { start_date?: string; end_date?: string; doctor_filter?: string }
+        Args: { doctor_filter?: string; end_date?: string; start_date?: string }
         Returns: {
+          cancelled_appointments: number
+          completed_appointments: number
+          completion_rate: number
           time_slot: string
           total_appointments: number
-          completed_appointments: number
-          cancelled_appointments: number
-          completion_rate: number
         }[]
       }
       get_daily_plus_stats: {
         Args: { target_date?: string }
         Returns: {
-          total_amount: number
           cash_amount: number
-          transfer_amount: number
           mercado_pago_amount: number
+          total_amount: number
           total_payments: number
+          transfer_amount: number
         }[]
       }
       get_new_patients_by_month: {
         Args: {
-          start_date?: string
           end_date?: string
           obra_social_filter?: string
+          start_date?: string
         }
         Returns: {
-          year: number
           month: number
           month_name: string
           new_patients: number
+          year: number
         }[]
       }
       get_patients_attended_by_month: {
-        Args: { start_date?: string; end_date?: string; doctor_filter?: string }
+        Args: { doctor_filter?: string; end_date?: string; start_date?: string }
         Returns: {
-          year: number
           month: number
           month_name: string
           patients_attended: number
+          year: number
         }[]
       }
       get_patients_by_doctor: {
-        Args: { start_date?: string; end_date?: string }
+        Args: { end_date?: string; start_date?: string }
         Returns: {
           doctor_id: string
           doctor_name: string
@@ -942,57 +942,57 @@ export type Database = {
       }
       get_patients_without_closed_history: {
         Args: {
-          start_date?: string
           end_date?: string
           obra_social_filter?: string
+          start_date?: string
         }
         Returns: {
-          patient_id: string
-          patient_name: string
-          obra_social_name: string
           completed_sessions: number
           has_final_summary: boolean
+          obra_social_name: string
+          patient_id: string
+          patient_name: string
         }[]
       }
       get_plus_payments_report: {
         Args: {
-          start_date?: string
           end_date?: string
-          professional_filter?: string
           payment_method_filter?: Database["public"]["Enums"]["payment_method"]
+          professional_filter?: string
+          start_date?: string
         }
         Returns: {
-          payment_id: string
-          patient_name: string
-          professional_name: string
-          obra_social_name: string
           amount: number
-          payment_method: Database["public"]["Enums"]["payment_method"]
-          payment_date: string
+          obra_social_name: string
           observations: string
+          patient_name: string
+          payment_date: string
+          payment_id: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          professional_name: string
         }[]
       }
       get_professional_work_hours: {
-        Args: { start_date?: string; end_date?: string; doctor_filter?: string }
+        Args: { doctor_filter?: string; end_date?: string; start_date?: string }
         Returns: {
+          appointments_completed: number
           doctor_id: string
           doctor_name: string
-          specialty_name: string
-          patients_attended: number
-          appointments_completed: number
           estimated_hours: number
+          patients_attended: number
+          specialty_name: string
         }[]
       }
       get_stats_by_obra_social: {
-        Args: { start_date?: string; end_date?: string }
+        Args: { end_date?: string; start_date?: string }
         Returns: {
+          costo_total: number
           obra_social_id: string
           obra_social_name: string
-          tipo: Database["public"]["Enums"]["insurance_type"]
+          ordenes_medicas: number
           pacientes_atendidos: number
           sesiones_realizadas: number
-          ordenes_medicas: number
-          costo_total: number
+          tipo: Database["public"]["Enums"]["insurance_type"]
         }[]
       }
       get_user_role: {
