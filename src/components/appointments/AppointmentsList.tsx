@@ -15,6 +15,8 @@ import { es } from 'date-fns/locale';
 import AppointmentForm from './AppointmentForm';
 import { useUnifiedMedicalHistory } from '@/hooks/useUnifiedMedicalHistory';
 import NoShowOptionsDialog from './NoShowOptionsDialog';
+import PatientNoShowAlert from './PatientNoShowAlert';
+import { usePatientNoShowsMultiple } from '@/hooks/usePatientNoShows';
 
 interface Appointment {
   id: string;
@@ -79,6 +81,10 @@ export default function AppointmentsList() {
   const { profile } = useAuth();
   const { toast } = useToast();
   const { createOrUpdateMedicalHistoryEntry } = useUnifiedMedicalHistory();
+
+  // Get unique patient IDs for no-show tracking
+  const patientIds = appointments.map(apt => apt.patient_id);
+  const { noShowCounts } = usePatientNoShowsMultiple(patientIds);
 
   useEffect(() => {
     fetchAppointments();
@@ -400,16 +406,37 @@ export default function AppointmentsList() {
             </CardContent>
           </Card>
         ) : (
-          filteredAppointments.map((appointment) => (
+          filteredAppointments.map((appointment) => {
+            const patientName = `${appointment.patient?.profile?.first_name} ${appointment.patient?.profile?.last_name}`;
+            const patientNoShowCount = noShowCounts[appointment.patient_id] || 0;
+            
+            return (
             <Card key={appointment.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
+              {/* No-show alert */}
+              {patientNoShowCount >= 2 && (
+                <div className="px-6 pt-4">
+                  <PatientNoShowAlert 
+                    noShowCount={patientNoShowCount}
+                    patientName={patientName}
+                    variant="default"
+                  />
+                </div>
+              )}
+              <CardHeader className={`pb-2 ${patientNoShowCount >= 2 ? 'pt-2' : ''}`}>
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-lg">
+                    <CardTitle className="text-lg flex items-center gap-2">
                       {profile?.role === 'patient' 
                         ? `Dr. ${appointment.doctor?.profile?.first_name} ${appointment.doctor?.profile?.last_name}`
-                        : `${appointment.patient?.profile?.first_name} ${appointment.patient?.profile?.last_name}`
+                        : patientName
                       }
+                      {patientNoShowCount >= 2 && (
+                        <PatientNoShowAlert 
+                          noShowCount={patientNoShowCount}
+                          patientName={patientName}
+                          variant="compact"
+                        />
+                      )}
                     </CardTitle>
                     <CardDescription>
                       {appointment.doctor?.specialty?.name}
@@ -524,7 +551,8 @@ export default function AppointmentsList() {
                  )}
               </CardContent>
             </Card>
-          ))
+            );
+          })
         )}
       </div>
 
