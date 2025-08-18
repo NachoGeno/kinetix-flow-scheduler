@@ -12,14 +12,14 @@ import { useNovedades } from "@/hooks/useNovedades";
 export default function Novedades() {
   const [showForm, setShowForm] = useState(false);
   const [filterDate, setFilterDate] = useState("");
-  const [filterShift, setFilterShift] = useState("");
-  const [filterCategory, setFilterCategory] = useState("");
+  const [filterShift, setFilterShift] = useState("all");
+  const [filterCategory, setFilterCategory] = useState("all");
   const [filterAuthor, setFilterAuthor] = useState("");
 
   const { data: novedades, isLoading, refetch } = useNovedades({
     fecha: filterDate || undefined,
-    turno: filterShift || undefined,
-    categoria: filterCategory || undefined,
+    turno: filterShift && filterShift !== "all" ? filterShift : undefined,
+    categoria: filterCategory && filterCategory !== "all" ? filterCategory : undefined,
     autor: filterAuthor || undefined,
   });
 
@@ -72,7 +72,7 @@ export default function Novedades() {
                   <SelectValue placeholder="Todos los turnos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos los turnos</SelectItem>
+                  <SelectItem value="all">Todos los turnos</SelectItem>
                   <SelectItem value="mañana">Mañana</SelectItem>
                   <SelectItem value="tarde">Tarde</SelectItem>
                   <SelectItem value="completo">Completo</SelectItem>
@@ -86,7 +86,7 @@ export default function Novedades() {
                   <SelectValue placeholder="Todas las categorías" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas las categorías</SelectItem>
+                  <SelectItem value="all">Todas las categorías</SelectItem>
                   <SelectItem value="tecnica">Técnica</SelectItem>
                   <SelectItem value="administrativa">Administrativa</SelectItem>
                   <SelectItem value="medica">Médica</SelectItem>
@@ -99,8 +99,8 @@ export default function Novedades() {
                 variant="outline"
                 onClick={() => {
                   setFilterDate("");
-                  setFilterShift("");
-                  setFilterCategory("");
+                  setFilterShift("all");
+                  setFilterCategory("all");
                   setFilterAuthor("");
                 }}
                 className="w-full"
