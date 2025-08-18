@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX } from 'lucide-react';
+import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX, RotateCcw, ArrowRight, Info } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ import { useUnifiedMedicalHistory } from '@/hooks/useUnifiedMedicalHistory';
 import NoShowOptionsDialog from './NoShowOptionsDialog';
 import PatientNoShowAlert from './PatientNoShowAlert';
 import ResetNoShowDialog from './ResetNoShowDialog';
+import { RescheduleAppointmentDialog } from './RescheduleAppointmentDialog';
 import { usePatientNoShowsMultiple } from '@/hooks/usePatientNoShows';
 import { usePatientNoShowResets } from '@/hooks/usePatientNoShowResets';
 
@@ -30,6 +31,11 @@ interface Appointment {
   doctor_id: string;
   no_show_reason?: string;
   session_deducted?: boolean;
+  rescheduled_from_id?: string;
+  rescheduled_to_id?: string;
+  rescheduled_at?: string;
+  rescheduled_by?: string;
+  reschedule_reason?: string;
   patient: {
     id: string;
     profile: {
@@ -48,6 +54,14 @@ interface Appointment {
       color: string;
     };
   };
+  rescheduled_from?: {
+    appointment_date: string;
+    appointment_time: string;
+  } | null;
+  rescheduled_to?: {
+    appointment_date: string;
+    appointment_time: string;
+  } | null;
 }
 
 const statusColors = {
@@ -59,6 +73,7 @@ const statusColors = {
   no_show: 'bg-gray-100 text-gray-800',
   no_show_rescheduled: 'bg-orange-100 text-orange-800',
   no_show_session_lost: 'bg-red-100 text-red-800',
+  rescheduled: 'bg-purple-100 text-purple-800',
 };
 
 const statusLabels = {
@@ -70,6 +85,7 @@ const statusLabels = {
   no_show: 'No Asistió',
   no_show_rescheduled: 'No Asistió - Reprogramado',
   no_show_session_lost: 'No Asistió - Sesión Descontada',
+  rescheduled: 'Reprogramado',
 };
 
 export default function AppointmentsList() {
@@ -80,6 +96,7 @@ export default function AppointmentsList() {
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = useState(false);
   const [noShowDialogOpen, setNoShowDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [selectedPatientForReset, setSelectedPatientForReset] = useState<{id: string, name: string, noShowCount: number} | null>(null);
   const { profile } = useAuth();
@@ -114,7 +131,9 @@ export default function AppointmentsList() {
             id,
             profile:profiles(first_name, last_name),
             specialty:specialties(name, color)
-          )
+          ),
+          rescheduled_from:rescheduled_from_id(appointment_date, appointment_time),
+          rescheduled_to:rescheduled_to_id(appointment_date, appointment_time)
         `)
         .order('appointment_date', { ascending: true })
         .order('appointment_time', { ascending: true });
@@ -153,7 +172,7 @@ export default function AppointmentsList() {
         return;
       }
 
-      setAppointments(data || []);
+      setAppointments((data || []) as any);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       toast({
@@ -253,6 +272,11 @@ export default function AppointmentsList() {
   const handleNoShow = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setNoShowDialogOpen(true);
+  };
+
+  const handleReschedule = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setRescheduleDialogOpen(true);
   };
 
   const handleResetNoShows = (patientId: string, patientName: string, noShowCount: number) => {
@@ -409,6 +433,7 @@ export default function AppointmentsList() {
             <SelectItem value="no_show">No Asistió</SelectItem>
             <SelectItem value="no_show_rescheduled">No Asistió - Reprogramado</SelectItem>
             <SelectItem value="no_show_session_lost">No Asistió - Sesión Descontada</SelectItem>
+            <SelectItem value="rescheduled">Reprogramado</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -494,7 +519,22 @@ export default function AppointmentsList() {
                              No asistió
                            </Button>
                         </>
-                      )}
+                       )}
+                       
+                       {/* Botón reprogramar - para admin/doctor y estados específicos */}
+                       {(profile?.role === 'doctor' || profile?.role === 'admin') && 
+                        (appointment.status === 'scheduled' || appointment.status === 'confirmed' || 
+                         appointment.status === 'no_show' || appointment.status === 'no_show_rescheduled') && (
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           className="h-8 px-2 text-purple-600 hover:text-purple-700"
+                           onClick={() => handleReschedule(appointment)}
+                         >
+                           <RotateCcw className="h-3 w-3 mr-1" />
+                           Reprogramar
+                         </Button>
+                       )}
                       
                       {/* Botón cancelar */}
                       {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
@@ -569,7 +609,32 @@ export default function AppointmentsList() {
                    <p className="text-sm text-red-600 mt-2">
                      <strong>Sesión descontada de la orden médica</strong>
                    </p>
-                 )}
+                  )}
+                  
+                  {/* Rescheduling traceability */}
+                  {appointment.rescheduled_from && (
+                    <div className="flex items-center gap-2 mt-2 p-2 bg-purple-50 border border-purple-200 rounded-lg">
+                      <Info className="h-4 w-4 text-purple-600" />
+                      <p className="text-sm text-purple-800">
+                        <strong>Turno generado por reprogramación</strong> del {format(new Date(appointment.rescheduled_from.appointment_date), 'dd/MM/yyyy')} a las {appointment.rescheduled_from.appointment_time}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {appointment.rescheduled_to && (
+                    <div className="flex items-center gap-2 mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                      <ArrowRight className="h-4 w-4 text-amber-600" />
+                      <p className="text-sm text-amber-800">
+                        <strong>Este turno fue reprogramado</strong> el {appointment.rescheduled_at ? format(new Date(appointment.rescheduled_at), 'dd/MM/yyyy \'a las\' HH:mm') : ''} → Nuevo turno: {format(new Date(appointment.rescheduled_to.appointment_date), 'dd/MM/yyyy')} a las {appointment.rescheduled_to.appointment_time}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {appointment.reschedule_reason && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      <strong>Motivo de reprogramación:</strong> {appointment.reschedule_reason}
+                    </p>
+                  )}
               </CardContent>
             </Card>
             );
@@ -600,6 +665,20 @@ export default function AppointmentsList() {
         patientName={selectedPatientForReset?.name || ''}
         currentNoShowCount={selectedPatientForReset?.noShowCount || 0}
       />
+
+      {/* Reschedule Appointment Dialog */}
+      {selectedAppointment && (
+        <RescheduleAppointmentDialog
+          open={rescheduleDialogOpen}
+          onOpenChange={setRescheduleDialogOpen}
+          appointment={selectedAppointment}
+          onSuccess={() => {
+            fetchAppointments();
+            setRescheduleDialogOpen(false);
+            setSelectedAppointment(null);
+          }}
+        />
+      )}
     </div>
   );
 }

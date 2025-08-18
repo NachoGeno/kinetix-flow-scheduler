@@ -30,6 +30,11 @@ export type Database = {
           pardoned_by: string | null
           patient_id: string
           reason: string | null
+          reschedule_reason: string | null
+          rescheduled_at: string | null
+          rescheduled_by: string | null
+          rescheduled_from_id: string | null
+          rescheduled_to_id: string | null
           session_deducted: boolean | null
           status: Database["public"]["Enums"]["appointment_status"] | null
           treatment_plan: string | null
@@ -50,6 +55,11 @@ export type Database = {
           pardoned_by?: string | null
           patient_id: string
           reason?: string | null
+          reschedule_reason?: string | null
+          rescheduled_at?: string | null
+          rescheduled_by?: string | null
+          rescheduled_from_id?: string | null
+          rescheduled_to_id?: string | null
           session_deducted?: boolean | null
           status?: Database["public"]["Enums"]["appointment_status"] | null
           treatment_plan?: string | null
@@ -70,6 +80,11 @@ export type Database = {
           pardoned_by?: string | null
           patient_id?: string
           reason?: string | null
+          reschedule_reason?: string | null
+          rescheduled_at?: string | null
+          rescheduled_by?: string | null
+          rescheduled_from_id?: string | null
+          rescheduled_to_id?: string | null
           session_deducted?: boolean | null
           status?: Database["public"]["Enums"]["appointment_status"] | null
           treatment_plan?: string | null
@@ -88,6 +103,20 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_rescheduled_from_id_fkey"
+            columns: ["rescheduled_from_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_rescheduled_to_id_fkey"
+            columns: ["rescheduled_to_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
         ]
@@ -1102,6 +1131,7 @@ export type Database = {
         | "no_show"
         | "no_show_rescheduled"
         | "no_show_session_lost"
+        | "rescheduled"
       insurance_type: "obra_social" | "art"
       news_category: "tecnica" | "administrativa" | "medica" | "urgente"
       order_type: "laboratory" | "imaging" | "prescription" | "referral"
@@ -1244,6 +1274,7 @@ export const Constants = {
         "no_show",
         "no_show_rescheduled",
         "no_show_session_lost",
+        "rescheduled",
       ],
       insurance_type: ["obra_social", "art"],
       news_category: ["tecnica", "administrativa", "medica", "urgente"],
