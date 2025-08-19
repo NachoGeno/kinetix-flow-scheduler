@@ -260,22 +260,22 @@ export default function AppointmentCalendar() {
   const timeSlots = generateTimeSlots();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50/30 to-indigo-50/30 p-4 animate-fade-in">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-slate-50 p-4">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-slate-900">
               Calendario de Citas
             </h1>
-            <p className="text-muted-foreground mt-2">Gestiona tus citas médicas de forma eficiente</p>
+            <p className="text-slate-600 mt-1">Gestiona tus citas médicas de forma eficiente</p>
           </div>
           {(profile?.role === 'patient' || profile?.role === 'admin') && (
             <Dialog open={isNewAppointmentOpen} onOpenChange={setIsNewAppointmentOpen}>
               <DialogTrigger asChild>
                 <Button 
                   size="lg"
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Plus className="h-5 w-5 mr-2" />
                   Nueva Cita
@@ -299,180 +299,167 @@ export default function AppointmentCalendar() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Doctor Filter */}
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Stethoscope className="h-5 w-5 text-blue-600" />
-                  Profesional
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className="w-full justify-between h-12 bg-white/50 hover:bg-white/80 transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        <span className="truncate">
-                          {selectedDoctor === 'all' 
-                            ? 'Todos los doctores'
-                            : doctors.find(d => d.id === selectedDoctor)
-                              ? `Dr. ${doctors.find(d => d.id === selectedDoctor)?.profile?.first_name} ${doctors.find(d => d.id === selectedDoctor)?.profile?.last_name}`
-                              : 'Seleccionar doctor'
-                          }
-                        </span>
-                      </div>
-                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0 bg-white/95 backdrop-blur-sm">
-                    <Command>
-                      <CommandInput placeholder="Buscar doctor..." className="border-0" />
-                      <CommandList>
-                        <CommandEmpty>No se encontraron doctores.</CommandEmpty>
-                        <CommandGroup>
-                          <CommandItem
-                            key="all"
-                            value="all"
-                            onSelect={() => setSelectedDoctor('all')}
-                            className="hover:bg-blue-50"
-                          >
-                            <Users className="h-4 w-4 mr-2" />
-                            Todos los doctores
-                          </CommandItem>
-                          {doctors.map((doctor) => (
+        {/* Main Layout - Fixed Grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* Sidebar - Fixed Width */}
+          <div className="xl:col-span-3">
+            <div className="space-y-4 sticky top-4">
+              {/* Doctor Filter */}
+              <Card className="border border-slate-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Stethoscope className="h-4 w-4 text-blue-600" />
+                    Profesional
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between text-left font-normal"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Users className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">
+                            {selectedDoctor === 'all' 
+                              ? 'Todos los doctores'
+                              : doctors.find(d => d.id === selectedDoctor)
+                                ? `Dr. ${doctors.find(d => d.id === selectedDoctor)?.profile?.first_name} ${doctors.find(d => d.id === selectedDoctor)?.profile?.last_name}`
+                                : 'Seleccionar doctor'
+                            }
+                          </span>
+                        </div>
+                        <Search className="ml-2 h-4 w-4 flex-shrink-0" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar doctor..." />
+                        <CommandList>
+                          <CommandEmpty>No se encontraron doctores.</CommandEmpty>
+                          <CommandGroup>
                             <CommandItem
-                              key={doctor.id}
-                              value={`${doctor.profile?.first_name} ${doctor.profile?.last_name} ${doctor.specialty?.name}`}
-                              onSelect={() => setSelectedDoctor(doctor.id)}
-                              className="hover:bg-blue-50"
+                              key="all"
+                              value="all"
+                              onSelect={() => setSelectedDoctor('all')}
                             >
-                              <Stethoscope className="h-4 w-4 mr-2" />
-                              <div className="flex flex-col">
-                                <span>Dr. {doctor.profile?.first_name || 'N/A'} {doctor.profile?.last_name || 'N/A'}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {doctor.specialty?.name || 'Sin especialidad'}
-                                </span>
-                              </div>
+                              <Users className="h-4 w-4 mr-2" />
+                              Todos los doctores
                             </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </CardContent>
-            </Card>
+                            {doctors.map((doctor) => (
+                              <CommandItem
+                                key={doctor.id}
+                                value={`${doctor.profile?.first_name} ${doctor.profile?.last_name} ${doctor.specialty?.name}`}
+                                onSelect={() => setSelectedDoctor(doctor.id)}
+                              >
+                                <Stethoscope className="h-4 w-4 mr-2" />
+                                <div className="flex flex-col">
+                                  <span>Dr. {doctor.profile?.first_name} {doctor.profile?.last_name}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {doctor.specialty?.name}
+                                  </span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </CardContent>
+              </Card>
 
-            {/* Calendar */}
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <CalendarIcon className="h-5 w-5 text-blue-600" />
-                  Seleccionar Fecha
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  locale={es}
-                  className="w-full mx-auto rounded-lg border-0 bg-white/50 p-3"
-                />
-              </CardContent>
-            </Card>
+              {/* Calendar */}
+              <Card className="border border-slate-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <CalendarIcon className="h-4 w-4 text-blue-600" />
+                    Seleccionar Fecha
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => date && setSelectedDate(date)}
+                    locale={es}
+                    className="w-full"
+                  />
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {/* Main Content - Time Slots */}
-          <div className="lg:col-span-3">
-            <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-blue-600/10 to-indigo-600/10 rounded-t-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-2xl flex items-center gap-3">
-                      <Clock className="h-6 w-6 text-blue-600" />
-                      Horarios - {format(selectedDate, 'EEEE, d MMMM yyyy', { locale: es })}
-                    </CardTitle>
-                    {selectedDoctor !== 'all' && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge 
-                          variant="secondary" 
-                          className="bg-blue-100 text-blue-700 border-blue-200"
-                        >
-                          <Stethoscope className="h-3 w-3 mr-1" />
-                          Dr. {doctors.find(d => d.id === selectedDoctor)?.profile?.first_name} {doctors.find(d => d.id === selectedDoctor)?.profile?.last_name}
-                        </Badge>
-                        <Badge 
-                          variant="outline"
-                          style={{ backgroundColor: `${doctors.find(d => d.id === selectedDoctor)?.specialty?.color}20` }}
-                        >
-                          {doctors.find(d => d.id === selectedDoctor)?.specialty?.name || 'Sin especialidad'}
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
+          <div className="xl:col-span-9">
+            <Card className="border border-slate-200">
+              <CardHeader className="bg-slate-50 border-b">
+                <div>
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-blue-600" />
+                    Horarios - {format(selectedDate, 'EEEE, d MMMM yyyy', { locale: es })}
+                  </CardTitle>
+                  {selectedDoctor !== 'all' && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                        <Stethoscope className="h-3 w-3 mr-1" />
+                        Dr. {doctors.find(d => d.id === selectedDoctor)?.profile?.first_name} {doctors.find(d => d.id === selectedDoctor)?.profile?.last_name}
+                      </Badge>
+                      <Badge variant="outline">
+                        {doctors.find(d => d.id === selectedDoctor)?.specialty?.name}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="p-6">
                 {loading ? (
-                  <div className="text-center py-16">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto"></div>
-                    <p className="text-muted-foreground mt-4">Cargando horarios...</p>
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-200 border-t-blue-600"></div>
+                    <p className="text-slate-500 mt-4">Cargando horarios...</p>
                   </div>
                 ) : selectedDoctor === 'all' ? (
-                  <div className="text-center py-16">
-                    <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-muted-foreground">Selecciona un profesional</h3>
-                    <p className="text-sm text-muted-foreground mt-2">Elige un doctor para ver los horarios disponibles</p>
+                  <div className="text-center py-12">
+                    <Users className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-slate-900 mb-2">Selecciona un profesional</h3>
+                    <p className="text-slate-500">Elige un doctor para ver los horarios disponibles</p>
                   </div>
                 ) : timeSlots.length === 0 ? (
-                  <div className="text-center py-16">
-                    <AlertCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-muted-foreground">Sin horarios disponibles</h3>
-                    <p className="text-sm text-muted-foreground mt-2">No hay turnos programados para este doctor</p>
+                  <div className="text-center py-12">
+                    <AlertCircle className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-slate-900 mb-2">Sin horarios disponibles</h3>
+                    <p className="text-slate-500">No hay turnos programados para este doctor</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {timeSlots.map((slot, index) => {
-                      const StatusIcon = statusIcons.scheduled;
+                    {timeSlots.map((slot) => {
                       return (
                         <Card
                           key={slot.time}
-                          className={`group relative overflow-hidden transition-all duration-300 hover:scale-105 cursor-pointer border-2 ${
+                          className={`cursor-pointer transition-all duration-200 hover:shadow-md border-2 ${
                             slot.isFull
-                              ? 'bg-gradient-to-br from-red-50 to-red-100 border-red-200 hover:shadow-lg'
-                              : 'bg-gradient-to-br from-green-50 via-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:border-green-300'
+                              ? 'bg-red-50 border-red-200 hover:bg-red-100'
+                              : 'bg-green-50 border-green-200 hover:bg-green-100'
                           }`}
-                          style={{ animationDelay: `${index * 50}ms` }}
                           onClick={() => handleTimeSlotClick(slot.time, slot.isFull)}
                         >
                           <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-full ${
+                              <div className="flex items-center gap-2">
+                                <div className={`p-1.5 rounded-full ${
                                   slot.isFull ? 'bg-red-200' : 'bg-green-200'
                                 }`}>
                                   <Clock className={`h-4 w-4 ${
                                     slot.isFull ? 'text-red-600' : 'text-green-600'
                                   }`} />
                                 </div>
-                                <span className="font-bold text-lg">{slot.display}</span>
+                                <span className="font-semibold">{slot.display}</span>
                               </div>
                               <Badge 
                                 variant={slot.isFull ? "destructive" : "secondary"}
-                                className={`text-xs font-semibold ${
-                                  slot.isFull 
-                                    ? 'bg-red-200 text-red-800 border-red-300' 
-                                    : 'bg-green-200 text-green-800 border-green-300'
-                                }`}
+                                className="text-xs"
                               >
                                 {slot.availableSlots}/{slot.maxSlots}
                               </Badge>
@@ -480,63 +467,57 @@ export default function AppointmentCalendar() {
                           </CardHeader>
                           <CardContent className="pt-0">
                             {slot.appointments.length > 0 ? (
-                              <div className="space-y-3">
-                                {slot.appointments.map((appointment, appointmentIndex) => {
+                              <div className="space-y-2">
+                                {slot.appointments.map((appointment) => {
                                   const AppointmentStatusIcon = statusIcons[appointment.status as keyof typeof statusIcons] || User;
                                   return (
                                     <div 
                                       key={appointment.id}
-                                      className="group/appointment p-3 bg-white/70 backdrop-blur-sm rounded-xl border-2 border-white/50 hover:bg-white/90 hover:border-white/80 transition-all duration-200 shadow-sm hover:shadow-md"
+                                      className="p-3 bg-white rounded-lg border border-slate-200"
                                     >
-                                      <div className="flex items-start gap-3">
-                                        <div className="p-1.5 rounded-full bg-blue-100">
-                                          <User className="h-4 w-4 text-blue-600" />
+                                      <div className="flex items-start gap-2">
+                                        <div className="p-1 rounded-full bg-blue-100">
+                                          <User className="h-3 w-3 text-blue-600" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <div className="font-semibold text-sm text-gray-900 mb-2">
+                                          <div className="font-medium text-sm text-slate-900 mb-1">
                                             {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
                                           </div>
-                                          <div className="flex items-center gap-2">
-                                            <Badge 
-                                              className={`text-xs font-medium cursor-pointer hover:scale-105 transition-all duration-200 border ${
-                                                appointment.status === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')
-                                                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-blue-300'
-                                                  : statusColors[appointment.status as keyof typeof statusColors]
-                                              }`}
-                                              onClick={(e) => handleStatusClick(appointment.id, appointment.status, e)}
-                                              title={appointment.status === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? 'Click para marcar como presente' : ''}
-                                            >
-                                              <AppointmentStatusIcon className="h-3 w-3 mr-1" />
-                                              {appointment.status === 'scheduled' ? 'Agendado' : appointment.status}
-                                            </Badge>
-                                          </div>
+                                          <Badge 
+                                            className={`text-xs cursor-pointer ${
+                                              appointment.status === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')
+                                                ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                                : statusColors[appointment.status as keyof typeof statusColors]
+                                            }`}
+                                            onClick={(e) => handleStatusClick(appointment.id, appointment.status, e)}
+                                          >
+                                            <AppointmentStatusIcon className="h-3 w-3 mr-1" />
+                                            {appointment.status === 'scheduled' ? 'Agendado' : appointment.status}
+                                          </Badge>
                                         </div>
                                       </div>
                                     </div>
                                   );
                                 })}
                                 {!slot.isFull && (
-                                  <div className="text-center pt-3 border-t-2 border-green-200/50 border-dashed">
-                                    <div className="text-xs text-green-700 font-medium flex items-center justify-center gap-1">
-                                      <Plus className="h-3 w-3" />
+                                  <div className="text-center pt-2 border-t border-dashed border-green-300">
+                                    <div className="text-xs text-green-600 font-medium">
+                                      <Plus className="h-3 w-3 inline mr-1" />
                                       {slot.availableSlots} disponible{slot.availableSlots !== 1 ? 's' : ''}
                                     </div>
                                   </div>
                                 )}
                               </div>
                             ) : (
-                              <div className="text-center py-8">
-                                <div className="p-4 rounded-full bg-green-200/50 mx-auto w-fit mb-3">
-                                  <Plus className="h-8 w-8 text-green-600" />
+                              <div className="text-center py-6">
+                                <div className="p-3 rounded-full bg-green-200 mx-auto w-fit mb-2">
+                                  <Plus className="h-6 w-6 text-green-600" />
                                 </div>
                                 <p className="text-sm font-medium text-green-700">Disponible</p>
-                                <p className="text-xs text-green-600 mt-1">Click para agendar</p>
+                                <p className="text-xs text-green-600">Click para agendar</p>
                               </div>
                             )}
                           </CardContent>
-                          {!slot.isFull && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-green-400/0 to-emerald-400/0 group-hover:from-green-400/5 group-hover:to-emerald-400/5 transition-all duration-300 pointer-events-none" />
-                          )}
                         </Card>
                       );
                     })}
