@@ -268,23 +268,8 @@ export default function AppointmentCalendar() {
       <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-3 xl:grid-cols-3 gap-4 lg:gap-6">
         {/* Calendar */}
         <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Seleccionar Fecha</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                locale={es}
-                className="rounded-md border pointer-events-auto w-full mx-auto max-w-none"
-              />
-            </CardContent>
-          </Card>
-
           {/* Doctor Filter */}
-          <Card className="mt-4">
+          <Card>
             <CardHeader>
               <CardTitle>Filtrar por Profesional</CardTitle>
             </CardHeader>
@@ -335,6 +320,22 @@ export default function AppointmentCalendar() {
                   </Command>
                 </PopoverContent>
               </Popover>
+            </CardContent>
+          </Card>
+
+          {/* Calendar */}
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>Seleccionar Fecha</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
+                locale={es}
+                className="rounded-md border pointer-events-auto w-full mx-auto max-w-none"
+              />
             </CardContent>
           </Card>
         </div>
