@@ -9,8 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { CalendarIcon, Plus } from 'lucide-react';
+import { CalendarIcon, Plus, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -592,25 +593,47 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
               <FormItem>
                 <FormLabel>Paciente</FormLabel>
                 <div className="flex gap-2">
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleccionar paciente" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {patients.map((patient) => (
-                        <SelectItem key={patient.id} value={patient.id}>
-                          {patient.profile.first_name} {patient.profile.last_name}
-                          {patient.profile.dni && (
-                            <span className="text-sm text-muted-foreground ml-2">
-                              (DNI: {patient.profile.dni})
-                            </span>
-                          )}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between"
+                      >
+                        {field.value 
+                          ? patients.find(p => p.id === field.value)
+                            ? `${patients.find(p => p.id === field.value)?.profile.first_name} ${patients.find(p => p.id === field.value)?.profile.last_name}`
+                            : 'Seleccionar paciente'
+                          : 'Seleccionar paciente'
+                        }
+                        <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar paciente..." />
+                        <CommandList>
+                          <CommandEmpty>No se encontraron pacientes.</CommandEmpty>
+                          <CommandGroup>
+                            {patients.map((patient) => (
+                              <CommandItem
+                                key={patient.id}
+                                value={`${patient.profile.first_name} ${patient.profile.last_name} ${patient.profile.dni}`}
+                                onSelect={() => field.onChange(patient.id)}
+                              >
+                                {patient.profile.first_name} {patient.profile.last_name}
+                                {patient.profile.dni && (
+                                  <span className="text-sm text-muted-foreground ml-2">
+                                    (DNI: {patient.profile.dni})
+                                  </span>
+                                )}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <Button
                     type="button"
                     variant="outline"
