@@ -786,7 +786,11 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent 
+                  className="w-auto p-0 z-50" 
+                  align="start"
+                  sideOffset={4}
+                >
                   <Calendar
                     mode="single"
                     selected={field.value}
@@ -798,7 +802,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                     }}
                     initialFocus
                     locale={es}
-                    className={cn("p-3 pointer-events-auto")}
+                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
