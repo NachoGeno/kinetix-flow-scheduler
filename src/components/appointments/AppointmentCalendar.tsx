@@ -431,9 +431,6 @@ export default function AppointmentCalendar() {
                           </div>
                         ) : (
                           <div className="text-center py-4">
-                            <div className="text-sm text-green-600 font-medium mb-1">
-                              {slot.maxSlots} turnos disponibles
-                            </div>
                             <div className="text-xs text-green-500">
                               Clic para agendar
                             </div>
