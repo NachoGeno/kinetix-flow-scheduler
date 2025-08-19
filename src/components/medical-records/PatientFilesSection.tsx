@@ -16,7 +16,8 @@ import {
   FileImage,
   FileCheck,
   Stethoscope,
-  ClipboardList
+  ClipboardList,
+  Eye
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -152,28 +153,28 @@ export function PatientFilesSection({ patientId }: PatientFilesSectionProps) {
     }
   };
 
+  const handleView = (file: PatientFile) => {
+    // Open the file in a new tab for viewing
+    window.open(file.url, '_blank');
+    
+    toast({
+      title: "Abriendo documento",
+      description: `Visualizando ${file.name}`,
+    });
+  };
+
   const handleDownload = async (file: PatientFile) => {
     try {
-      // For Supabase storage files
-      if (file.url.includes('supabase')) {
-        const { data, error } = await supabase.storage
-          .from('medical-orders')
-          .download(file.url.split('/').pop() || '');
-
-        if (error) throw error;
-
-        const url = URL.createObjectURL(data);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = file.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } else {
-        // For external URLs, open in new tab
-        window.open(file.url, '_blank');
-      }
+      // Create a temporary link element for download
+      const link = document.createElement('a');
+      link.href = file.url;
+      link.download = file.name;
+      link.target = '_blank';
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
       toast({
         title: "Éxito",
@@ -315,6 +316,15 @@ export function PatientFilesSection({ patientId }: PatientFilesSectionProps) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleView(file)}
+                        className="flex items-center gap-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Visualizar
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
