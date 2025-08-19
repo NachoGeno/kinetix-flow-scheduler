@@ -265,7 +265,7 @@ export default function AppointmentCalendar() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-3 xl:grid-cols-3 gap-4 lg:gap-6">
         {/* Calendar */}
         <div className="lg:col-span-1">
           <Card>
@@ -278,7 +278,7 @@ export default function AppointmentCalendar() {
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
                 locale={es}
-                className="rounded-md border pointer-events-auto"
+                className="rounded-md border pointer-events-auto w-full mx-auto max-w-none"
               />
             </CardContent>
           </Card>
@@ -364,7 +364,7 @@ export default function AppointmentCalendar() {
                   No hay horarios disponibles para este doctor
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
                   {timeSlots.map((slot) => (
                     <Card
                       key={slot.time}
