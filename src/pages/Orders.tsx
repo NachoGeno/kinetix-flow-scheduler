@@ -162,35 +162,58 @@ export default function Orders() {
   };
 
   const handleViewFile = async (order: MedicalOrder) => {
-    if (!order.attachment_url) return;
+    if (!order.attachment_url) {
+      toast({
+        title: "Error",
+        description: "No hay archivo adjunto para mostrar",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
-      console.log('🔍 Abriendo archivo:', order.attachment_url);
+      console.log('🔍 Intentando abrir archivo:', order.attachment_url);
+      console.log('📋 Orden completa:', order);
       
-      // Crear URL firmada más segura
+      // Primero verificar si el archivo existe
+      const { data: fileData, error: fileError } = await supabase.storage
+        .from('medical-orders')
+        .list('', {
+          search: order.attachment_url
+        });
+
+      console.log('📁 Resultado búsqueda archivo:', fileData, fileError);
+
+      // Intentar crear URL firmada
       const { data, error } = await supabase.storage
         .from('medical-orders')
-        .createSignedUrl(order.attachment_url, 3600); // Válida por 1 hora
+        .createSignedUrl(order.attachment_url, 3600);
 
       if (error) {
-        console.error('Error creando URL firmada:', error);
+        console.error('❌ Error creando URL firmada:', error);
+        console.log('🔄 Intentando con URL pública como fallback...');
+        
         // Fallback: usar URL pública
         const { data: publicData } = supabase.storage
           .from('medical-orders')
           .getPublicUrl(order.attachment_url);
         
+        console.log('🌐 URL pública generada:', publicData.publicUrl);
+        
         if (publicData.publicUrl) {
+          console.log('✅ Abriendo con URL pública');
           window.open(publicData.publicUrl, '_blank');
           return;
         }
         
-        throw error;
+        throw new Error(`No se pudo acceder al archivo: ${error.message}`);
       }
 
       if (data?.signedUrl) {
-        console.log('✅ Abriendo archivo con URL firmada');
+        console.log('✅ URL firmada creada exitosamente:', data.signedUrl);
         window.open(data.signedUrl, '_blank');
       } else {
+        console.error('❌ No se pudo generar URL firmada');
         toast({
           title: "Error",
           description: "No se pudo generar la URL del archivo",
@@ -198,10 +221,10 @@ export default function Orders() {
         });
       }
     } catch (error) {
-      console.error('Error viewing file:', error);
+      console.error('💥 Error completo viewing file:', error);
       toast({
         title: "Error",
-        description: "No se pudo abrir el archivo",
+        description: `No se pudo abrir el archivo: ${error instanceof Error ? error.message : 'Error desconocido'}`,
         variant: "destructive",
       });
     }
