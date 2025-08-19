@@ -399,7 +399,17 @@ export default function Presentaciones() {
                           variant="outline" 
                           size="sm" 
                           className="w-full gap-1"
-                          onClick={() => viewMedicalOrderFile(patient.medical_order_attachment!)}
+                          onClick={async () => {
+                            console.log('🖱️ Click en botón Ver escaneado');
+                            console.log('📎 URL del archivo:', patient.medical_order_attachment);
+                            
+                            if (!patient.medical_order_attachment) {
+                              toast.error("No hay archivo adjunto");
+                              return;
+                            }
+                            
+                            await viewMedicalOrderFile(patient.medical_order_attachment);
+                          }}
                         >
                           <Download className="h-3 w-3" />
                           Ver escaneado
