@@ -151,7 +151,7 @@ export function AppSidebar() {
           {open && (
             <div>
               <h2 className="font-semibold text-lg text-sidebar-foreground">
-                MediTurnos
+                Rehabilitare
               </h2>
               <p className="text-sm text-sidebar-foreground/70">
                 Centro de Kinesiología
