@@ -41,9 +41,24 @@ type PatientFormData = z.infer<typeof patientSchema>;
 interface PatientFormProps {
   onSuccess: () => void;
   onCancel: () => void;
+  patient?: {
+    id: string;
+    profile_id: string;
+    obra_social_art_id?: string;
+    insurance_number?: string;
+    profile: {
+      first_name: string;
+      last_name: string;
+      dni: string;
+      email: string;
+      phone: string;
+      date_of_birth: string;
+    };
+  };
+  isEditing?: boolean;
 }
 
-export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
+export default function PatientForm({ onSuccess, onCancel, patient, isEditing = false }: PatientFormProps) {
   const [loading, setLoading] = useState(false);
   const [obrasSociales, setObrasSociales] = useState<ObraSocial[]>([]);
   const { toast } = useToast();
@@ -52,14 +67,14 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
   const form = useForm<PatientFormData>({
     resolver: zodResolver(patientSchema),
     defaultValues: {
-      first_name: '',
-      last_name: '',
-      dni: '',
-      email: '',
-      phone: '',
-      date_of_birth: '',
-      obra_social_art_id: '',
-      insurance_number: '',
+      first_name: patient?.profile?.first_name || '',
+      last_name: patient?.profile?.last_name || '',
+      dni: patient?.profile?.dni || '',
+      email: patient?.profile?.email || '',
+      phone: patient?.profile?.phone || '',
+      date_of_birth: patient?.profile?.date_of_birth || '',
+      obra_social_art_id: patient?.obra_social_art_id || '',
+      insurance_number: patient?.insurance_number || '',
     },
   });
 
@@ -86,7 +101,7 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
     if (!profile || (profile.role !== 'admin' && profile.role !== 'doctor')) {
       toast({
         title: "Error",
-        description: "No tienes permisos para crear pacientes",
+        description: `No tienes permisos para ${isEditing ? 'editar' : 'crear'} pacientes`,
         variant: "destructive",
       });
       return;
@@ -95,110 +110,186 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
     try {
       setLoading(true);
 
-      // Verificar si ya existe un paciente con el mismo DNI
-      console.log('Verificando DNI duplicado:', data.dni);
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, dni')
-        .eq('dni', data.dni)
-        .eq('role', 'patient')
-        .maybeSingle();
+      if (isEditing && patient) {
+        // Modo edición - actualizar paciente existente
+        
+        // Verificar si el DNI cambió y si ya existe otro paciente con ese DNI
+        if (data.dni !== patient.profile.dni) {
+          const { data: existingProfile, error: checkError } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name, dni')
+            .eq('dni', data.dni)
+            .eq('role', 'patient')
+            .neq('id', patient.profile_id) // Excluir el paciente actual
+            .maybeSingle();
 
-      console.log('Resultado de búsqueda:', { existingProfile, checkError });
+          if (checkError && checkError.code !== 'PGRST116') {
+            console.error('Error checking existing patient:', checkError);
+            toast({
+              title: "Error",
+              description: "Error al verificar datos existentes",
+              variant: "destructive",
+            });
+            return;
+          }
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Error checking existing patient:', checkError);
-        toast({
-          title: "Error",
-          description: "Error al verificar datos existentes",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (existingProfile) {
-        console.log('Paciente encontrado con mismo DNI:', existingProfile);
-        toast({
-          title: "Error",
-          description: "Ya existe un paciente con este DNI registrado. Por favor, verifique los datos.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log('No se encontró paciente duplicado, procediendo con la creación');
-
-      // Crear perfil directamente sin crear usuario en auth
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: null, // Null para pacientes que no requieren autenticación
-          first_name: data.first_name,
-          last_name: data.last_name,
-          email: data.email,
-          dni: data.dni,
-          phone: data.phone,
-          date_of_birth: data.date_of_birth || null,
-          role: 'patient'
-        })
-        .select()
-        .single();
-
-      if (profileError) {
-        if (profileError.message.includes('duplicate key') || profileError.message.includes('already exists')) {
-          toast({
-            title: "Error",
-            description: "Ya existe un paciente con este email o DNI",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: `Error al crear perfil: ${profileError.message}`,
-            variant: "destructive",
-          });
+          if (existingProfile) {
+            toast({
+              title: "Error",
+              description: "Ya existe otro paciente con este DNI registrado.",
+              variant: "destructive",
+            });
+            return;
+          }
         }
-        return;
-      }
 
-      if (!profileData) {
+        // Actualizar perfil
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            dni: data.dni,
+            phone: data.phone,
+            date_of_birth: data.date_of_birth || null,
+          })
+          .eq('id', patient.profile_id);
+
+        if (profileError) {
+          toast({
+            title: "Error",
+            description: `Error al actualizar perfil: ${profileError.message}`,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Actualizar datos del paciente
+        const { error: patientError } = await supabase
+          .from('patients')
+          .update({
+            obra_social_art_id: data.obra_social_art_id || null,
+            insurance_number: data.insurance_number || null,
+          })
+          .eq('id', patient.id);
+
+        if (patientError) {
+          toast({
+            title: "Error",
+            description: `Error al actualizar paciente: ${patientError.message}`,
+            variant: "destructive",
+          });
+          return;
+        }
+
         toast({
-          title: "Error",
-          description: "No se pudo crear el perfil",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Crear registro de paciente
-      const { error: patientError } = await supabase
-        .from('patients')
-        .insert({
-          profile_id: profileData.id,
-          obra_social_art_id: data.obra_social_art_id || null,
-          insurance_number: data.insurance_number || null,
+          title: "Éxito",
+          description: "Paciente actualizado exitosamente",
         });
 
-      if (patientError) {
+      } else {
+        // Modo creación - crear nuevo paciente
+        
+        // Verificar si ya existe un paciente con el mismo DNI
+        const { data: existingProfile, error: checkError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, dni')
+          .eq('dni', data.dni)
+          .eq('role', 'patient')
+          .maybeSingle();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          console.error('Error checking existing patient:', checkError);
+          toast({
+            title: "Error",
+            description: "Error al verificar datos existentes",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (existingProfile) {
+          toast({
+            title: "Error",
+            description: "Ya existe un paciente con este DNI registrado. Por favor, verifique los datos.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Crear perfil directamente sin crear usuario en auth
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: null, // Null para pacientes que no requieren autenticación
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            dni: data.dni,
+            phone: data.phone,
+            date_of_birth: data.date_of_birth || null,
+            role: 'patient'
+          })
+          .select()
+          .single();
+
+        if (profileError) {
+          if (profileError.message.includes('duplicate key') || profileError.message.includes('already exists')) {
+            toast({
+              title: "Error",
+              description: "Ya existe un paciente con este email o DNI",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Error",
+              description: `Error al crear perfil: ${profileError.message}`,
+              variant: "destructive",
+            });
+          }
+          return;
+        }
+
+        if (!profileData) {
+          toast({
+            title: "Error",
+            description: "No se pudo crear el perfil",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Crear registro de paciente
+        const { error: patientError } = await supabase
+          .from('patients')
+          .insert({
+            profile_id: profileData.id,
+            obra_social_art_id: data.obra_social_art_id || null,
+            insurance_number: data.insurance_number || null,
+          });
+
+        if (patientError) {
+          toast({
+            title: "Error",
+            description: `Error al crear paciente: ${patientError.message}`,
+            variant: "destructive",
+          });
+          return;
+        }
+
         toast({
-          title: "Error",
-          description: `Error al crear paciente: ${patientError.message}`,
-          variant: "destructive",
+          title: "Éxito",
+          description: "Paciente creado exitosamente",
         });
-        return;
       }
-
-      toast({
-        title: "Éxito",
-        description: "Paciente creado exitosamente",
-      });
 
       onSuccess();
     } catch (error) {
-      console.error('Error creating patient:', error);
+      console.error('Error creating/updating patient:', error);
       toast({
         title: "Error",
-        description: "Error inesperado al crear el paciente",
+        description: `Error inesperado al ${isEditing ? 'actualizar' : 'crear'} el paciente`,
         variant: "destructive",
       });
     } finally {
@@ -209,9 +300,9 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle>Nuevo Paciente</CardTitle>
+        <CardTitle>{isEditing ? 'Editar Paciente' : 'Nuevo Paciente'}</CardTitle>
         <CardDescription>
-          Completa la información del nuevo paciente
+          {isEditing ? 'Modifica la información del paciente' : 'Completa la información del nuevo paciente'}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -303,6 +394,7 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
               <Label htmlFor="obra_social_art_id">Obra Social / ART</Label>
               <Select
                 onValueChange={(value) => form.setValue('obra_social_art_id', value)}
+                value={form.watch('obra_social_art_id')}
                 disabled={loading}
               >
                 <SelectTrigger>
@@ -330,7 +422,7 @@ export default function PatientForm({ onSuccess, onCancel }: PatientFormProps) {
 
           <div className="flex gap-2 pt-4">
             <Button type="submit" disabled={loading}>
-              {loading ? 'Creando...' : 'Crear Paciente'}
+              {loading ? (isEditing ? 'Actualizando...' : 'Creando...') : (isEditing ? 'Actualizar Paciente' : 'Crear Paciente')}
             </Button>
             <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
               Cancelar

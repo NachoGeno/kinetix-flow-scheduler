@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Users, Phone, Mail, Calendar, IdCard, Trash2 } from 'lucide-react';
+import { Search, Plus, Users, Phone, Mail, Calendar, IdCard, Trash2, Edit } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import PatientForm from '@/components/patients/PatientForm';
 
 interface Patient {
   id: string;
+  profile_id: string;
   medical_record_number: string;
   blood_type: string;
   insurance_provider: string;
@@ -36,6 +37,7 @@ export default function Patients() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -52,6 +54,7 @@ export default function Patients() {
         .from('patients')
         .select(`
           *,
+          profile_id,
           profile:profiles(
             first_name,
             last_name,
@@ -202,6 +205,27 @@ export default function Patients() {
         </Dialog>
       </div>
 
+      {/* Dialog para editar paciente */}
+      <Dialog open={!!editingPatient} onOpenChange={(open) => !open && setEditingPatient(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Editar Paciente</DialogTitle>
+          <DialogDescription className="sr-only">
+            Formulario para editar la información del paciente
+          </DialogDescription>
+          {editingPatient && (
+            <PatientForm
+              patient={editingPatient}
+              isEditing={true}
+              onSuccess={() => {
+                setEditingPatient(null);
+                fetchPatients();
+              }}
+              onCancel={() => setEditingPatient(null)}
+            />
+          )}
+        </DialogContent>
+        </Dialog>
+
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -301,6 +325,14 @@ export default function Patients() {
                   </Button>
                   <Button variant="outline" size="sm">
                     Nueva Cita
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setEditingPatient(patient)}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar
                   </Button>
                   <Button size="sm">
                     Ver Detalles
