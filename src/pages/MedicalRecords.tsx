@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import MedicalHistorySection from '@/components/medical-records/MedicalHistorySection';
+import { PatientFilesSection } from '@/components/medical-records/PatientFilesSection';
 
 interface Patient {
   id: string;
@@ -356,219 +358,233 @@ export default function MedicalRecords() {
 
       {/* Patient Medical History */}
       {selectedPatient && (
-        <div className="grid gap-6">
-          {/* Appointments Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Historial de Citas
-              </CardTitle>
-              <CardDescription>
-                Todas las citas médicas del paciente
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <p className="text-center py-4">Cargando citas...</p>
-              ) : appointments.length === 0 ? (
-                <p className="text-center py-4 text-muted-foreground">
-                  No se encontraron citas para este paciente
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {appointments.map((appointment) => (
-                    <div key={appointment.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge className={getStatusColor(appointment.status)} variant="secondary">
-                              {getStatusLabel(appointment.status)}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">
-                              {format(new Date(appointment.appointment_date), 'PPP', { locale: es })} - {appointment.appointment_time}
-                            </span>
-                          </div>
-                          <p className="font-medium">
-                            Dr. {appointment.doctor.profile.first_name} {appointment.doctor.profile.last_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {appointment.doctor.specialty.name}
-                          </p>
-                          {appointment.reason && (
-                            <p className="text-sm mt-1"><strong>Motivo:</strong> {appointment.reason}</p>
-                          )}
-                        </div>
-                        
-                        {profile.role === 'doctor' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEditAppointment(appointment)}
-                            disabled={editingAppointment === appointment.id}
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Editar
-                          </Button>
-                        )}
-                      </div>
+        <Tabs defaultValue="appointments" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="appointments">Historial de Citas</TabsTrigger>
+            <TabsTrigger value="unified-history">Historia Unificada</TabsTrigger>
+            <TabsTrigger value="medical-records">Registros Médicos</TabsTrigger>
+            <TabsTrigger value="patient-files">Archivos del Paciente</TabsTrigger>
+          </TabsList>
 
-                      {editingAppointment === appointment.id ? (
-                        <div className="space-y-4 border-t pt-4">
+          <TabsContent value="appointments" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Historial de Citas
+                </CardTitle>
+                <CardDescription>
+                  Todas las citas médicas del paciente
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <p className="text-center py-4">Cargando citas...</p>
+                ) : appointments.length === 0 ? (
+                  <p className="text-center py-4 text-muted-foreground">
+                    No se encontraron citas para este paciente
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {appointments.map((appointment) => (
+                      <div key={appointment.id} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-3">
                           <div>
-                            <label className="text-sm font-medium">Diagnóstico</label>
-                            <Textarea
-                              value={editingDiagnosis}
-                              onChange={(e) => setEditingDiagnosis(e.target.value)}
-                              placeholder="Diagnóstico del paciente..."
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium">Tratamiento</label>
-                            <Textarea
-                              value={editingTreatment}
-                              onChange={(e) => setEditingTreatment(e.target.value)}
-                              placeholder="Plan de tratamiento..."
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium">Notas de Progreso</label>
-                            <Textarea
-                              value={editingNotes}
-                              onChange={(e) => setEditingNotes(e.target.value)}
-                              placeholder="Notas sobre el progreso del paciente..."
-                              className="mt-1"
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={handleSaveAppointment}>
-                              <Save className="h-4 w-4 mr-2" />
-                              Guardar
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={handleCancelEdit}>
-                              <X className="h-4 w-4 mr-2" />
-                              Cancelar
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2 border-t pt-4">
-                          {appointment.diagnosis && (
-                            <div>
-                              <strong className="text-sm">Diagnóstico:</strong>
-                              <p className="text-sm text-muted-foreground">{appointment.diagnosis}</p>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className={getStatusColor(appointment.status)} variant="secondary">
+                                {getStatusLabel(appointment.status)}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground">
+                                {format(new Date(appointment.appointment_date), 'PPP', { locale: es })} - {appointment.appointment_time}
+                              </span>
                             </div>
-                          )}
-                          {appointment.treatment_plan && (
-                            <div>
-                              <strong className="text-sm">Tratamiento:</strong>
-                              <p className="text-sm text-muted-foreground">{appointment.treatment_plan}</p>
-                            </div>
-                          )}
-                          {appointment.notes && (
-                            <div>
-                              <strong className="text-sm">Notas:</strong>
-                              <p className="text-sm text-muted-foreground">{appointment.notes}</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Medical History Section with Progress Notes */}
-          <MedicalHistorySection patientId={selectedPatient.id} />
-
-          {/* Medical Records Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Registros Médicos Detallados
-              </CardTitle>
-              <CardDescription>
-                Registros médicos completos del paciente
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {medicalRecords.length === 0 ? (
-                <p className="text-center py-4 text-muted-foreground">
-                  No se encontraron registros médicos detallados para este paciente
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {medicalRecords.map((record) => (
-                    <div key={record.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <p className="font-medium">
-                            {format(new Date(record.record_date), 'PPP', { locale: es })}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Por: Dr. {record.created_by_profile.first_name} {record.created_by_profile.last_name}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        {record.chief_complaint && (
-                          <div>
-                            <strong className="text-sm">Motivo de consulta:</strong>
-                            <p className="text-sm text-muted-foreground">{record.chief_complaint}</p>
-                          </div>
-                        )}
-                        {record.physical_examination && (
-                          <div>
-                            <strong className="text-sm">Examen físico:</strong>
-                            <p className="text-sm text-muted-foreground">{record.physical_examination}</p>
-                          </div>
-                        )}
-                        {record.diagnosis && (
-                          <div>
-                            <strong className="text-sm">Diagnóstico:</strong>
-                            <p className="text-sm text-muted-foreground">{record.diagnosis}</p>
-                          </div>
-                        )}
-                        {record.treatment && (
-                          <div>
-                            <strong className="text-sm">Tratamiento:</strong>
-                            <p className="text-sm text-muted-foreground">{record.treatment}</p>
-                          </div>
-                        )}
-                        {record.prescription && (
-                          <div>
-                            <strong className="text-sm">Prescripción:</strong>
-                            <p className="text-sm text-muted-foreground">{record.prescription}</p>
-                          </div>
-                        )}
-                        {record.follow_up_notes && (
-                          <div>
-                            <strong className="text-sm">Notas de seguimiento:</strong>
-                            <p className="text-sm text-muted-foreground">{record.follow_up_notes}</p>
-                          </div>
-                        )}
-                        {record.vital_signs && (
-                          <div>
-                            <strong className="text-sm">Signos vitales:</strong>
+                            <p className="font-medium">
+                              Dr. {appointment.doctor.profile.first_name} {appointment.doctor.profile.last_name}
+                            </p>
                             <p className="text-sm text-muted-foreground">
-                              {JSON.stringify(record.vital_signs)}
+                              {appointment.doctor.specialty.name}
+                            </p>
+                            {appointment.reason && (
+                              <p className="text-sm mt-1"><strong>Motivo:</strong> {appointment.reason}</p>
+                            )}
+                          </div>
+                          
+                          {profile.role === 'doctor' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditAppointment(appointment)}
+                              disabled={editingAppointment === appointment.id}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
+                            </Button>
+                          )}
+                        </div>
+
+                        {editingAppointment === appointment.id ? (
+                          <div className="space-y-4 border-t pt-4">
+                            <div>
+                              <label className="text-sm font-medium">Diagnóstico</label>
+                              <Textarea
+                                value={editingDiagnosis}
+                                onChange={(e) => setEditingDiagnosis(e.target.value)}
+                                placeholder="Diagnóstico del paciente..."
+                                className="mt-1"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium">Tratamiento</label>
+                              <Textarea
+                                value={editingTreatment}
+                                onChange={(e) => setEditingTreatment(e.target.value)}
+                                placeholder="Plan de tratamiento..."
+                                className="mt-1"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium">Notas de Progreso</label>
+                              <Textarea
+                                value={editingNotes}
+                                onChange={(e) => setEditingNotes(e.target.value)}
+                                placeholder="Notas sobre el progreso del paciente..."
+                                className="mt-1"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={handleSaveAppointment}>
+                                <Save className="h-4 w-4 mr-2" />
+                                Guardar
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={handleCancelEdit}>
+                                <X className="h-4 w-4 mr-2" />
+                                Cancelar
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 border-t pt-4">
+                            {appointment.diagnosis && (
+                              <div>
+                                <strong className="text-sm">Diagnóstico:</strong>
+                                <p className="text-sm text-muted-foreground">{appointment.diagnosis}</p>
+                              </div>
+                            )}
+                            {appointment.treatment_plan && (
+                              <div>
+                                <strong className="text-sm">Tratamiento:</strong>
+                                <p className="text-sm text-muted-foreground">{appointment.treatment_plan}</p>
+                              </div>
+                            )}
+                            {appointment.notes && (
+                              <div>
+                                <strong className="text-sm">Notas:</strong>
+                                <p className="text-sm text-muted-foreground">{appointment.notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="unified-history" className="space-y-4">
+            <MedicalHistorySection patientId={selectedPatient.id} />
+          </TabsContent>
+
+          <TabsContent value="medical-records" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Registros Médicos Detallados
+                </CardTitle>
+                <CardDescription>
+                  Registros médicos completos del paciente
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {medicalRecords.length === 0 ? (
+                  <p className="text-center py-4 text-muted-foreground">
+                    No se encontraron registros médicos detallados para este paciente
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {medicalRecords.map((record) => (
+                      <div key={record.id} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <p className="font-medium">
+                              {format(new Date(record.record_date), 'PPP', { locale: es })}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Por: Dr. {record.created_by_profile.first_name} {record.created_by_profile.last_name}
                             </p>
                           </div>
-                        )}
+                        </div>
+
+                        <div className="space-y-3">
+                          {record.chief_complaint && (
+                            <div>
+                              <strong className="text-sm">Motivo de consulta:</strong>
+                              <p className="text-sm text-muted-foreground">{record.chief_complaint}</p>
+                            </div>
+                          )}
+                          {record.physical_examination && (
+                            <div>
+                              <strong className="text-sm">Examen físico:</strong>
+                              <p className="text-sm text-muted-foreground">{record.physical_examination}</p>
+                            </div>
+                          )}
+                          {record.diagnosis && (
+                            <div>
+                              <strong className="text-sm">Diagnóstico:</strong>
+                              <p className="text-sm text-muted-foreground">{record.diagnosis}</p>
+                            </div>
+                          )}
+                          {record.treatment && (
+                            <div>
+                              <strong className="text-sm">Tratamiento:</strong>
+                              <p className="text-sm text-muted-foreground">{record.treatment}</p>
+                            </div>
+                          )}
+                          {record.prescription && (
+                            <div>
+                              <strong className="text-sm">Prescripción:</strong>
+                              <p className="text-sm text-muted-foreground">{record.prescription}</p>
+                            </div>
+                          )}
+                          {record.follow_up_notes && (
+                            <div>
+                              <strong className="text-sm">Notas de seguimiento:</strong>
+                              <p className="text-sm text-muted-foreground">{record.follow_up_notes}</p>
+                            </div>
+                          )}
+                          {record.vital_signs && (
+                            <div>
+                              <strong className="text-sm">Signos vitales:</strong>
+                              <p className="text-sm text-muted-foreground">
+                                {JSON.stringify(record.vital_signs)}
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="patient-files" className="space-y-4">
+            <PatientFilesSection patientId={selectedPatient.id} />
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
