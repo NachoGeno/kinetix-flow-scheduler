@@ -439,6 +439,34 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         return;
       }
 
+      // Validar que el paciente no tenga ya una cita a la misma hora y fecha
+      const { data: existingAppointment, error: conflictError } = await supabase
+        .from('appointments')
+        .select('id, appointment_time')
+        .eq('patient_id', values.patient_id)
+        .eq('appointment_date', format(values.appointment_date, 'yyyy-MM-dd'))
+        .eq('appointment_time', values.appointment_time)
+        .neq('status', 'cancelled')
+        .maybeSingle();
+
+      if (conflictError) {
+        toast({
+          title: "Error",
+          description: "No se pudo verificar conflictos de horario.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (existingAppointment) {
+        toast({
+          title: "Conflicto de horario",
+          description: "Este paciente ya tiene una cita programada para la misma fecha y hora. Por favor selecciona otro horario.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const medicalOrderId = values.medical_order_id === 'none' ? null : values.medical_order_id;
 
       // Validar que el paciente tenga orden médica vigente con turnos disponibles
@@ -509,7 +537,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       }
 
       // Validar que no exista una cita duplicada
-      const { data: existingAppointment, error: duplicateError } = await supabase
+      const { data: duplicateAppointment, error: duplicateError } = await supabase
         .from('appointments')
         .select('id')
         .eq('patient_id', values.patient_id)
@@ -521,7 +549,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
       if (duplicateError) throw duplicateError;
 
-      if (existingAppointment) {
+      if (duplicateAppointment) {
         toast({
           title: "Cita duplicada",
           description: "Ya existe una cita programada para este paciente con el mismo profesional en la fecha y hora seleccionada.",
