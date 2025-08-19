@@ -42,7 +42,12 @@ interface NovedadesFormProps {
 export function NovedadesForm({ open, onOpenChange, onSuccess }: NovedadesFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const { profile } = useAuth();
+  const { profile, user, session } = useAuth();
+
+  // No mostrar el formulario si no hay usuario autenticado
+  if (!user || !session || !profile) {
+    return null;
+  }
 
   const {
     register,
@@ -75,10 +80,13 @@ export function NovedadesForm({ open, onOpenChange, onSuccess }: NovedadesFormPr
   };
 
   const onSubmit = async (data: NovedadFormValues) => {
+    console.log("Profile data:", profile);
+    console.log("User data:", profile?.user_id);
+    
     if (!profile?.id) {
       toast({
         title: "Error",
-        description: "No se pudo identificar el usuario",
+        description: "No se pudo identificar el usuario. Por favor, recargue la página e intente nuevamente.",
         variant: "destructive",
       });
       return;
@@ -87,7 +95,9 @@ export function NovedadesForm({ open, onOpenChange, onSuccess }: NovedadesFormPr
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase
+      console.log("Insertando novedad con autor_id:", profile.id);
+      
+      const { data: insertedData, error } = await supabase
         .from("novedades")
         .insert({
           contenido: data.contenido,
@@ -95,10 +105,16 @@ export function NovedadesForm({ open, onOpenChange, onSuccess }: NovedadesFormPr
           turno: data.turno,
           categoria: data.categoria,
           urgente: data.urgente,
-          autor_id: profile.id, // Volver a usar profile.id
-        });
+          autor_id: profile.id,
+        })
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error insertando novedad:", error);
+        throw error;
+      }
+      
+      console.log("Novedad insertada exitosamente:", insertedData);
 
       toast({
         title: "¡Éxito!",
