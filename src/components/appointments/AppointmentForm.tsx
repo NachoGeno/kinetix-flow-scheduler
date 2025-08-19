@@ -139,10 +139,10 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   }, []);
 
   useEffect(() => {
-    if (form.watch('doctor_id') && form.watch('appointment_date')) {
+    if (form.watch('doctor_id') && form.watch('appointment_date') && doctors.length > 0) {
       fetchAvailableSlots();
     }
-  }, [form.watch('doctor_id'), form.watch('appointment_date')]);
+  }, [form.watch('doctor_id'), form.watch('appointment_date'), doctors]);
 
   useEffect(() => {
     if (form.watch('patient_id')) {
