@@ -3,9 +3,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Clock, Plus, User } from 'lucide-react';
+import { Clock, Plus, User, Search } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
@@ -259,22 +260,52 @@ export default function AppointmentCalendar() {
               <CardTitle>Filtrar por Profesional</CardTitle>
             </CardHeader>
             <CardContent>
-              <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar doctor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los doctores</SelectItem>
-                  {doctors.map((doctor) => (
-                    <SelectItem key={doctor.id} value={doctor.id}>
-                      Dr. {doctor.profile?.first_name || 'N/A'} {doctor.profile?.last_name || 'N/A'}
-                      <span className="text-sm text-muted-foreground ml-2">
-                        ({doctor.specialty?.name || 'Sin especialidad'})
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                  >
+                    {selectedDoctor === 'all' 
+                      ? 'Todos los doctores'
+                      : doctors.find(d => d.id === selectedDoctor)
+                        ? `Dr. ${doctors.find(d => d.id === selectedDoctor)?.profile?.first_name} ${doctors.find(d => d.id === selectedDoctor)?.profile?.last_name}`
+                        : 'Seleccionar doctor'
+                    }
+                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Buscar doctor..." />
+                    <CommandList>
+                      <CommandEmpty>No se encontraron doctores.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          key="all"
+                          value="all"
+                          onSelect={() => setSelectedDoctor('all')}
+                        >
+                          Todos los doctores
+                        </CommandItem>
+                        {doctors.map((doctor) => (
+                          <CommandItem
+                            key={doctor.id}
+                            value={`${doctor.profile?.first_name} ${doctor.profile?.last_name} ${doctor.specialty?.name}`}
+                            onSelect={() => setSelectedDoctor(doctor.id)}
+                          >
+                            Dr. {doctor.profile?.first_name || 'N/A'} {doctor.profile?.last_name || 'N/A'}
+                            <span className="text-sm text-muted-foreground ml-2">
+                              ({doctor.specialty?.name || 'Sin especialidad'})
+                            </span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </CardContent>
           </Card>
         </div>
