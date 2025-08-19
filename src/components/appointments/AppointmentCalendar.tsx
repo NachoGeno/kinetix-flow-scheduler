@@ -207,6 +207,35 @@ export default function AppointmentCalendar() {
     }
   };
 
+  const handleStatusClick = async (appointmentId: string, currentStatus: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (currentStatus === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')) {
+      try {
+        const { error } = await supabase
+          .from('appointments')
+          .update({ status: 'in_progress' })
+          .eq('id', appointmentId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Éxito",
+          description: "Paciente marcado como presente",
+        });
+
+        fetchAppointments();
+      } catch (error) {
+        console.error('Error updating appointment status:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo actualizar el estado de la cita",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   const timeSlots = generateTimeSlots();
 
   return (
@@ -374,13 +403,19 @@ export default function AppointmentCalendar() {
                                     <div className="font-medium text-sm text-gray-900 break-words">
                                       {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
                                     </div>
-                                    <div className="mt-1">
-                                      <Badge 
-                                        className={`text-xs ${statusColors[appointment.status as keyof typeof statusColors]}`}
-                                      >
-                                        {appointment.status}
-                                      </Badge>
-                                    </div>
+                                     <div className="mt-1">
+                                       <Badge 
+                                         className={`text-xs cursor-pointer hover:opacity-80 transition-opacity ${
+                                           appointment.status === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')
+                                             ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                             : statusColors[appointment.status as keyof typeof statusColors]
+                                         }`}
+                                         onClick={(e) => handleStatusClick(appointment.id, appointment.status, e)}
+                                         title={appointment.status === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? 'Click para marcar como presente' : ''}
+                                       >
+                                         {appointment.status === 'scheduled' ? 'Agendado' : appointment.status}
+                                       </Badge>
+                                     </div>
                                   </div>
                                 </div>
                               </div>
