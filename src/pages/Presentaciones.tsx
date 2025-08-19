@@ -205,22 +205,52 @@ export default function Presentaciones() {
 
   const viewMedicalOrderFile = async (attachmentUrl: string) => {
     try {
-      // El attachmentUrl ya viene con la ruta completa desde la base de datos
-      const { data } = supabase.storage
+      console.log('Intentando abrir archivo:', attachmentUrl);
+      
+      // Primero verificar si el archivo existe
+      const { data: fileData, error: fileError } = await supabase.storage
         .from('medical-orders')
-        .getPublicUrl(attachmentUrl);
-      
-      // Verificar que la URL se genere correctamente
-      console.log('Generated URL:', data.publicUrl);
-      
-      if (data.publicUrl) {
-        window.open(data.publicUrl, '_blank');
+        .list('', {
+          search: attachmentUrl
+        });
+
+      if (fileError) {
+        console.error('Error verificando archivo:', fileError);
+        toast.error("Error al verificar el archivo");
+        return;
+      }
+
+      // Si no se encuentra en la búsqueda directa, intentar con la ruta completa
+      const { data, error } = await supabase.storage
+        .from('medical-orders')
+        .createSignedUrl(attachmentUrl, 3600); // URL válida por 1 hora
+
+      if (error) {
+        console.error('Error creando URL firmada:', error);
+        // Fallback: intentar con URL pública
+        const { data: publicData } = supabase.storage
+          .from('medical-orders')
+          .getPublicUrl(attachmentUrl);
+        
+        if (publicData.publicUrl) {
+          console.log('Usando URL pública:', publicData.publicUrl);
+          window.open(publicData.publicUrl, '_blank');
+          return;
+        }
+        
+        toast.error("No se pudo acceder al archivo. Verifique que el archivo exista.");
+        return;
+      }
+
+      if (data?.signedUrl) {
+        console.log('Abriendo archivo con URL firmada:', data.signedUrl);
+        window.open(data.signedUrl, '_blank');
       } else {
         toast.error("No se pudo generar la URL del archivo");
       }
     } catch (error) {
       console.error("Error viewing medical order file:", error);
-      toast.error("Error al abrir el archivo");
+      toast.error("Error al abrir el archivo. Intente nuevamente.");
     }
   };
 
