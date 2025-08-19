@@ -149,7 +149,7 @@ export function NovedadesForm({ open, onOpenChange, onSuccess }: NovedadesFormPr
 
             <div className="space-y-2">
               <Label htmlFor="turno">Turno</Label>
-              <Select onValueChange={(value) => setValue("turno", value as any)}>
+              <Select value={watch("turno")} onValueChange={(value) => setValue("turno", value as any)}>
                 <SelectTrigger className={errors.turno ? "border-destructive" : ""}>
                   <SelectValue placeholder="Seleccionar turno" />
                 </SelectTrigger>
@@ -167,7 +167,7 @@ export function NovedadesForm({ open, onOpenChange, onSuccess }: NovedadesFormPr
 
           <div className="space-y-2">
             <Label htmlFor="categoria">Categoría</Label>
-            <Select onValueChange={(value) => setValue("categoria", value as any)}>
+            <Select value={watch("categoria")} onValueChange={(value) => setValue("categoria", value as any)}>
               <SelectTrigger className={errors.categoria ? "border-destructive" : ""}>
                 <SelectValue placeholder="Seleccionar categoría" />
               </SelectTrigger>
