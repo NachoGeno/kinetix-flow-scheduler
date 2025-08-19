@@ -250,7 +250,7 @@ export default function AppointmentCalendar() {
                 Nueva Cita
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-hidden">
               <DialogHeader>
                 <DialogTitle>Agendar Nueva Cita</DialogTitle>
               </DialogHeader>
