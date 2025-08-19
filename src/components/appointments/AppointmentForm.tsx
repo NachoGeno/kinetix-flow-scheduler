@@ -11,8 +11,11 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { CalendarIcon, Plus, Search } from 'lucide-react';
-import { format } from 'date-fns';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { CalendarIcon, Plus, Search, X, Calendar as CalendarDays } from 'lucide-react';
+import { format, addDays, isSameDay, startOfWeek, addWeeks } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +34,9 @@ const formSchema = z.object({
   }),
   appointment_time: z.string().min(1, 'Selecciona una hora'),
   reason: z.string().min(1, 'Describe el motivo de la consulta'),
+  is_recurring: z.boolean().default(false),
+  sessions_count: z.number().min(1, 'Debe tener al menos 1 sesión').max(20, 'Máximo 20 sesiones').optional(),
+  selected_days: z.array(z.string()).optional(),
 });
 
 interface Doctor {
@@ -69,6 +75,14 @@ interface MedicalOrder {
   document_status: 'pendiente' | 'completa';
 }
 
+interface RecurringAppointment {
+  date: Date;
+  time: string;
+  sessionNumber: number;
+  conflict?: boolean;
+  conflictReason?: string;
+}
+
 interface AppointmentFormProps {
   onSuccess?: () => void;
   selectedDate?: Date;
@@ -86,8 +100,19 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   const [isNewOrderDialogOpen, setIsNewOrderDialogOpen] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [appointmentSummary, setAppointmentSummary] = useState<any>(null);
+  const [recurringAppointments, setRecurringAppointments] = useState<RecurringAppointment[]>([]);
   const { profile } = useAuth();
   const { toast } = useToast();
+
+  const weekDays = [
+    { key: 'monday', label: 'Lun', value: 1 },
+    { key: 'tuesday', label: 'Mar', value: 2 },
+    { key: 'wednesday', label: 'Mié', value: 3 },
+    { key: 'thursday', label: 'Jue', value: 4 },
+    { key: 'friday', label: 'Vie', value: 5 },
+    { key: 'saturday', label: 'Sáb', value: 6 },
+    { key: 'sunday', label: 'Dom', value: 0 },
+  ];
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -98,8 +123,13 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       appointment_date: selectedDate || undefined,
       appointment_time: selectedTime || '',
       reason: '',
+      is_recurring: false,
+      sessions_count: 1,
+      selected_days: [],
     },
   });
+
+  const isRecurring = form.watch('is_recurring');
 
   useEffect(() => {
     fetchDoctors();
@@ -118,6 +148,14 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       fetchMedicalOrders();
     }
   }, [form.watch('patient_id')]);
+
+  useEffect(() => {
+    if (isRecurring) {
+      generateRecurringAppointments();
+    } else {
+      setRecurringAppointments([]);
+    }
+  }, [form.watch('appointment_date'), form.watch('appointment_time'), form.watch('sessions_count'), form.watch('selected_days'), form.watch('doctor_id'), isRecurring]);
 
   const fetchDoctors = async () => {
     try {
@@ -316,9 +354,89 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     });
   };
 
+  const generateRecurringAppointments = async () => {
+    const doctorId = form.watch('doctor_id');
+    const startDate = form.watch('appointment_date');
+    const time = form.watch('appointment_time');
+    const sessionsCount = form.watch('sessions_count');
+    const selectedDays = form.watch('selected_days');
+
+    if (!doctorId || !startDate || !time || !sessionsCount || !selectedDays?.length) {
+      setRecurringAppointments([]);
+      return;
+    }
+
+    const appointments: RecurringAppointment[] = [];
+    let currentDate = new Date(startDate);
+    let sessionNumber = 1;
+    let attempts = 0;
+    const maxAttempts = 365; // Prevent infinite loops
+
+    while (sessionNumber <= sessionsCount && attempts < maxAttempts) {
+      const dayOfWeek = currentDate.getDay();
+      const dayKey = weekDays.find(d => d.value === dayOfWeek)?.key;
+      
+      if (dayKey && selectedDays.includes(dayKey)) {
+        // Check for conflicts
+        const conflict = await checkAppointmentConflict(doctorId, currentDate, time);
+        
+        appointments.push({
+          date: new Date(currentDate),
+          time,
+          sessionNumber,
+          conflict: conflict.hasConflict,
+          conflictReason: conflict.reason,
+        });
+        
+        sessionNumber++;
+      }
+      
+      currentDate = addDays(currentDate, 1);
+      attempts++;
+    }
+
+    setRecurringAppointments(appointments);
+  };
+
+  const checkAppointmentConflict = async (doctorId: string, date: Date, time: string) => {
+    try {
+      const { data: existingAppointments, error } = await supabase
+        .from('appointments')
+        .select('appointment_time')
+        .eq('doctor_id', doctorId)
+        .eq('appointment_date', format(date, 'yyyy-MM-dd'))
+        .neq('status', 'cancelled');
+
+      if (error) throw error;
+
+      const timeSlotCount = (existingAppointments || []).filter(apt => apt.appointment_time === time).length;
+      
+      if (timeSlotCount >= 3) {
+        return { 
+          hasConflict: true, 
+          reason: 'Horario completo (3 pacientes máximo)' 
+        };
+      }
+
+      return { hasConflict: false };
+    } catch (error) {
+      console.error('Error checking conflicts:', error);
+      return { 
+        hasConflict: true, 
+        reason: 'Error verificando disponibilidad' 
+      };
+    }
+  };
+
   const handleShowSummary = async (values: z.infer<typeof formSchema>) => {
     try {
       setLoading(true);
+
+      // If it's recurring appointments, validate and create them
+      if (values.is_recurring) {
+        await handleRecurringSubmit(values);
+        return;
+      }
 
       const medicalOrderId = values.medical_order_id === 'none' ? null : values.medical_order_id;
 
@@ -429,6 +547,99 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       toast({
         title: "Error",
         description: "Error al validar la cita",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRecurringSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (recurringAppointments.length === 0) {
+      toast({
+        title: "Error",
+        description: "No hay citas programadas para crear",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const conflictsExist = recurringAppointments.some(apt => apt.conflict);
+    
+    if (conflictsExist) {
+      toast({
+        title: "Conflictos detectados",
+        description: "Hay conflictos en algunas citas. Revisa la vista previa.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const medicalOrderId = values.medical_order_id === 'none' ? null : values.medical_order_id;
+
+    // Validate medical order sessions
+    if (medicalOrderId) {
+      const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
+      if (selectedOrder) {
+        const availableSessions = selectedOrder.total_sessions - selectedOrder.sessions_used;
+        if (recurringAppointments.length > availableSessions) {
+          toast({
+            title: "Sin sesiones suficientes",
+            description: `La orden médica solo tiene ${availableSessions} sesiones disponibles, pero intentas agendar ${recurringAppointments.length}`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
+
+    try {
+      const appointmentsToCreate = recurringAppointments.map((apt) => ({
+        patient_id: values.patient_id,
+        doctor_id: values.doctor_id,
+        appointment_date: format(apt.date, 'yyyy-MM-dd'),
+        appointment_time: apt.time,
+        reason: values.reason,
+        status: 'scheduled' as const,
+        notes: `Sesión ${apt.sessionNumber} de ${recurringAppointments.length} (recurrente)`,
+      }));
+
+      const { error } = await supabase
+        .from('appointments')
+        .insert(appointmentsToCreate);
+
+      if (error) throw error;
+
+      // Update medical order sessions if applicable
+      if (medicalOrderId) {
+        const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
+        if (selectedOrder) {
+          const newSessionsUsed = selectedOrder.sessions_used + recurringAppointments.length;
+          const isCompleted = newSessionsUsed >= selectedOrder.total_sessions;
+
+          await supabase
+            .from('medical_orders')
+            .update({ 
+              sessions_used: newSessionsUsed,
+              completed: isCompleted
+            })
+            .eq('id', medicalOrderId);
+        }
+      }
+
+      toast({
+        title: "Éxito",
+        description: `Se crearon ${recurringAppointments.length} citas recurrentes correctamente`,
+      });
+
+      form.reset();
+      setRecurringAppointments([]);
+      onSuccess?.();
+    } catch (error) {
+      console.error('Error creating recurring appointments:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron crear las citas recurrentes",
         variant: "destructive",
       });
     } finally {
@@ -853,8 +1064,129 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           )}
         />
 
+        {/* Recurring Appointments Section */}
+        <FormField
+          control={form.control}
+          name="is_recurring"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel>
+                  Programar turnos múltiples
+                </FormLabel>
+                <p className="text-sm text-muted-foreground">
+                  Agenda varias citas de forma recurrente para tratamientos prolongados
+                </p>
+              </div>
+            </FormItem>
+          )}
+        />
+
+        {isRecurring && (
+          <div className="space-y-4 border rounded-lg p-4 bg-muted/50">
+            <h3 className="font-medium flex items-center gap-2">
+              <CalendarDays className="h-4 w-4" />
+              Configuración de turnos recurrentes
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="sessions_count"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cantidad de sesiones</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="20"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="selected_days"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Días de la semana</FormLabel>
+                    <div className="flex flex-wrap gap-2">
+                      {weekDays.map((day) => (
+                        <div key={day.key} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={day.key}
+                            checked={field.value?.includes(day.key) || false}
+                            onCheckedChange={(checked) => {
+                              const currentDays = field.value || [];
+                              if (checked) {
+                                field.onChange([...currentDays, day.key]);
+                              } else {
+                                field.onChange(currentDays.filter(d => d !== day.key));
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={day.key}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            {day.label}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {recurringAppointments.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-medium">Vista previa de citas ({recurringAppointments.length})</h4>
+                <div className="max-h-48 overflow-y-auto space-y-2">
+                  {recurringAppointments.map((apt, index) => (
+                    <div
+                      key={index}
+                      className={cn(
+                        "flex items-center justify-between p-2 rounded border text-sm",
+                        apt.conflict 
+                          ? "border-destructive bg-destructive/10" 
+                          : "border-border bg-background"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">#{apt.sessionNumber}</Badge>
+                        <span>
+                          {format(apt.date, "dd/MM/yyyy", { locale: es })} - {apt.time.substring(0, 5)}
+                        </span>
+                      </div>
+                      {apt.conflict && (
+                        <Badge variant="destructive" className="text-xs">
+                          {apt.conflictReason}
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? 'Validando...' : 'Revisar y Confirmar'}
+          {loading ? 'Validando...' : isRecurring ? `Crear ${recurringAppointments.length} Citas` : 'Revisar y Confirmar'}
         </Button>
       </form>
     </Form>
