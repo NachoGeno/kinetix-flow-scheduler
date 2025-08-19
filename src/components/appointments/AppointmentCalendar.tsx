@@ -431,9 +431,7 @@ export default function AppointmentCalendar() {
                           </div>
                         ) : (
                           <div className="text-center py-4">
-                            <div className="text-xs text-green-500">
-                              Clic para agendar
-                            </div>
+                            <Plus className="h-6 w-6 mx-auto text-green-500" />
                           </div>
                         )}
                       </CardContent>
