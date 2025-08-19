@@ -335,7 +335,7 @@ export default function AppointmentCalendar() {
                   No hay horarios disponibles para este doctor
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {timeSlots.map((slot) => (
                     <Card
                       key={slot.time}
@@ -362,25 +362,31 @@ export default function AppointmentCalendar() {
                       </CardHeader>
                       <CardContent className="pt-0">
                         {slot.appointments.length > 0 ? (
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             {slot.appointments.map((appointment, index) => (
                               <div 
                                 key={appointment.id}
-                                className="flex items-center text-xs p-2 bg-card rounded border"
+                                className="p-3 bg-card rounded-lg border shadow-sm"
                               >
-                                <User className="h-3 w-3 mr-1 text-primary" />
-                                <span className="flex-1 truncate">
-                                  {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
-                                </span>
-                                <Badge 
-                                  className={`text-xs ml-1 ${statusColors[appointment.status as keyof typeof statusColors]}`}
-                                >
-                                  {appointment.status}
-                                </Badge>
+                                <div className="flex items-start gap-2">
+                                  <User className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-sm text-gray-900 break-words">
+                                      {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
+                                    </div>
+                                    <div className="mt-1">
+                                      <Badge 
+                                        className={`text-xs ${statusColors[appointment.status as keyof typeof statusColors]}`}
+                                      >
+                                        {appointment.status}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             ))}
                             {!slot.isFull && (
-                              <div className="text-center pt-2">
+                              <div className="text-center pt-2 border-t border-green-200">
                                 <div className="text-xs text-green-600 font-medium">
                                   + {slot.availableSlots} slot{slot.availableSlots !== 1 ? 's' : ''} disponible{slot.availableSlots !== 1 ? 's' : ''}
                                 </div>
