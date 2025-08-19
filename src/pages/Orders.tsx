@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, FileText, User, Calendar, Clock, CalendarPlus, Download } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, FileText, User, Calendar, Clock, CalendarPlus, Download, Eye } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -159,6 +159,52 @@ export default function Orders() {
     fetchOrders();
     setIsEditOrderOpen(false);
     setEditingOrder(null);
+  };
+
+  const handleViewFile = async (order: MedicalOrder) => {
+    if (!order.attachment_url) return;
+
+    try {
+      console.log('🔍 Abriendo archivo:', order.attachment_url);
+      
+      // Crear URL firmada más segura
+      const { data, error } = await supabase.storage
+        .from('medical-orders')
+        .createSignedUrl(order.attachment_url, 3600); // Válida por 1 hora
+
+      if (error) {
+        console.error('Error creando URL firmada:', error);
+        // Fallback: usar URL pública
+        const { data: publicData } = supabase.storage
+          .from('medical-orders')
+          .getPublicUrl(order.attachment_url);
+        
+        if (publicData.publicUrl) {
+          window.open(publicData.publicUrl, '_blank');
+          return;
+        }
+        
+        throw error;
+      }
+
+      if (data?.signedUrl) {
+        console.log('✅ Abriendo archivo con URL firmada');
+        window.open(data.signedUrl, '_blank');
+      } else {
+        toast({
+          title: "Error",
+          description: "No se pudo generar la URL del archivo",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error viewing file:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo abrir el archivo",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDownloadFile = async (order: MedicalOrder) => {
@@ -458,8 +504,18 @@ export default function Orders() {
                         <Button
                           size="sm"
                           variant="outline"
+                          onClick={() => handleViewFile(order)}
+                          className="h-6 px-2"
+                          title="Ver archivo"
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => handleDownloadFile(order)}
                           className="h-6 px-2"
+                          title="Descargar archivo"
                         >
                           <Download className="h-3 w-3" />
                         </Button>
