@@ -773,7 +773,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "pl-3 text-left font-normal",
+                        "w-full justify-start text-left font-normal",
                         !field.value && "text-muted-foreground"
                       )}
                     >
@@ -791,10 +791,14 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                     mode="single"
                     selected={field.value}
                     onSelect={field.onChange}
-                    disabled={(date) => date < new Date() || date < new Date("1900-01-01")}
+                    disabled={(date) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return date < today;
+                    }}
                     initialFocus
                     locale={es}
-                    className="pointer-events-auto"
+                    className={cn("p-3 pointer-events-auto")}
                   />
                 </PopoverContent>
               </Popover>
