@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { CalendarIcon, Plus, Search, X, Calendar as CalendarDays } from 'lucide-react';
 import { format, addDays, isSameDay, startOfWeek, addWeeks } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -795,64 +796,180 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
   return (
     <>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleShowSummary)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="patient_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Paciente</FormLabel>
-                <div className="flex gap-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className="w-full justify-between"
-                      >
-                        {field.value 
-                          ? patients.find(p => p.id === field.value)
-                            ? `${patients.find(p => p.id === field.value)?.profile.first_name} ${patients.find(p => p.id === field.value)?.profile.last_name}`
+      <ScrollArea className="max-h-[75vh] pr-4">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleShowSummary)} className="space-y-4">
+            {/* ... keep existing code (all form fields) */}
+            <FormField
+              control={form.control}
+              name="patient_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Paciente</FormLabel>
+                  <div className="flex gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between"
+                        >
+                          {field.value 
+                            ? patients.find(p => p.id === field.value)
+                              ? `${patients.find(p => p.id === field.value)?.profile.first_name} ${patients.find(p => p.id === field.value)?.profile.last_name}`
+                              : 'Seleccionar paciente'
                             : 'Seleccionar paciente'
-                          : 'Seleccionar paciente'
-                        }
-                        <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Buscar paciente..." />
-                        <CommandList>
-                          <CommandEmpty>No se encontraron pacientes.</CommandEmpty>
-                          <CommandGroup>
-                            {patients.map((patient) => (
-                              <CommandItem
-                                key={patient.id}
-                                value={`${patient.profile.first_name} ${patient.profile.last_name} ${patient.profile.dni}`}
-                                onSelect={() => field.onChange(patient.id)}
+                          }
+                          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput placeholder="Buscar paciente..." />
+                          <CommandList>
+                            <CommandEmpty>No se encontraron pacientes.</CommandEmpty>
+                            <CommandGroup>
+                              {patients.map((patient) => (
+                                <CommandItem
+                                  key={patient.id}
+                                  value={`${patient.profile.first_name} ${patient.profile.last_name} ${patient.profile.dni}`}
+                                  onSelect={() => field.onChange(patient.id)}
+                                >
+                                  {patient.profile.first_name} {patient.profile.last_name}
+                                  {patient.profile.dni && (
+                                    <span className="text-sm text-muted-foreground ml-2">
+                                      (DNI: {patient.profile.dni})
+                                    </span>
+                                  )}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsNewPatientDialogOpen(true)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="medical_order_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Orden Médica</FormLabel>
+                  <div className="flex gap-2">
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Seleccionar orden médica" />
+                        </SelectTrigger>
+                      </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Sin orden médica</SelectItem>
+                          {medicalOrders.length === 0 && form.watch('patient_id') && (
+                            <div className="text-sm text-muted-foreground p-2">
+                              No hay órdenes médicas disponibles para este paciente
+                            </div>
+                          )}
+                          {medicalOrders.map((order) => {
+                            const sessionsRemaining = order.total_sessions - order.sessions_used;
+                            
+                            return (
+                              <SelectItem 
+                                key={order.id} 
+                                value={order.id}
                               >
-                                {patient.profile.first_name} {patient.profile.last_name}
-                                {patient.profile.dni && (
-                                  <span className="text-sm text-muted-foreground ml-2">
-                                    (DNI: {patient.profile.dni})
-                                  </span>
-                                )}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsNewPatientDialogOpen(true)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                                <div className="w-full">
+                                  <div className="font-medium">
+                                    {order.description.length > 45 
+                                      ? `${order.description.substring(0, 45)}...` 
+                                      : order.description
+                                    }
+                                  </div>
+                                  <div className="text-sm text-muted-foreground flex justify-between">
+                                    <span>
+                                      {order.doctor_name && `Dr. ${order.doctor_name}`}
+                                    </span>
+                                    <span className="font-semibold text-primary">
+                                      {sessionsRemaining} sesión{sessionsRemaining !== 1 ? 'es' : ''} disponible{sessionsRemaining !== 1 ? 's' : ''}
+                                    </span>
+                                  </div>
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        console.log('Botón + clickeado, paciente seleccionado:', form.watch('patient_id'));
+                        setIsNewOrderDialogOpen(true);
+                      }}
+                      disabled={!form.watch('patient_id')}
+                      title={!form.watch('patient_id') ? 'Primero selecciona un paciente' : 'Crear nueva orden médica'}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Show pending document alert if selected order has pending status */}
+            {form.watch('medical_order_id') !== 'none' && (() => {
+              const selectedOrderId = form.watch('medical_order_id');
+              const selectedOrder = medicalOrders.find(o => o.id === selectedOrderId);
+              const selectedPatient = patients.find(p => p.id === form.watch('patient_id'));
+              
+              if (selectedOrder?.document_status === 'pendiente') {
+                return (
+                  <PendingDocumentAlert
+                    medicalOrderId={selectedOrder.id}
+                    patientName={selectedPatient ? `${selectedPatient.profile.first_name} ${selectedPatient.profile.last_name}` : ''}
+                    orderDescription={selectedOrder.description}
+                    className="mb-4"
+                  />
+                );
+              }
+              return null;
+            })()}
+
+            <FormField
+            control={form.control}
+            name="doctor_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Doctor</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar doctor" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {doctors.map((doctor) => (
+                      <SelectItem key={doctor.id} value={doctor.id}>
+                        Dr. {doctor.profile.first_name} {doctor.profile.last_name}
+                        <span className="text-sm text-muted-foreground ml-2">
+                          ({doctor.specialty.name})
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -860,336 +977,223 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
           <FormField
             control={form.control}
-            name="medical_order_id"
+            name="appointment_date"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Orden Médica</FormLabel>
-                <div className="flex gap-2">
-                  <Select onValueChange={field.onChange} value={field.value}>
+              <FormItem className="flex flex-col">
+                <FormLabel>Fecha</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
                     <FormControl>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleccionar orden médica" />
-                      </SelectTrigger>
-                    </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Sin orden médica</SelectItem>
-                        {medicalOrders.length === 0 && form.watch('patient_id') && (
-                          <div className="text-sm text-muted-foreground p-2">
-                            No hay órdenes médicas disponibles para este paciente
-                          </div>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !field.value && "text-muted-foreground"
                         )}
-                        {medicalOrders.map((order) => {
-                          const sessionsRemaining = order.total_sessions - order.sessions_used;
-                          
-                          return (
-                            <SelectItem 
-                              key={order.id} 
-                              value={order.id}
-                            >
-                              <div className="w-full">
-                                <div className="font-medium">
-                                  {order.description.length > 45 
-                                    ? `${order.description.substring(0, 45)}...` 
-                                    : order.description
-                                  }
-                                </div>
-                                <div className="text-sm text-muted-foreground flex justify-between">
-                                  <span>
-                                    {order.doctor_name && `Dr. ${order.doctor_name}`}
-                                  </span>
-                                  <span className="font-semibold text-primary">
-                                    {sessionsRemaining} sesión{sessionsRemaining !== 1 ? 'es' : ''} disponible{sessionsRemaining !== 1 ? 's' : ''}
-                                  </span>
-                                </div>
-                              </div>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      console.log('Botón + clickeado, paciente seleccionado:', form.watch('patient_id'));
-                      setIsNewOrderDialogOpen(true);
-                    }}
-                    disabled={!form.watch('patient_id')}
-                    title={!form.watch('patient_id') ? 'Primero selecciona un paciente' : 'Crear nueva orden médica'}
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP", { locale: es })
+                        ) : (
+                          <span>Seleccionar fecha</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent 
+                    className="w-auto p-0 z-50" 
+                    align="start"
+                    sideOffset={4}
                   >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      disabled={(date) => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today;
+                      }}
+                      initialFocus
+                      locale={es}
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          {/* Show pending document alert if selected order has pending status */}
-          {form.watch('medical_order_id') !== 'none' && (() => {
-            const selectedOrderId = form.watch('medical_order_id');
-            const selectedOrder = medicalOrders.find(o => o.id === selectedOrderId);
-            const selectedPatient = patients.find(p => p.id === form.watch('patient_id'));
-            
-            if (selectedOrder?.document_status === 'pendiente') {
-              return (
-                <PendingDocumentAlert
-                  medicalOrderId={selectedOrder.id}
-                  patientName={selectedPatient ? `${selectedPatient.profile.first_name} ${selectedPatient.profile.last_name}` : ''}
-                  orderDescription={selectedOrder.description}
-                  className="mb-4"
-                />
-              );
-            }
-            return null;
-          })()}
+          <FormField
+            control={form.control}
+            name="appointment_time"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Hora</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar hora" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {availableSlots.map((slot) => (
+                      <SelectItem key={slot} value={slot}>
+                        {slot.substring(0, 5)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <FormField
-          control={form.control}
-          name="doctor_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Doctor</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+            control={form.control}
+            name="reason"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Motivo de la consulta</FormLabel>
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar doctor" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {doctors.map((doctor) => (
-                    <SelectItem key={doctor.id} value={doctor.id}>
-                      Dr. {doctor.profile.first_name} {doctor.profile.last_name}
-                      <span className="text-sm text-muted-foreground ml-2">
-                        ({doctor.specialty.name})
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="appointment_date"
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>Fecha</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value ? (
-                        format(field.value, "PPP", { locale: es })
-                      ) : (
-                        <span>Seleccionar fecha</span>
-                      )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent 
-                  className="w-auto p-0 z-50" 
-                  align="start"
-                  sideOffset={4}
-                >
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    disabled={(date) => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      return date < today;
-                    }}
-                    initialFocus
-                    locale={es}
-                    className="pointer-events-auto"
+                  <Textarea
+                    placeholder="Describe el motivo de tu consulta..."
+                    {...field}
                   />
-                </PopoverContent>
-              </Popover>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="appointment_time"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Hora</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar hora" />
-                  </SelectTrigger>
                 </FormControl>
-                <SelectContent>
-                  {availableSlots.map((slot) => (
-                    <SelectItem key={slot} value={slot}>
-                      {slot.substring(0, 5)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="reason"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Motivo de la consulta</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Describe el motivo de tu consulta..."
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Recurring Appointments Section */}
-        <FormField
-          control={form.control}
-          name="is_recurring"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel>
-                  Programar turnos múltiples
-                </FormLabel>
-                <p className="text-sm text-muted-foreground">
-                  Agenda varias citas de forma recurrente para tratamientos prolongados
-                </p>
-              </div>
-            </FormItem>
-          )}
-        />
-
-        {isRecurring && (
-          <div className="space-y-4 border rounded-lg p-4 bg-muted/50">
-            <h3 className="font-medium flex items-center gap-2">
-              <CalendarDays className="h-4 w-4" />
-              Configuración de turnos recurrentes
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="sessions_count"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cantidad de sesiones</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        max="20"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="selected_days"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Días de la semana</FormLabel>
-                    <div className="flex flex-wrap gap-2">
-                      {weekDays.map((day) => (
-                        <div key={day.key} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={day.key}
-                            checked={field.value?.includes(day.key) || false}
-                            onCheckedChange={(checked) => {
-                              const currentDays = field.value || [];
-                              if (checked) {
-                                field.onChange([...currentDays, day.key]);
-                              } else {
-                                field.onChange(currentDays.filter(d => d !== day.key));
-                              }
-                            }}
-                          />
-                          <label
-                            htmlFor={day.key}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
-                            {day.label}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {recurringAppointments.length > 0 && (
-              <div className="space-y-3">
-                <h4 className="font-medium">Vista previa de citas ({recurringAppointments.length})</h4>
-                <div className="max-h-48 overflow-y-auto space-y-2">
-                  {recurringAppointments.map((apt, index) => (
-                    <div
-                      key={index}
-                      className={cn(
-                        "flex items-center justify-between p-2 rounded border text-sm",
-                        apt.conflict 
-                          ? "border-destructive bg-destructive/10" 
-                          : "border-border bg-background"
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">#{apt.sessionNumber}</Badge>
-                        <span>
-                          {format(apt.date, "dd/MM/yyyy", { locale: es })} - {apt.time.substring(0, 5)}
-                        </span>
-                      </div>
-                      {apt.conflict && (
-                        <Badge variant="destructive" className="text-xs">
-                          {apt.conflictReason}
-                        </Badge>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+                <FormMessage />
+              </FormItem>
             )}
-          </div>
-        )}
+          />
 
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? 'Validando...' : isRecurring ? `Crear ${recurringAppointments.length} Citas` : 'Revisar y Confirmar'}
-        </Button>
-      </form>
-    </Form>
+          {/* Recurring Appointments Section */}
+          <FormField
+            control={form.control}
+            name="is_recurring"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>
+                    Programar turnos múltiples
+                  </FormLabel>
+                  <p className="text-sm text-muted-foreground">
+                    Agenda varias citas de forma recurrente para tratamientos prolongados
+                  </p>
+                </div>
+              </FormItem>
+            )}
+          />
+
+          {isRecurring && (
+            <div className="space-y-4 border rounded-lg p-4 bg-muted/50">
+              <h3 className="font-medium flex items-center gap-2">
+                <CalendarDays className="h-4 w-4" />
+                Configuración de turnos recurrentes
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="sessions_count"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cantidad de sesiones</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="20"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="selected_days"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Días de la semana</FormLabel>
+                      <div className="flex flex-wrap gap-2">
+                        {weekDays.map((day) => (
+                          <div key={day.key} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={day.key}
+                              checked={field.value?.includes(day.key) || false}
+                              onCheckedChange={(checked) => {
+                                const currentDays = field.value || [];
+                                if (checked) {
+                                  field.onChange([...currentDays, day.key]);
+                                } else {
+                                  field.onChange(currentDays.filter(d => d !== day.key));
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor={day.key}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                              {day.label}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {recurringAppointments.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-medium">Vista previa de citas ({recurringAppointments.length})</h4>
+                  <div className="max-h-48 overflow-y-auto space-y-2">
+                    {recurringAppointments.map((apt, index) => (
+                      <div
+                        key={index}
+                        className={cn(
+                          "flex items-center justify-between p-2 rounded border text-sm",
+                          apt.conflict 
+                            ? "border-destructive bg-destructive/10" 
+                            : "border-border bg-background"
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">#{apt.sessionNumber}</Badge>
+                          <span>
+                            {format(apt.date, "dd/MM/yyyy", { locale: es })} - {apt.time.substring(0, 5)}
+                          </span>
+                        </div>
+                        {apt.conflict && (
+                          <Badge variant="destructive" className="text-xs">
+                            {apt.conflictReason}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Validando...' : isRecurring ? `Crear ${recurringAppointments.length} Citas` : 'Revisar y Confirmar'}
+          </Button>
+        </form>
+      </Form>
+      </ScrollArea>
 
     <Dialog open={isNewPatientDialogOpen} onOpenChange={setIsNewPatientDialogOpen}>
       <DialogContent className="max-w-md">
