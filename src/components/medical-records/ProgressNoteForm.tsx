@@ -83,10 +83,10 @@ export default function ProgressNoteForm({
   };
 
   const handleSave = async () => {
-    if (!content.trim() && !selectedFile) {
+    if (!content.trim()) {
       toast({
         title: "Error",
-        description: "Debes agregar contenido o un archivo",
+        description: "Debes agregar contenido para el evolutivo",
         variant: "destructive",
       });
       return;
@@ -94,18 +94,7 @@ export default function ProgressNoteForm({
 
     try {
       setSaving(true);
-      let attachmentUrl = existingNote?.attachment_url;
-      let attachmentName = existingNote?.attachment_name;
-
-      // Upload file if selected
-      if (selectedFile) {
-        const uploadResult = await uploadFile(selectedFile);
-        if (uploadResult) {
-          attachmentUrl = uploadResult.url;
-          attachmentName = uploadResult.name;
-        }
-      }
-
+      
       const noteData = {
         patient_id: patientId,
         appointment_id: appointmentId,
@@ -113,8 +102,8 @@ export default function ProgressNoteForm({
         content: content.trim(),
         note_type: noteType,
         status: status,
-        attachment_url: attachmentUrl,
-        attachment_name: attachmentName,
+        attachment_url: existingNote?.attachment_url, // Keep existing attachment
+        attachment_name: existingNote?.attachment_name, // Keep existing attachment
         created_by: (await supabase.auth.getSession()).data.session?.user.id
       };
 
@@ -164,6 +153,14 @@ export default function ProgressNoteForm({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Important Notice */}
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+            <h4 className="font-medium text-blue-900 mb-2">Cambio en el proceso de evolutivos</h4>
+            <p className="text-sm text-blue-700">
+              A partir de ahora, solo se cargan evolutivos de texto por sesión individual. 
+              La <strong>evolución clínica final con archivo</strong> se debe cargar desde la página de órdenes médicas una vez completadas todas las sesiones.
+            </p>
+          </div>
           {/* Note Type */}
           <div className="space-y-2">
             <Label>Tipo de Evolutivo</Label>
@@ -182,12 +179,6 @@ export default function ProgressNoteForm({
                   <div className="flex items-center gap-2">
                     <ClipboardList className="h-4 w-4" />
                     Formulario estructurado
-                  </div>
-                </SelectItem>
-                <SelectItem value="image">
-                  <div className="flex items-center gap-2">
-                    <Image className="h-4 w-4" />
-                    Imagen/Archivo
                   </div>
                 </SelectItem>
               </SelectContent>
@@ -212,19 +203,24 @@ export default function ProgressNoteForm({
 
           {/* File Upload */}
           <div className="space-y-2">
-            <Label>Archivo Adjunto (Opcional)</Label>
+            <Label>Archivo Adjunto</Label>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-2">
+              <p className="text-sm text-yellow-700">
+                <strong>Cambio importante:</strong> Ya no se cargan evolutivos individuales por sesión. 
+                Ahora debe cargar una única evolución clínica final cuando complete todas las sesiones de la orden médica.
+              </p>
+            </div>
             <div className="flex items-center gap-2">
               <Input
                 type="file"
                 onChange={handleFileChange}
                 accept="image/*,.pdf,.doc,.docx"
                 className="flex-1"
+                disabled={true}
               />
-              {uploading && (
-                <span className="text-sm text-muted-foreground">Subiendo...</span>
-              )}
+              <span className="text-sm text-muted-foreground">Función deshabilitada</span>
             </div>
-            {existingNote?.attachment_url && !selectedFile && (
+            {existingNote?.attachment_url && (
               <div className="text-sm text-muted-foreground">
                 Archivo actual: {existingNote.attachment_name || 'Archivo adjunto'}
               </div>
@@ -253,7 +249,7 @@ export default function ProgressNoteForm({
             </Button>
             <Button 
               onClick={handleSave}
-              disabled={saving || uploading}
+              disabled={saving}
             >
               <Save className="h-4 w-4 mr-2" />
               {saving ? 'Guardando...' : (existingNote ? 'Actualizar' : 'Guardar')}

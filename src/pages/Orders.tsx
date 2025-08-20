@@ -16,6 +16,7 @@ import MedicalOrderForm from '@/components/appointments/MedicalOrderForm';
 import AppointmentForm from '@/components/appointments/AppointmentForm';
 import MultiSessionAppointmentForm from '@/components/appointments/MultiSessionAppointmentForm';
 import PendingDocumentAlert from '@/components/appointments/PendingDocumentAlert';
+import { FinalClinicalHistoryForm } from '@/components/medical-records/FinalClinicalHistoryForm';
 
 interface MedicalOrder {
   id: string;
@@ -561,6 +562,23 @@ export default function Orders() {
                       <CalendarPlus className="h-4 w-4 mr-2" />
                       Programar Citas
                     </Button>
+
+                    {/* Evolución Clínica Final Button */}
+                    <FinalClinicalHistoryForm 
+                      medicalOrderId={order.id}
+                      patientId={order.patient.id}
+                      onSave={fetchOrders}
+                      trigger={
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Evolución Final
+                        </Button>
+                      }
+                    />
 
                     <Button
                       size="sm"
