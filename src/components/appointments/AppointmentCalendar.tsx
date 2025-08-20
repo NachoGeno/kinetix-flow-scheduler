@@ -231,34 +231,8 @@ export default function AppointmentCalendar() {
   const handleStatusClick = async (appointmentId: string, currentStatus: string, e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // From 'scheduled' to 'in_progress'
+    // From 'scheduled' directly to 'completed' (skipping in_progress)
     if (currentStatus === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')) {
-      try {
-        const { error } = await supabase
-          .from('appointments')
-          .update({ status: 'in_progress' })
-          .eq('id', appointmentId);
-
-        if (error) throw error;
-
-        toast({
-          title: "Éxito",
-          description: "Paciente marcado como presente",
-        });
-
-        fetchAppointments();
-      } catch (error) {
-        console.error('Error updating appointment status:', error);
-        toast({
-          title: "Error",
-          description: "No se pudo actualizar el estado de la cita",
-          variant: "destructive",
-        });
-      }
-    }
-    
-    // From 'in_progress' to 'completed'
-    else if (currentStatus === 'in_progress' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')) {
       try {
         const { error } = await supabase
           .from('appointments')
@@ -269,15 +243,15 @@ export default function AppointmentCalendar() {
 
         toast({
           title: "Éxito",
-          description: "Sesión marcada como completada. Ya puede cargar la evolución final.",
+          description: "Paciente marcado como asistido y sesión completada",
         });
 
         fetchAppointments();
       } catch (error) {
-        console.error('Error completing appointment:', error);
+        console.error('Error updating appointment status:', error);
         toast({
           title: "Error",
-          description: "No se pudo completar la sesión",
+          description: "No se pudo actualizar el estado de la cita",
           variant: "destructive",
         });
       }
