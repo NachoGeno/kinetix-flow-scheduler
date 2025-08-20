@@ -558,7 +558,7 @@ export default function Presentaciones() {
                     <h4 className="font-medium text-sm mb-1">Descripción de la Orden</h4>
                     <p className="text-sm text-muted-foreground">{order.description}</p>
                     <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                      <span>{order.sessions_used} / {order.total_sessions} sesiones</span>
+                      <span>{order.total_sessions - order.sessions_used} sesiones restantes</span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {order.sessions_completed ? 'Tratamiento finalizado' : 'En progreso'}
