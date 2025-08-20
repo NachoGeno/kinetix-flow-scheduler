@@ -423,11 +423,15 @@ export default function Presentaciones() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <ClipboardList className="h-4 w-4" />
-                        <span className="font-medium">Evolutivo Clínico</span>
+                        <span className="font-medium">📄 Evolutivo Clínico</span>
                         {patient.has_clinical_evolution ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <Badge variant="default" className="bg-green-100 text-green-800 border-green-300">
+                            ✅ Cargado
+                          </Badge>
                         ) : (
-                          <AlertCircle className="h-4 w-4 text-red-600" />
+                          <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-300">
+                            ❌ Faltante
+                          </Badge>
                         )}
                       </div>
                       {patient.has_clinical_evolution ? (
@@ -436,7 +440,7 @@ export default function Presentaciones() {
                           Descargar PDF
                         </Button>
                       ) : (
-                        <p className="text-sm text-muted-foreground">Falta historia clínica</p>
+                        <p className="text-sm text-red-600">Falta evolución clínica final</p>
                       )}
                     </div>
 
@@ -444,11 +448,15 @@ export default function Presentaciones() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <FileSignature className="h-4 w-4" />
-                        <span className="font-medium">Asistencia</span>
+                        <span className="font-medium">🖊️ Registro de Asistencia</span>
                         {patient.has_attendance_file ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <Badge variant="default" className="bg-green-100 text-green-800 border-green-300">
+                            ✅ Cargado
+                          </Badge>
                         ) : (
-                          <AlertCircle className="h-4 w-4 text-red-600" />
+                          <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-300">
+                            ❌ Faltante
+                          </Badge>
                         )}
                       </div>
                       {patient.has_attendance_file ? (

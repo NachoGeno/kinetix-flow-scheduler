@@ -1,21 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, FileText, Edit, Eye, Plus, User, AlertTriangle, CheckCircle, Filter, History } from 'lucide-react';
+import { Calendar, Clock, FileText, Eye, User, History, Filter } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import ProgressNoteForm from './ProgressNoteForm';
 import { UnifiedMedicalHistory } from './UnifiedMedicalHistory';
 
-interface AttendedAppointment {
+interface CompletedAppointment {
   id: string;
   appointment_date: string;
   appointment_time: string;
@@ -27,7 +23,6 @@ interface AttendedAppointment {
     profile: {
       first_name: string;
       last_name: string;
-      user_id: string;
     };
     specialty: {
       name: string;
@@ -40,15 +35,14 @@ interface AttendedAppointment {
     total_sessions: number;
     sessions_used: number;
   };
-  progress_note?: {
-    id: string;
-    content: string;
-    note_type: string;
-    status: string;
-    attachment_url?: string;
-    attachment_name?: string;
-    created_at: string;
-  };
+}
+
+interface PatientFile {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  uploaded_date: string;
 }
 
 interface MedicalHistorySectionProps {
@@ -56,28 +50,20 @@ interface MedicalHistorySectionProps {
 }
 
 export default function MedicalHistorySection({ patientId }: MedicalHistorySectionProps) {
-  const [attendedAppointments, setAttendedAppointments] = useState<AttendedAppointment[]>([]);
+  const [completedAppointments, setCompletedAppointments] = useState<CompletedAppointment[]>([]);
+  const [patientFiles, setPatientFiles] = useState<PatientFile[]>([]);
   const [loading, setLoading] = useState(false);
-  const [viewFilter, setViewFilter] = useState<'all' | 'pending' | 'completed'>('all');
-  const [progressNoteForm, setProgressNoteForm] = useState<{
-    isOpen: boolean;
-    appointmentId?: string;
-    patientId?: string;
-    medicalOrderId?: string;
-    existingNote?: any;
-  }>({
-    isOpen: false
-  });
-  const { profile } = useAuth();
+  const [orderFilter, setOrderFilter] = useState<string>('all');
   const { toast } = useToast();
 
   useEffect(() => {
     if (patientId) {
-      fetchAttendedAppointments();
+      fetchCompletedAppointments();
+      fetchPatientFiles();
     }
   }, [patientId]);
 
-  const fetchAttendedAppointments = async () => {
+  const fetchCompletedAppointments = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -91,58 +77,29 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
           treatment_plan,
           doctor:doctors(
             id,
-            profile:profiles(first_name, last_name, user_id),
+            profile:profiles(first_name, last_name),
             specialty:specialties(name, color)
           ),
-          progress_notes!progress_notes_appointment_id_fkey(
+          medical_orders!inner(
             id,
-            content,
-            note_type,
-            status,
-            attachment_url,
-            attachment_name,
-            created_at
+            description,
+            total_sessions,
+            sessions_used
           )
         `)
         .eq('patient_id', patientId)
-        .eq('status', 'in_progress')
+        .eq('status', 'completed')
         .order('appointment_date', { ascending: false })
         .order('appointment_time', { ascending: false });
 
       if (error) throw error;
 
-      // Get medical orders for appointments
-      const appointmentIds = data?.map(apt => apt.id) || [];
-      let medicalOrdersData: any[] = [];
-
-      if (appointmentIds.length > 0) {
-        const { data: ordersData, error: ordersError } = await supabase
-          .from('medical_orders')
-          .select('id, description, total_sessions, sessions_used, appointment_id')
-          .in('appointment_id', appointmentIds);
-
-        if (ordersError) {
-          console.error('Error fetching medical orders:', ordersError);
-        } else {
-          medicalOrdersData = ordersData || [];
-        }
-      }
-
-      // Combine data
-      const combinedData = data?.map(appointment => ({
-        ...appointment,
-        medical_order: medicalOrdersData.find(order => order.appointment_id === appointment.id),
-        progress_note: Array.isArray(appointment.progress_notes) 
-          ? appointment.progress_notes[0] || null 
-          : appointment.progress_notes || null
-      })) || [];
-
-      setAttendedAppointments(combinedData);
+      setCompletedAppointments(data || []);
     } catch (error) {
-      console.error('Error fetching attended appointments:', error);
+      console.error('Error fetching completed appointments:', error);
       toast({
         title: "Error",
-        description: "No se pudieron cargar los turnos asistidos",
+        description: "No se pudieron cargar los turnos completados",
         variant: "destructive",
       });
     } finally {
@@ -150,114 +107,108 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
     }
   };
 
-  const canEditProgressNote = (appointment: AttendedAppointment) => {
-    if (profile?.role === 'admin') return true;
-    if (profile?.role === 'doctor') {
-      return appointment.doctor.profile.user_id === profile.user_id;
-    }
-    return false;
-  };
-
-  const handleOpenProgressNoteForm = (appointment: AttendedAppointment) => {
-    setProgressNoteForm({
-      isOpen: true,
-      appointmentId: appointment.id,
-      patientId: patientId,
-      medicalOrderId: appointment.medical_order?.id,
-      existingNote: appointment.progress_note
-    });
-  };
-
-  const handleCloseProgressNoteForm = () => {
-    setProgressNoteForm({ isOpen: false });
-  };
-
-  const handleProgressNoteSaved = () => {
-    fetchAttendedAppointments();
-    handleCloseProgressNoteForm();
-  };
-
-  const handleCloseAppointment = async (appointmentId: string) => {
+  const fetchPatientFiles = async () => {
     try {
-      // Finalizar el evolutivo cambiando el status a 'final'
-      const { error: noteError } = await supabase
-        .from('progress_notes')
-        .update({ status: 'final' })
-        .eq('appointment_id', appointmentId);
+      // Get files from various storage locations related to this patient
+      const { data: medicalOrderFiles } = await supabase.storage
+        .from('medical-orders')
+        .list(`final-evolutions`, {
+          search: patientId
+        });
 
-      if (noteError) throw noteError;
+      const { data: attendanceFiles } = await supabase.storage
+        .from('medical-orders')
+        .list(`attendance`, {
+          search: `${patientId}_attendance`
+        });
 
-      // Cambiar el status del turno a 'completed'
-      const { error: appointmentError } = await supabase
-        .from('appointments')
-        .update({ status: 'completed' })
-        .eq('id', appointmentId);
+      const files: PatientFile[] = [];
 
-      if (appointmentError) throw appointmentError;
+      // Add evolution files
+      if (medicalOrderFiles) {
+        medicalOrderFiles.forEach(file => {
+          if (file.name.includes(patientId)) {
+            const { data } = supabase.storage
+              .from('medical-orders')
+              .getPublicUrl(`final-evolutions/${file.name}`);
+            
+            files.push({
+              id: file.name,
+              name: 'Evolución Clínica Final',
+              url: data.publicUrl,
+              type: 'evolution',
+              uploaded_date: file.created_at || new Date().toISOString()
+            });
+          }
+        });
+      }
 
-      toast({
-        title: "Éxito",
-        description: "Turno cerrado correctamente. El evolutivo ha sido finalizado.",
-      });
+      // Add attendance files
+      if (attendanceFiles) {
+        attendanceFiles.forEach(file => {
+          if (file.name.includes(`${patientId}_attendance`)) {
+            const { data } = supabase.storage
+              .from('medical-orders')
+              .getPublicUrl(`attendance/${file.name}`);
+            
+            files.push({
+              id: file.name,
+              name: 'Registro de Asistencia',
+              url: data.publicUrl,
+              type: 'attendance',
+              uploaded_date: file.created_at || new Date().toISOString()
+            });
+          }
+        });
+      }
 
-      // Refresh the appointments list
-      fetchAttendedAppointments();
+      setPatientFiles(files);
     } catch (error) {
-      console.error('Error closing appointment:', error);
+      console.error('Error fetching patient files:', error);
+    }
+  };
+
+  const handleViewFile = async (fileUrl: string) => {
+    try {
+      window.open(fileUrl, '_blank');
+    } catch (error) {
+      console.error('Error viewing file:', error);
       toast({
         title: "Error",
-        description: "No se pudo cerrar el turno",
+        description: "No se pudo abrir el archivo",
         variant: "destructive",
       });
     }
   };
 
-  const getProgressNoteTypeIcon = (noteType: string) => {
-    switch (noteType) {
-      case 'text': return <FileText className="h-4 w-4" />;
-      case 'structured': return <FileText className="h-4 w-4" />;
-      case 'image': return <FileText className="h-4 w-4" />;
-      default: return <FileText className="h-4 w-4" />;
-    }
-  };
-
-  const getProgressNoteTypeLabel = (noteType: string) => {
-    switch (noteType) {
-      case 'text': return 'Texto libre';
-      case 'structured': return 'Formulario estructurado';
-      case 'image': return 'Imagen/Archivo';
-      default: return noteType;
-    }
-  };
-
-  // Group appointments by medical order and separate by progress note status
-  const groupedAppointments = attendedAppointments.reduce((groups, appointment) => {
+  // Group appointments by medical order
+  const groupedAppointments = completedAppointments.reduce((groups, appointment) => {
     const orderId = appointment.medical_order?.id || 'sin-orden';
     if (!groups[orderId]) {
       groups[orderId] = [];
     }
     groups[orderId].push(appointment);
     return groups;
-  }, {} as Record<string, AttendedAppointment[]>);
+  }, {} as Record<string, CompletedAppointment[]>);
 
-  // Separate appointments into pending and completed
-  const pendingAppointments = attendedAppointments.filter(apt => !apt.progress_note);
-  const completedAppointments = attendedAppointments.filter(apt => apt.progress_note);
-  const pendingCount = pendingAppointments.length;
+  // Get unique medical orders for filter
+  const medicalOrders = Array.from(
+    new Set(completedAppointments
+      .filter(apt => apt.medical_order)
+      .map(apt => apt.medical_order!.id)
+    )
+  ).map(orderId => {
+    const appointment = completedAppointments.find(apt => apt.medical_order?.id === orderId);
+    return appointment?.medical_order;
+  }).filter(Boolean);
 
-  // Filter appointments based on selected view
+  // Filter appointments based on selected order
   const getFilteredAppointments = () => {
-    switch (viewFilter) {
-      case 'pending':
-        return pendingAppointments;
-      case 'completed':
-        return completedAppointments;
-      default:
-        return attendedAppointments;
-    }
+    if (orderFilter === 'all') return groupedAppointments;
+    return { [orderFilter]: groupedAppointments[orderFilter] || [] };
   };
 
-  const filteredAppointments = getFilteredAppointments();
+  const filteredGroups = getFilteredAppointments();
 
   if (loading) {
     return (
@@ -269,7 +220,7 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
     );
   }
 
-  if (attendedAppointments.length === 0) {
+  if (completedAppointments.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -278,12 +229,12 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
             Historia Clínica
           </CardTitle>
           <CardDescription>
-            Historial de turnos asistidos y evolutivos
+            Historial de turnos completados y archivos del paciente
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center py-8">
           <p className="text-muted-foreground">
-            No hay turnos asistidos registrados para este paciente
+            No hay turnos completados registrados para este paciente
           </p>
         </CardContent>
       </Card>
@@ -291,427 +242,197 @@ export default function MedicalHistorySection({ patientId }: MedicalHistorySecti
   }
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Historia Clínica
-            {pendingCount > 0 && (
-              <Badge variant="destructive" className="ml-2">
-                {pendingCount} pendientes
-              </Badge>
-            )}
-          </CardTitle>
-          <CardDescription>
-            Gestión completa del historial médico del paciente
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="unified" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="unified" className="flex items-center gap-2">
-                <History className="h-4 w-4" />
-                Historia Unificada
-              </TabsTrigger>
-              <TabsTrigger value="sessions" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Sesiones Individuales
-                {pendingCount > 0 && (
-                  <Badge variant="destructive" className="ml-2 text-xs">
-                    {pendingCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="unified" className="mt-6">
-              <UnifiedMedicalHistory patientId={patientId} />
-            </TabsContent>
-            
-            <TabsContent value="sessions" className="mt-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="text-lg font-medium">Gestión de Sesiones</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Historial cronológico de turnos asistidos y evolutivos agrupados por orden médica
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-muted-foreground" />
-                    <Select value={viewFilter} onValueChange={(value: any) => setViewFilter(value)}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        <SelectItem value="pending">
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="h-4 w-4 text-orange-500" />
-                            Pendientes
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="completed">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            Completados
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <History className="h-5 w-5" />
+          Historia Clínica Simplificada
+        </CardTitle>
+        <CardDescription>
+          Visualización de turnos completados y archivos del paciente
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="unified" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="unified" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Historia Unificada
+            </TabsTrigger>
+            <TabsTrigger value="appointments" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Turnos Completados
+            </TabsTrigger>
+            <TabsTrigger value="files" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Archivos
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="unified" className="mt-6">
+            <UnifiedMedicalHistory patientId={patientId} />
+          </TabsContent>
+          
+          <TabsContent value="appointments" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-medium">Turnos Completados</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Historial de sesiones finalizadas agrupadas por orden médica
+                  </p>
                 </div>
-          {/* Pending Appointments Alert */}
-          {pendingCount > 0 && viewFilter !== 'completed' && (
-            <Alert className="mb-6 border-orange-200 bg-orange-50">
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
-              <AlertDescription className="text-orange-800">
-                <strong>{pendingCount} turnos asistidos</strong> requieren carga de evolutivo por parte del profesional asignado.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div className="space-y-6">
-            {/* Render appointments based on filter */}
-            {viewFilter === 'all' ? (
-              // Show grouped view when showing all appointments
-              Object.entries(groupedAppointments).map(([orderId, appointments]) => (
-              <div key={orderId} className="border rounded-lg p-4">
-                {/* Medical Order Header */}
-                {orderId !== 'sin-orden' && appointments[0].medical_order ? (
-                  <div className="mb-4 p-3 bg-muted/50 rounded-md">
-                    <h4 className="font-semibold text-lg mb-1">
-                      Orden Médica: {appointments[0].medical_order.description}
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      Sesiones utilizadas: {appointments[0].medical_order.sessions_used} de {appointments[0].medical_order.total_sessions}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="mb-4 p-3 bg-muted/50 rounded-md">
-                    <h4 className="font-semibold text-lg">
-                      Turnos sin orden médica específica
-                    </h4>
-                  </div>
-                )}
-
-                {/* Appointments in this order */}
-                <div className="space-y-4">
-                  {appointments.map((appointment, index) => (
-                    <div key={appointment.id} className="border rounded-md p-4">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            {!appointment.progress_note && (
-                              <AlertTriangle className="h-4 w-4 text-orange-500" />
-                            )}
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${!appointment.progress_note ? 'border-orange-500 text-orange-700' : ''}`}
-                            >
-                              {orderId !== 'sin-orden' ? `Sesión ${index + 1}` : 'Consulta'}
-                              {!appointment.progress_note && ' - Pendiente'}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">
-                              {format(new Date(appointment.appointment_date), 'PPP', { locale: es })}
-                            </span>
-                            <Clock className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">
-                              {appointment.appointment_time}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center gap-2 mb-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">
-                              Dr. {appointment.doctor.profile.first_name} {appointment.doctor.profile.last_name}
-                            </span>
-                            <Badge 
-                              variant="secondary" 
-                              style={{ backgroundColor: appointment.doctor.specialty.color + '20', color: appointment.doctor.specialty.color }}
-                            >
-                              {appointment.doctor.specialty.name}
-                            </Badge>
-                          </div>
-
-                          {appointment.reason && (
-                            <p className="text-sm text-muted-foreground mb-1">
-                              <strong>Motivo:</strong> {appointment.reason}
-                            </p>
-                          )}
-                          
-                          {appointment.diagnosis && (
-                            <p className="text-sm text-muted-foreground mb-1">
-                              <strong>Diagnóstico:</strong> {appointment.diagnosis}
-                            </p>
-                          )}
-
-                          {appointment.treatment_plan && (
-                            <p className="text-sm text-muted-foreground">
-                              <strong>Tratamiento:</strong> {appointment.treatment_plan}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Progress Note Actions */}
-                        <div className="ml-4">
-                          {appointment.progress_note ? (
-                            <div className="flex gap-2 flex-wrap">
-                              <Badge variant="default" className="bg-green-100 text-green-800 border-green-300">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Evolutivo Cargado
-                              </Badge>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleOpenProgressNoteForm(appointment)}
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                Ver
-                              </Button>
-                              {canEditProgressNote(appointment) && appointment.progress_note.status === 'draft' && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleOpenProgressNoteForm(appointment)}
-                                >
-                                  <Edit className="h-4 w-4 mr-1" />
-                                  Editar
-                                </Button>
-                              )}
-                              {canEditProgressNote(appointment) && appointment.progress_note.status === 'draft' && (
-                                <Button
-                                  size="sm"
-                                  className="bg-blue-600 hover:bg-blue-700"
-                                  onClick={() => handleCloseAppointment(appointment.id)}
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Cerrar Turno
-                                </Button>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <Badge variant="destructive" className="bg-orange-100 text-orange-800 border-orange-300">
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                Pendiente
-                              </Badge>
-                              {canEditProgressNote(appointment) && (
-                                <Button
-                                  size="sm"
-                                  className="bg-orange-600 hover:bg-orange-700"
-                                  onClick={() => handleOpenProgressNoteForm(appointment)}
-                                >
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  Cargar Evolutivo
-                                </Button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Progress Note Summary */}
-                      {appointment.progress_note && (
-                        <>
-                          <Separator className="my-3" />
-                          <div className="bg-muted/30 p-3 rounded-md">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                {getProgressNoteTypeIcon(appointment.progress_note.note_type)}
-                                <span className="text-sm font-medium">Evolutivo</span>
-                                <Badge variant={appointment.progress_note.status === 'final' ? 'default' : 'secondary'}>
-                                  {appointment.progress_note.status === 'final' ? 'Final' : 'Borrador'}
-                                </Badge>
-                              </div>
-                              <span className="text-xs text-muted-foreground">
-                                {format(new Date(appointment.progress_note.created_at), 'PPp', { locale: es })}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground line-clamp-3">
-                              {appointment.progress_note.content}
-                            </p>
-                            {appointment.progress_note.attachment_url && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                📎 {appointment.progress_note.attachment_name || 'Archivo adjunto'}
-                              </p>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <Select value={orderFilter} onValueChange={setOrderFilter}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Filtrar por orden" />
+                    </SelectTrigger>
+                    <SelectContent className="z-50 bg-popover">
+                      <SelectItem value="all">Todas las órdenes</SelectItem>
+                      {medicalOrders.map((order) => (
+                        <SelectItem key={order!.id} value={order!.id}>
+                          {order!.description}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            ))
-            ) : (
-              // Show simple list view when filtering
-              <div className="space-y-4">
-                {filteredAppointments.map((appointment) => (
-                  <div key={appointment.id} className="border rounded-md p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          {!appointment.progress_note && (
-                            <AlertTriangle className="h-4 w-4 text-orange-500" />
-                          )}
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs ${!appointment.progress_note ? 'border-orange-500 text-orange-700' : ''}`}
-                          >
-                            {appointment.medical_order ? 
-                              `Sesión ${appointment.medical_order.sessions_used}/${appointment.medical_order.total_sessions}` : 
-                              'Consulta'
-                            }
-                            {!appointment.progress_note && ' - Pendiente'}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">
-                            {format(new Date(appointment.appointment_date), 'PPP', { locale: es })}
-                          </span>
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">
-                            {appointment.appointment_time}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 mb-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">
-                            Dr. {appointment.doctor.profile.first_name} {appointment.doctor.profile.last_name}
-                          </span>
-                          <Badge 
-                            variant="secondary" 
-                            style={{ backgroundColor: appointment.doctor.specialty.color + '20', color: appointment.doctor.specialty.color }}
-                          >
-                            {appointment.doctor.specialty.name}
-                          </Badge>
-                        </div>
 
-                        {appointment.medical_order && (
-                          <p className="text-sm text-muted-foreground mb-1">
-                            <strong>Orden:</strong> {appointment.medical_order.description}
-                          </p>
-                        )}
+              {/* Important Notice */}
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                <h4 className="font-medium text-blue-900 mb-2">📋 Nueva modalidad de trabajo</h4>
+                <p className="text-sm text-blue-700">
+                  Los evolutivos individuales por sesión ya no se cargan desde aquí. 
+                  Ahora se utiliza un sistema de <strong>evolución clínica final</strong> que se carga desde el módulo de <strong>Presentaciones</strong> una vez completadas todas las sesiones.
+                </p>
+              </div>
 
-                        {appointment.reason && (
-                          <p className="text-sm text-muted-foreground mb-1">
-                            <strong>Motivo:</strong> {appointment.reason}
-                          </p>
-                        )}
-                        
-                        {appointment.diagnosis && (
-                          <p className="text-sm text-muted-foreground mb-1">
-                            <strong>Diagnóstico:</strong> {appointment.diagnosis}
-                          </p>
-                        )}
-
-                        {appointment.treatment_plan && (
-                          <p className="text-sm text-muted-foreground">
-                            <strong>Tratamiento:</strong> {appointment.treatment_plan}
-                          </p>
-                        )}
+              <div className="space-y-6">
+                {Object.entries(filteredGroups).map(([orderId, appointments]) => (
+                  <div key={orderId} className="border rounded-lg p-4">
+                    {/* Medical Order Header */}
+                    {orderId !== 'sin-orden' && appointments[0].medical_order ? (
+                      <div className="mb-4 p-3 bg-muted/50 rounded-md">
+                        <h4 className="font-semibold text-lg mb-1">
+                          📋 {appointments[0].medical_order.description}
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          Sesiones completadas: {appointments.length} de {appointments[0].medical_order.total_sessions}
+                        </p>
                       </div>
-
-                      {/* Progress Note Actions */}
-                      <div className="ml-4">
-                        {appointment.progress_note ? (
-                          <div className="flex gap-2">
-                            <Badge variant="default" className="bg-green-100 text-green-800 border-green-300">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Completado
-                            </Badge>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenProgressNoteForm(appointment)}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              Ver
-                            </Button>
-                            {canEditProgressNote(appointment) && appointment.progress_note.status === 'draft' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleOpenProgressNoteForm(appointment)}
-                              >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Editar
-                              </Button>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Badge variant="destructive" className="bg-orange-100 text-orange-800 border-orange-300">
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              Pendiente
-                            </Badge>
-                            {canEditProgressNote(appointment) && (
-                              <Button
-                                size="sm"
-                                className="bg-orange-600 hover:bg-orange-700"
-                                onClick={() => handleOpenProgressNoteForm(appointment)}
-                              >
-                                <Plus className="h-4 w-4 mr-1" />
-                                Cargar Evolutivo
-                              </Button>
-                            )}
-                          </div>
-                        )}
+                    ) : (
+                      <div className="mb-4 p-3 bg-muted/50 rounded-md">
+                        <h4 className="font-semibold text-lg">
+                          Consultas sin orden médica específica
+                        </h4>
                       </div>
-                    </div>
-
-                    {/* Progress Note Summary */}
-                    {appointment.progress_note && (
-                      <>
-                        <Separator className="my-3" />
-                        <div className="bg-muted/30 p-3 rounded-md">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              {getProgressNoteTypeIcon(appointment.progress_note.note_type)}
-                              <span className="text-sm font-medium">Evolutivo</span>
-                              <Badge variant={appointment.progress_note.status === 'final' ? 'default' : 'secondary'}>
-                                {appointment.progress_note.status === 'final' ? 'Final' : 'Borrador'}
-                              </Badge>
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {format(new Date(appointment.progress_note.created_at), 'PPp', { locale: es })}
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground line-clamp-3">
-                            {appointment.progress_note.content}
-                          </p>
-                          {appointment.progress_note.attachment_url && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              📎 {appointment.progress_note.attachment_name || 'Archivo adjunto'}
-                            </p>
-                          )}
-                        </div>
-                      </>
                     )}
+
+                    {/* Appointments List */}
+                    <div className="space-y-3">
+                      {appointments.map((appointment, index) => (
+                        <div key={appointment.id} className="border rounded-md p-3">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline" className="text-xs">
+                                  {orderId !== 'sin-orden' ? `Sesión ${index + 1}` : 'Consulta'}
+                                </Badge>
+                                <span className="text-sm text-muted-foreground">
+                                  {format(new Date(appointment.appointment_date), 'PPP', { locale: es })}
+                                </span>
+                                <Clock className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">
+                                  {appointment.appointment_time}
+                                </span>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 mb-2">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">
+                                  Dr. {appointment.doctor.profile.first_name} {appointment.doctor.profile.last_name}
+                                </span>
+                                <Badge 
+                                  variant="secondary" 
+                                  style={{ backgroundColor: appointment.doctor.specialty.color + '20', color: appointment.doctor.specialty.color }}
+                                >
+                                  {appointment.doctor.specialty.name}
+                                </Badge>
+                              </div>
+
+                              {appointment.reason && (
+                                <p className="text-sm text-muted-foreground mb-1">
+                                  <strong>Motivo:</strong> {appointment.reason}
+                                </p>
+                              )}
+                              
+                              {appointment.diagnosis && (
+                                <p className="text-sm text-muted-foreground mb-1">
+                                  <strong>Diagnóstico:</strong> {appointment.diagnosis}
+                                </p>
+                              )}
+
+                              {appointment.treatment_plan && (
+                                <p className="text-sm text-muted-foreground">
+                                  <strong>Tratamiento:</strong> {appointment.treatment_plan}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+            </div>
+          </TabsContent>
 
-      {/* Progress Note Form */}
-      {progressNoteForm.isOpen && (
-        <ProgressNoteForm
-          appointmentId={progressNoteForm.appointmentId!}
-          patientId={progressNoteForm.patientId!}
-          medicalOrderId={progressNoteForm.medicalOrderId}
-          existingNote={progressNoteForm.existingNote}
-          onSave={handleProgressNoteSaved}
-          onCancel={handleCloseProgressNoteForm}
-          isOpen={progressNoteForm.isOpen}
-        />
-      )}
-    </>
+          <TabsContent value="files" className="mt-6">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-medium">Archivos del Paciente</h3>
+                <p className="text-sm text-muted-foreground">
+                  Documentos y archivos relacionados con el tratamiento
+                </p>
+              </div>
+
+              {patientFiles.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No hay archivos cargados</p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {patientFiles.map((file) => (
+                    <div key={file.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{file.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Subido el {format(new Date(file.uploaded_date), 'PPP', { locale: es })}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewFile(file.url)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Ver
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 }
