@@ -596,7 +596,7 @@ export function FinalClinicalHistoryForm({
               </Button>
               <Button 
                 onClick={handleSaveFinalSummary} 
-                disabled={saving || uploading || !allSessionsCompleted || (!selectedFile && !existingFile)}
+                disabled={saving || uploading || !allSessionsCompleted}
               >
                 <Save className="h-4 w-4 mr-2" />
                 {saving ? 'Guardando...' : 'Guardar Evolución Final'}
