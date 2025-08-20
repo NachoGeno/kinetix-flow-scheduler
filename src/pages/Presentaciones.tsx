@@ -62,6 +62,7 @@ export default function Presentaciones() {
 
       console.log("🔍 Buscando pacientes para obra social:", selectedObraSocial);
 
+      // Primero obtener pacientes con órdenes médicas
       const { data, error } = await supabase
         .from("patients")
         .select(`
@@ -73,11 +74,13 @@ export default function Presentaciones() {
             id,
             attachment_url,
             total_sessions,
-            completed
+            completed,
+            sessions_used
           ),
-          unified_medical_histories!inner(
+          unified_medical_histories(
             id,
-            template_data
+            template_data,
+            medical_order_id
           ),
           appointments(
             id,
@@ -107,32 +110,48 @@ export default function Presentaciones() {
       const transformedData: PatientPresentation[] = await Promise.all(patientsWithOrders.map(async patient => {
         console.log(`🔍 Procesando paciente: ${patient.profiles?.first_name} ${patient.profiles?.last_name}`);
         const medicalOrder = patient.medical_orders?.[0];
-        const unifiedHistory = patient.unified_medical_histories?.[0];
-        const totalSessions = medicalOrder?.total_sessions || 0;
         
-        // Count completed appointments for this medical order
+        // Buscar la historia unificada que corresponde a esta orden médica específica
+        const relatedHistory = patient.unified_medical_histories?.find(
+          history => history.medical_order_id === medicalOrder?.id
+        );
+        
+        const totalSessions = medicalOrder?.total_sessions || 0;
+        const sessionsUsed = medicalOrder?.sessions_used || 0;
+        
+        // Count completed appointments for this patient
         const completedAppointments = patient.appointments?.filter(app => 
-          app.status === 'completed'
+          app.status === 'completed' || app.status === 'in_progress'
         ).length || 0;
         
-        // Check if final summary exists in template_data
-        const templateData = unifiedHistory?.template_data;
+        console.log(`📊 Sesiones - Total: ${totalSessions}, Usadas: ${sessionsUsed}, Citas completadas: ${completedAppointments}`);
+        
+        // Check if final summary exists in template_data for this specific medical order
+        const templateData = relatedHistory?.template_data;
         const hasFinalSummary = templateData && 
           typeof templateData === 'object' && 
           'final_summary' in templateData &&
           templateData.final_summary &&
           typeof templateData.final_summary === 'object';
         
-        console.log(`📋 Template data:`, templateData);
+        console.log(`📋 Template data for order ${medicalOrder?.id}:`, templateData);
         console.log(`🏁 Final summary exists:`, hasFinalSummary);
         
-        // Clinical evolution is complete if:
-        // 1. Medical order is marked as completed
-        // 2. Final summary has been generated (automatically or manually)
+        // Improved clinical evolution detection:
+        // 1. Order is completed AND has final summary (manual completion)
+        // 2. OR sessions used >= total sessions (automatic completion by sessions)
+        // 3. OR final summary exists (manual evolution entry)
         const isOrderCompleted = medicalOrder?.completed === true;
-        const hasClinicalEvolution = isOrderCompleted && hasFinalSummary;
+        const hasRequiredSessions = sessionsUsed >= totalSessions && totalSessions > 0;
+        const hasClinicalEvolution = (isOrderCompleted && hasFinalSummary) || 
+                                   (hasRequiredSessions && hasFinalSummary) ||
+                                   hasFinalSummary; // If final summary exists, consider it complete
         
-        console.log(`📊 ${patient.profiles?.first_name}: Orden completada=${isOrderCompleted}, Resumen final=${hasFinalSummary}, Evolutivo=${hasClinicalEvolution}`);
+        console.log(`📊 ${patient.profiles?.first_name}: 
+          - Orden completada: ${isOrderCompleted}
+          - Sesiones suficientes: ${hasRequiredSessions} (${sessionsUsed}/${totalSessions})
+          - Resumen final: ${hasFinalSummary}
+          - Evolutivo disponible: ${hasClinicalEvolution}`);
 
         // Check if attendance file exists in storage
         const attendanceFileName = `attendance/${patient.id}_attendance`;
