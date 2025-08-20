@@ -17,7 +17,8 @@ import {
   Download,
   Upload,
   Send,
-  Filter
+  Filter,
+  Search
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,6 +36,7 @@ interface PatientPresentation {
 export default function Presentaciones() {
   const [selectedObraSocial, setSelectedObraSocial] = useState<string>("");
   const [showIncompleteOnly, setShowIncompleteOnly] = useState(false);
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [attendanceFiles, setAttendanceFiles] = useState<Record<string, File>>({});
 
   // Fetch obras sociales
@@ -259,9 +261,12 @@ export default function Presentaciones() {
     toast.success("Exportando presentación...");
   };
 
-  const filteredPresentations = presentations?.filter(p => 
-    !showIncompleteOnly || !p.is_complete
-  ) || [];
+  const filteredPresentations = presentations?.filter(p => {
+    const matchesSearch = searchTerm === "" || 
+      p.patient_name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesIncomplete = !showIncompleteOnly || !p.is_complete;
+    return matchesSearch && matchesIncomplete;
+  }) || [];
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -310,7 +315,7 @@ export default function Presentaciones() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Obra Social / ART</Label>
               <Select value={selectedObraSocial} onValueChange={setSelectedObraSocial}>
@@ -325,6 +330,19 @@ export default function Presentaciones() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Buscar paciente</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nombre del paciente..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
             
             <div className="flex items-center space-x-2">
