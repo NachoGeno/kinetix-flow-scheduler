@@ -231,6 +231,7 @@ export default function AppointmentCalendar() {
   const handleStatusClick = async (appointmentId: string, currentStatus: string, e: React.MouseEvent) => {
     e.stopPropagation();
     
+    // From 'scheduled' to 'in_progress'
     if (currentStatus === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')) {
       try {
         const { error } = await supabase
@@ -251,6 +252,32 @@ export default function AppointmentCalendar() {
         toast({
           title: "Error",
           description: "No se pudo actualizar el estado de la cita",
+          variant: "destructive",
+        });
+      }
+    }
+    
+    // From 'in_progress' to 'completed'
+    else if (currentStatus === 'in_progress' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')) {
+      try {
+        const { error } = await supabase
+          .from('appointments')
+          .update({ status: 'completed' })
+          .eq('id', appointmentId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Éxito",
+          description: "Sesión marcada como completada. Ya puede cargar la evolución final.",
+        });
+
+        fetchAppointments();
+      } catch (error) {
+        console.error('Error completing appointment:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo completar la sesión",
           variant: "destructive",
         });
       }
@@ -505,14 +532,16 @@ export default function AppointmentCalendar() {
                                           <div className="font-medium text-sm text-slate-900 mb-1">
                                             {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
                                           </div>
-                                          <Badge 
-                                            className={`text-xs cursor-pointer ${
-                                              appointment.status === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')
-                                                ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                                                : statusColors[appointment.status as keyof typeof statusColors]
-                                            }`}
-                                            onClick={(e) => handleStatusClick(appointment.id, appointment.status, e)}
-                                          >
+                                           <Badge 
+                                             className={`text-xs cursor-pointer ${
+                                               appointment.status === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')
+                                                 ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                                 : appointment.status === 'in_progress' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')
+                                                 ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                                                 : statusColors[appointment.status as keyof typeof statusColors]
+                                             }`}
+                                             onClick={(e) => handleStatusClick(appointment.id, appointment.status, e)}
+                                           >
                                             <AppointmentStatusIcon className="h-3 w-3 mr-1" />
                                              {appointment.status === 'scheduled' ? 'Agendado' : 
                                               appointment.status === 'in_progress' ? 'Asistido' : 
