@@ -74,6 +74,7 @@ interface MedicalOrder {
   total_sessions: number;
   sessions_used: number;
   document_status: 'pendiente' | 'completa';
+  created_at: string;
 }
 
 interface RecurringAppointment {
@@ -909,33 +910,34 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                               No hay órdenes médicas disponibles para este paciente
                             </div>
                           )}
-                          {medicalOrders.map((order) => {
-                            const sessionsRemaining = order.total_sessions - order.sessions_used;
-                            
-                            return (
-                              <SelectItem 
-                                key={order.id} 
-                                value={order.id}
-                              >
-                                <div className="w-full">
-                                  <div className="font-medium">
-                                    {order.description.length > 45 
-                                      ? `${order.description.substring(0, 45)}...` 
-                                      : order.description
-                                    }
-                                  </div>
-                                  <div className="text-sm text-muted-foreground flex justify-between">
-                                    <span>
-                                      {order.doctor_name && `Dr. ${order.doctor_name}`}
-                                    </span>
-                                    <span className="font-semibold text-primary">
-                                      {sessionsRemaining} sesión{sessionsRemaining !== 1 ? 'es' : ''} disponible{sessionsRemaining !== 1 ? 's' : ''}
-                                    </span>
-                                  </div>
-                                </div>
-                              </SelectItem>
-                            );
-                          })}
+                           {medicalOrders.map((order) => {
+                             const sessionsRemaining = order.total_sessions - order.sessions_used;
+                             const orderDate = format(new Date(order.created_at), "dd/MM/yyyy", { locale: es });
+                             
+                             return (
+                               <SelectItem 
+                                 key={order.id} 
+                                 value={order.id}
+                               >
+                                 <div className="w-full">
+                                   <div className="font-medium">
+                                     🗓️ {orderDate} - {order.description.length > 30 
+                                       ? `${order.description.substring(0, 30)}...` 
+                                       : order.description
+                                     }
+                                   </div>
+                                   <div className="text-sm text-muted-foreground flex justify-between items-center">
+                                     <span>
+                                       {order.doctor_name ? `Dr. ${order.doctor_name}` : 'Sin médico asignado'}
+                                     </span>
+                                     <Badge variant="secondary" className="text-xs">
+                                       {sessionsRemaining} sesión{sessionsRemaining !== 1 ? 'es' : ''} restante{sessionsRemaining !== 1 ? 's' : ''}
+                                     </Badge>
+                                   </div>
+                                 </div>
+                               </SelectItem>
+                             );
+                           })}
                         </SelectContent>
                     </Select>
                     <Button
@@ -970,6 +972,71 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                     orderDescription={selectedOrder.description}
                     className="mb-4"
                   />
+                );
+              }
+              return null;
+            })()}
+
+            {/* Medical Order Information Panel */}
+            {form.watch('medical_order_id') && form.watch('medical_order_id') !== 'none' && (() => {
+              const selectedOrderId = form.watch('medical_order_id');
+              const selectedOrder = medicalOrders.find(o => o.id === selectedOrderId);
+              
+              if (selectedOrder) {
+                const orderDate = new Date(selectedOrder.created_at);
+                const daysSinceCreated = Math.floor((new Date().getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
+                const sessionsRemaining = selectedOrder.total_sessions - selectedOrder.sessions_used;
+                const isOldOrder = daysSinceCreated > 90; // Más de 3 meses
+                
+                return (
+                  <Card className="border-l-4 border-l-primary bg-primary/5">
+                    <CardContent className="pt-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-sm">📋 Información de la Orden Médica</h4>
+                          {isOldOrder && (
+                            <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+                              ⚠️ Orden antigua
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Fecha de emisión:</span>
+                            <p className="font-medium">
+                              🗓️ {format(orderDate, "dd/MM/yyyy", { locale: es })} 
+                              <span className="text-muted-foreground ml-1">
+                                ({daysSinceCreated === 0 ? 'Hoy' : 
+                                  daysSinceCreated === 1 ? 'Ayer' : 
+                                  `Hace ${daysSinceCreated} días`})
+                              </span>
+                            </p>
+                          </div>
+                          
+                          <div>
+                            <span className="text-muted-foreground">Sesiones disponibles:</span>
+                            <p className="font-medium text-primary">
+                              ⚡ {sessionsRemaining} de {selectedOrder.total_sessions} restantes
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {selectedOrder.doctor_name && (
+                          <div className="text-sm">
+                            <span className="text-muted-foreground">Médico prescriptor:</span>
+                            <p className="font-medium">👨‍⚕️ Dr. {selectedOrder.doctor_name}</p>
+                          </div>
+                        )}
+                        
+                        {isOldOrder && (
+                          <div className="text-xs text-amber-700 bg-amber-50 p-2 rounded-md border border-amber-200">
+                            ⚠️ Esta orden médica tiene más de 3 meses de antigüedad. Considera verificar si aún está vigente.
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 );
               }
               return null;
