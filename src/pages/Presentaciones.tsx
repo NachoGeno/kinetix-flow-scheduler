@@ -420,12 +420,12 @@ export default function Presentaciones() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Obra Social / ART</Label>
-              <Select value={filters.obra_social_id} onValueChange={(value) => setFilters(prev => ({ ...prev, obra_social_id: value }))}>
+               <Select value={filters.obra_social_id} onValueChange={(value) => setFilters(prev => ({ ...prev, obra_social_id: value === "all" ? "" : value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todas las obras sociales" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas</SelectItem>
+                  <SelectItem value="all">Todas</SelectItem>
                   {obrasSociales?.map((obra) => (
                     <SelectItem key={obra.id} value={obra.id}>
                       {obra.nombre} ({obra.tipo})
