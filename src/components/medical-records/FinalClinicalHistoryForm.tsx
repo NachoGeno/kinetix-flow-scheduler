@@ -90,8 +90,64 @@ export function FinalClinicalHistoryForm({
       if (orderError) throw orderError;
       setMedicalOrder(orderData);
 
-      // First get the appointments for this specific medical order
-      const { data: orderHistory, error: historyError } = await supabase
+      // Get all appointments for this patient and check which ones are completed
+      const { data: allAppointments, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select(`
+          id,
+          appointment_date,
+          appointment_time,
+          status,
+          doctor:doctors!appointments_doctor_id_fkey(
+            profile:profiles!doctors_profile_id_fkey(
+              first_name,
+              last_name,
+              id
+            )
+          )
+        `)
+        .eq('patient_id', patientId)
+        .in('status', ['completed', 'in_progress'])
+        .order('appointment_date', { ascending: true });
+
+      if (appointmentsError) throw appointmentsError;
+
+      const completedAppointments = allAppointments || [];
+      const completedCount = completedAppointments.length;
+      
+      console.log('Debug - Order:', orderData);
+      console.log('Debug - Total sessions needed:', orderData.total_sessions);
+      console.log('Debug - Completed appointments for patient:', completedAppointments);
+      console.log('Debug - Completed sessions count:', completedCount);
+      console.log('Debug - Order completed:', orderData.completed);
+      console.log('Debug - Order sessions used:', orderData.sessions_used);
+      
+      // Consider order complete if:
+      // 1. Sessions used >= total sessions needed
+      // 2. Or the order is manually marked as completed
+      const hasAllSessions = orderData.sessions_used >= orderData.total_sessions;
+      setAllSessionsCompleted(hasAllSessions || orderData.completed);
+
+      console.log('Debug - All sessions completed:', hasAllSessions || orderData.completed);
+
+      // Create session data from completed appointments
+      const sessionData: AppointmentSession[] = completedAppointments
+        .slice(0, orderData.total_sessions) // Only take the sessions needed for this order
+        .map(appointment => ({
+          id: appointment.id,
+          appointment_date: appointment.appointment_date,
+          appointment_time: appointment.appointment_time,
+          professional_name: `${appointment.doctor?.profile?.first_name || ''} ${appointment.doctor?.profile?.last_name || ''}`.trim(),
+          professional_id: appointment.doctor?.profile?.id || '',
+          observations: '', // Will be loaded from medical history if exists
+          evolution: '', // Will be loaded from medical history if exists
+          status: appointment.status
+        }));
+
+      setSessions(sessionData);
+
+      // Try to load existing medical history entries for these appointments
+      const { data: existingHistory, error: historyError } = await supabase
         .from('unified_medical_histories')
         .select(`
           id,
@@ -104,97 +160,40 @@ export function FinalClinicalHistoryForm({
           )
         `)
         .eq('medical_order_id', medicalOrderId)
-        .single();
+        .maybeSingle();
 
-      // Now get the appointments that belong to this medical order
-      let orderAppointments: any[] = [];
-      let sessionData: AppointmentSession[] = [];
-      
-      if (!historyError && orderHistory?.medical_history_entries) {
-        const appointmentIds = orderHistory.medical_history_entries.map((entry: any) => entry.appointment_id);
-        
-        if (appointmentIds.length > 0) {
-          const { data: appointmentsData, error: appointmentsError } = await supabase
-            .from('appointments')
-            .select(`
-              id,
-              appointment_date,
-              appointment_time,
-              status,
-              doctor:doctors!appointments_doctor_id_fkey(
-                profile:profiles!doctors_profile_id_fkey(
-                  first_name,
-                  last_name,
-                  id
-                )
-              )
-            `)
-            .in('id', appointmentIds)
-            .order('appointment_date', { ascending: true });
-
-          if (!appointmentsError && appointmentsData) {
-            orderAppointments = appointmentsData;
-            
-            // Combine appointment and entry data for sessions display
-            const completedAppointments = appointmentsData.filter(apt => 
-              apt.status === 'completed' || apt.status === 'in_progress'
-            );
-            
-            sessionData = completedAppointments
-              .map(appointment => {
-                const entry = orderHistory.medical_history_entries.find((e: any) => 
-                  e.appointment_id === appointment.id
-                );
-                
-                if (!entry) return null;
-
-                return {
-                  id: appointment.id,
-                  appointment_date: appointment.appointment_date,
-                  appointment_time: appointment.appointment_time,
-                  professional_name: entry.professional_name,
-                  professional_id: entry.professional_id,
-                  observations: entry.observations,
-                  evolution: entry.evolution,
-                  status: appointment.status
-                };
-              })
-              .filter(Boolean) as AppointmentSession[];
+      // Update session data with medical history if available
+      if (!historyError && existingHistory?.medical_history_entries) {
+        const updatedSessions = sessionData.map(session => {
+          const entry = existingHistory.medical_history_entries.find((e: any) => 
+            e.appointment_id === session.id
+          );
+          
+          if (entry) {
+            return {
+              ...session,
+              professional_name: entry.professional_name,
+              professional_id: entry.professional_id,
+              observations: entry.observations || '',
+              evolution: entry.evolution || ''
+            };
           }
-        }
+          
+          return session;
+        });
+        
+        setSessions(updatedSessions);
       }
 
-      // Check if all required sessions are completed (including in_progress as completed)
-      const completedOrderSessions = orderAppointments.filter(apt => 
-        apt.status === 'completed' || apt.status === 'in_progress'
-      );
-      const completedCount = completedOrderSessions.length;
-      
-      console.log('Debug - Order:', orderData);
-      console.log('Debug - Total sessions needed:', orderData.total_sessions);
-      console.log('Debug - Order appointments data:', orderAppointments);
-      console.log('Debug - Completed sessions count:', completedCount);
-      console.log('Debug - Order completed:', orderData.completed);
-      
-      // Consider order complete if:
-      // 1. All sessions are attended (completed or in_progress)
-      // 2. Or the order is manually marked as completed
-      const hasAllSessions = completedCount >= orderData.total_sessions;
-      setAllSessionsCompleted(hasAllSessions || orderData.completed);
-
-      console.log('Debug - All sessions completed:', hasAllSessions || orderData.completed);
-
-      setSessions(sessionData);
-
       // Check if final summary already exists
-      const { data: existingHistory, error: existingHistoryError } = await supabase
+      const { data: existingSummary, error: existingHistoryError } = await supabase
         .from('unified_medical_histories')
         .select('template_data')
         .eq('medical_order_id', medicalOrderId)
         .maybeSingle();
 
-      if (!existingHistoryError && existingHistory?.template_data) {
-        const templateData = existingHistory.template_data as any;
+      if (!existingHistoryError && existingSummary?.template_data) {
+        const templateData = existingSummary.template_data as any;
         if (templateData.final_summary) {
           setFinalSummary({
             initial_assessment: templateData.final_summary.initial_assessment || '',
