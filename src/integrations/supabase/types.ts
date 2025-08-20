@@ -373,6 +373,7 @@ export type Database = {
           obra_social_art_id: string | null
           order_type: Database["public"]["Enums"]["order_type"]
           patient_id: string
+          presentation_status: string | null
           results: string | null
           sessions_used: number
           total_sessions: number
@@ -397,6 +398,7 @@ export type Database = {
           obra_social_art_id?: string | null
           order_type: Database["public"]["Enums"]["order_type"]
           patient_id: string
+          presentation_status?: string | null
           results?: string | null
           sessions_used?: number
           total_sessions?: number
@@ -421,6 +423,7 @@ export type Database = {
           obra_social_art_id?: string | null
           order_type?: Database["public"]["Enums"]["order_type"]
           patient_id?: string
+          presentation_status?: string | null
           results?: string | null
           sessions_used?: number
           total_sessions?: number
@@ -744,6 +747,57 @@ export type Database = {
         }
         Relationships: []
       }
+      presentation_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          file_name: string
+          file_url: string
+          id: string
+          medical_order_id: string
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          file_name: string
+          file_url: string
+          id?: string
+          medical_order_id: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          file_name?: string
+          file_url?: string
+          id?: string
+          medical_order_id?: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presentation_documents_medical_order_id_fkey"
+            columns: ["medical_order_id"]
+            isOneToOne: false
+            referencedRelation: "medical_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presentation_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address: string | null
@@ -974,6 +1028,10 @@ export type Database = {
     Functions: {
       can_manage_plus_payments: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      check_presentation_ready: {
+        Args: { order_id: string }
         Returns: boolean
       }
       generate_final_summary_for_completed_order: {
