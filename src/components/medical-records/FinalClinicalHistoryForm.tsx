@@ -90,89 +90,99 @@ export function FinalClinicalHistoryForm({
       if (orderError) throw orderError;
       setMedicalOrder(orderData);
 
-      // Check if all sessions are completed by comparing total vs completed appointments
-      const { data: appointmentsData, error: appointmentsError } = await supabase
-        .from('appointments')
+      // First get the appointments for this specific medical order
+      const { data: orderHistory, error: historyError } = await supabase
+        .from('unified_medical_histories')
         .select(`
           id,
-          appointment_date,
-          appointment_time,
-          status,
-          doctor:doctors!appointments_doctor_id_fkey(
-            profile:profiles!doctors_profile_id_fkey(
-              first_name,
-              last_name,
-              id
-            )
+          medical_history_entries(
+            appointment_id,
+            professional_name,
+            professional_id,
+            observations,
+            evolution
           )
         `)
-        .eq('patient_id', patientId)
-        .order('appointment_date', { ascending: true });
+        .eq('medical_order_id', medicalOrderId)
+        .single();
 
-      if (appointmentsError) throw appointmentsError;
+      // Now get the appointments that belong to this medical order
+      let orderAppointments: any[] = [];
+      let sessionData: AppointmentSession[] = [];
+      
+      if (!historyError && orderHistory?.medical_history_entries) {
+        const appointmentIds = orderHistory.medical_history_entries.map((entry: any) => entry.appointment_id);
+        
+        if (appointmentIds.length > 0) {
+          const { data: appointmentsData, error: appointmentsError } = await supabase
+            .from('appointments')
+            .select(`
+              id,
+              appointment_date,
+              appointment_time,
+              status,
+              doctor:doctors!appointments_doctor_id_fkey(
+                profile:profiles!doctors_profile_id_fkey(
+                  first_name,
+                  last_name,
+                  id
+                )
+              )
+            `)
+            .in('id', appointmentIds)
+            .order('appointment_date', { ascending: true });
 
-      // Check if all required sessions are completed (including in_progress as valid)
-      const completedSessions = appointmentsData?.filter(apt => 
+          if (!appointmentsError && appointmentsData) {
+            orderAppointments = appointmentsData;
+            
+            // Combine appointment and entry data for sessions display
+            const completedAppointments = appointmentsData.filter(apt => 
+              apt.status === 'completed' || apt.status === 'in_progress'
+            );
+            
+            sessionData = completedAppointments
+              .map(appointment => {
+                const entry = orderHistory.medical_history_entries.find((e: any) => 
+                  e.appointment_id === appointment.id
+                );
+                
+                if (!entry) return null;
+
+                return {
+                  id: appointment.id,
+                  appointment_date: appointment.appointment_date,
+                  appointment_time: appointment.appointment_time,
+                  professional_name: entry.professional_name,
+                  professional_id: entry.professional_id,
+                  observations: entry.observations,
+                  evolution: entry.evolution,
+                  status: appointment.status
+                };
+              })
+              .filter(Boolean) as AppointmentSession[];
+          }
+        }
+      }
+
+      // Check if all required sessions are completed (including in_progress as completed)
+      const completedOrderSessions = orderAppointments.filter(apt => 
         apt.status === 'completed' || apt.status === 'in_progress'
-      ) || [];
-      const completedCount = completedSessions.length;
+      );
+      const completedCount = completedOrderSessions.length;
       
       console.log('Debug - Order:', orderData);
       console.log('Debug - Total sessions needed:', orderData.total_sessions);
-      console.log('Debug - Appointments data:', appointmentsData);
+      console.log('Debug - Order appointments data:', orderAppointments);
       console.log('Debug - Completed sessions count:', completedCount);
       console.log('Debug - Order completed:', orderData.completed);
       
-      setAllSessionsCompleted(completedCount >= orderData.total_sessions || orderData.completed);
+      // Consider order complete if:
+      // 1. All sessions are attended (completed or in_progress)
+      // 2. Or the order is manually marked as completed
+      const hasAllSessions = completedCount >= orderData.total_sessions;
+      setAllSessionsCompleted(hasAllSessions || orderData.completed);
 
-      // Get completed and in_progress appointments for display
-      const completedAppointments = appointmentsData?.filter(apt => 
-        apt.status === 'completed' || apt.status === 'in_progress'
-      ) || [];
-
-      if (appointmentsError) throw appointmentsError;
-
-        // Get medical history entries for these appointments from the specific medical order
-        const { data: unifiedHistoryData, error: historyError } = await supabase
-          .from('unified_medical_histories')
-          .select(`
-            id,
-            medical_history_entries(
-              appointment_id,
-              professional_name,
-              professional_id,
-              observations,
-              evolution
-            )
-          `)
-          .eq('medical_order_id', medicalOrderId)
-          .single();
-
-        let sessionData: AppointmentSession[] = [];
-
-        if (!historyError && unifiedHistoryData?.medical_history_entries) {
-          // Combine appointment and entry data
-          sessionData = completedAppointments
-            .map(appointment => {
-              const entry = unifiedHistoryData.medical_history_entries.find((e: any) => 
-                e.appointment_id === appointment.id
-              );
-              
-              if (!entry) return null; // Only include sessions that belong to this medical order
-
-              return {
-                id: appointment.id,
-                appointment_date: appointment.appointment_date,
-                appointment_time: appointment.appointment_time,
-                professional_name: entry.professional_name,
-                professional_id: entry.professional_id,
-                observations: entry.observations,
-                evolution: entry.evolution,
-                status: appointment.status
-              };
-            })
-            .filter(Boolean) as AppointmentSession[];
-        }
+      console.log('Debug - All sessions completed:', hasAllSessions || orderData.completed);
 
       setSessions(sessionData);
 
