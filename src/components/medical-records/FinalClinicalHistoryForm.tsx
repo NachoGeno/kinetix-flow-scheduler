@@ -111,13 +111,24 @@ export function FinalClinicalHistoryForm({
 
       if (appointmentsError) throw appointmentsError;
 
-      // Check if all required sessions are completed
-      const completedSessions = appointmentsData?.filter(apt => apt.status === 'completed') || [];
+      // Check if all required sessions are completed (including in_progress as valid)
+      const completedSessions = appointmentsData?.filter(apt => 
+        apt.status === 'completed' || apt.status === 'in_progress'
+      ) || [];
       const completedCount = completedSessions.length;
+      
+      console.log('Debug - Order:', orderData);
+      console.log('Debug - Total sessions needed:', orderData.total_sessions);
+      console.log('Debug - Appointments data:', appointmentsData);
+      console.log('Debug - Completed sessions count:', completedCount);
+      console.log('Debug - Order completed:', orderData.completed);
+      
       setAllSessionsCompleted(completedCount >= orderData.total_sessions || orderData.completed);
 
-      // Get only completed appointments for display
-      const completedAppointments = appointmentsData?.filter(apt => apt.status === 'completed') || [];
+      // Get completed and in_progress appointments for display
+      const completedAppointments = appointmentsData?.filter(apt => 
+        apt.status === 'completed' || apt.status === 'in_progress'
+      ) || [];
 
       if (appointmentsError) throw appointmentsError;
 
@@ -266,6 +277,10 @@ export function FinalClinicalHistoryForm({
   };
 
   const handleSaveFinalSummary = async () => {
+    console.log('Debug - Attempting to save. AllSessionsCompleted:', allSessionsCompleted);
+    console.log('Debug - Sessions length:', sessions.length);
+    console.log('Debug - Medical order:', medicalOrder);
+    
     if (!allSessionsCompleted) {
       toast.error('No se puede guardar. Faltan sesiones por completar.');
       return;
