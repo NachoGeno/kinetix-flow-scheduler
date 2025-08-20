@@ -514,7 +514,12 @@ export default function AppointmentCalendar() {
                                             onClick={(e) => handleStatusClick(appointment.id, appointment.status, e)}
                                           >
                                             <AppointmentStatusIcon className="h-3 w-3 mr-1" />
-                                            {appointment.status === 'scheduled' ? 'Agendado' : appointment.status}
+                                             {appointment.status === 'scheduled' ? 'Agendado' : 
+                                              appointment.status === 'in_progress' ? 'Asistido' : 
+                                              appointment.status === 'completed' ? 'Completado' : 
+                                              appointment.status === 'confirmed' ? 'Confirmado' :
+                                              appointment.status === 'cancelled' ? 'Cancelado' :
+                                              appointment.status === 'no_show' ? 'No asistió' : appointment.status}
                                           </Badge>
                                         </div>
                                       </div>
