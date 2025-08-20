@@ -374,7 +374,7 @@ export function FinalClinicalHistoryForm({
         )}
       </DialogTrigger>
       
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
@@ -387,7 +387,7 @@ export function FinalClinicalHistoryForm({
             <p>Cargando datos de la orden médica...</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-6 pr-2"> {/* Added padding right for scrollbar */}
             {/* Medical Order Summary */}
             {medicalOrder && (
               <Card>
@@ -618,11 +618,9 @@ export function FinalClinicalHistoryForm({
               </p>
             )}
             
-            {allSessionsCompleted && !selectedFile && !existingFile && (
-              <p className="text-sm text-red-600 text-center">
-                Debe cargar un archivo de evolución clínica final
-              </p>
-            )}
+            <div className="text-xs text-gray-500 text-center">
+              Debug: Sessions used: {medicalOrder?.sessions_used || 0}, Total: {medicalOrder?.total_sessions || 0}, Completed: {allSessionsCompleted ? 'Sí' : 'No'}
+            </div>
           </div>
         )}
       </DialogContent>
