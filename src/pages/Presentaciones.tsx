@@ -24,10 +24,13 @@ import {
   Calendar,
   User,
   Building2,
-  Clock
+  Clock,
+  FileDown,
+  AlertCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import jsPDF from 'jspdf';
 
 interface PresentationOrder {
   id: string;
@@ -94,6 +97,7 @@ export default function Presentaciones() {
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploadType, setUploadType] = useState<'clinical_evolution' | 'attendance_record' | 'social_work_authorization' | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
 
   // Fetch obras sociales
   const { data: obrasSociales } = useQuery({
@@ -394,14 +398,182 @@ export default function Presentaciones() {
     }
   };
 
+  const downloadDocument = async (fileUrl: string): Promise<Blob | null> => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('medical-orders')
+        .createSignedUrl(fileUrl, 3600);
+
+      if (error) {
+        const { data: publicData } = supabase.storage
+          .from('medical-orders')
+          .getPublicUrl(fileUrl);
+        
+        if (publicData.publicUrl) {
+          const response = await fetch(publicData.publicUrl);
+          return await response.blob();
+        }
+        throw error;
+      }
+
+      if (data?.signedUrl) {
+        const response = await fetch(data.signedUrl);
+        return await response.blob();
+      }
+      return null;
+    } catch (error) {
+      console.error("Error downloading document:", error);
+      return null;
+    }
+  };
+
+  const generatePDF = async (order: PresentationOrder) => {
+    try {
+      setGeneratingPdf(order.id);
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageHeight = pdf.internal.pageSize.height;
+      let yPosition = 20;
+
+      // Title page
+      pdf.setFontSize(20);
+      pdf.text('PRESENTACIÓN MÉDICA', 105, yPosition, { align: 'center' });
+      yPosition += 20;
+
+      pdf.setFontSize(14);
+      pdf.text(`Paciente: ${order.patient.profile.first_name} ${order.patient.profile.last_name}`, 20, yPosition);
+      yPosition += 10;
+      pdf.text(`DNI: ${order.patient.profile.dni || 'N/A'}`, 20, yPosition);
+      yPosition += 10;
+      pdf.text(`Obra Social: ${order.obra_social.nombre}`, 20, yPosition);
+      yPosition += 10;
+      pdf.text(`Fecha: ${format(new Date(), "dd/MM/yyyy", { locale: es })}`, 20, yPosition);
+      yPosition += 20;
+
+      const documents = [
+        { key: 'medical_order', title: '1. Orden Médica', doc: order.documents.medical_order },
+        { key: 'social_work_authorization', title: '2. Autorización de Obra Social', doc: order.documents.social_work_authorization },
+        { key: 'clinical_evolution', title: '3. Evolutivo Clínico', doc: order.documents.clinical_evolution },
+        { key: 'attendance_record', title: '4. Registro de Asistencia', doc: order.documents.attendance_record }
+      ];
+
+      for (const docInfo of documents) {
+        if (docInfo.doc) {
+          // Add new page for each document
+          if (yPosition > 50) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+          
+          pdf.setFontSize(14);
+          pdf.text(docInfo.title, 20, yPosition);
+          yPosition += 10;
+          pdf.setFontSize(10);
+          pdf.text(`Archivo: ${docInfo.doc.file_name}`, 20, yPosition);
+          pdf.text(`Fecha: ${format(new Date(docInfo.doc.uploaded_at), "dd/MM/yyyy HH:mm", { locale: es })}`, 20, yPosition + 5);
+          yPosition += 20;
+
+          try {
+            const blob = await downloadDocument(docInfo.doc.file_url);
+            if (blob && blob.type.includes('image')) {
+              // Handle images
+              const reader = new FileReader();
+              reader.onload = function(e) {
+                if (e.target?.result) {
+                  const img = new Image();
+                  img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Calculate dimensions to fit page
+                    const maxWidth = 170;
+                    const maxHeight = pageHeight - yPosition - 20;
+                    const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
+                    
+                    canvas.width = img.width * ratio;
+                    canvas.height = img.height * ratio;
+                    
+                    ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    try {
+                      pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 20, yPosition, canvas.width / 4, canvas.height / 4);
+                    } catch (error) {
+                      console.error('Error adding image to PDF:', error);
+                      pdf.text('Error al cargar imagen', 20, yPosition);
+                    }
+                  };
+                  img.src = e.target.result as string;
+                }
+              };
+              reader.readAsDataURL(blob);
+            } else {
+              // For PDFs and other documents, just add a reference
+              pdf.text('Documento adjunto (ver archivo original)', 20, yPosition);
+            }
+          } catch (error) {
+            console.error('Error processing document:', error);
+            pdf.text('Error al cargar documento', 20, yPosition);
+          }
+        } else {
+          pdf.text(`${docInfo.title}: NO DISPONIBLE`, 20, yPosition);
+        }
+        yPosition += 30;
+      }
+
+      // Generate filename
+      const fileName = `Presentacion_${order.patient.profile.last_name}_${order.obra_social.nombre.replace(/[^a-zA-Z0-9]/g, '_')}_${format(new Date(), "yyyy-MM-dd")}.pdf`;
+      
+      pdf.save(fileName);
+
+      // Mark as PDF generated
+      await supabase
+        .from('medical_orders')
+        .update({ presentation_status: 'pdf_generated' })
+        .eq('id', order.id);
+
+      toast.success("PDF generado correctamente");
+      refetch();
+
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Error al generar el PDF");
+    } finally {
+      setGeneratingPdf(null);
+    }
+  };
+
   const getDocumentStatus = (order: PresentationOrder) => {
     const docs = order.documents;
     const hasAllDocs = docs.medical_order && docs.clinical_evolution && docs.attendance_record && docs.social_work_authorization;
     const sessionsReady = order.sessions_completed;
     
-    if (!sessionsReady) return { status: 'sessions_pending', color: 'bg-orange-100 text-orange-800', text: 'Sesiones pendientes' };
-    if (hasAllDocs && sessionsReady) return { status: 'complete', color: 'bg-green-100 text-green-800', text: 'Completa' };
-    return { status: 'incomplete', color: 'bg-red-100 text-red-800', text: 'Incompleta' };
+    if (!sessionsReady) return { 
+      status: 'sessions_pending', 
+      color: 'bg-orange-100 text-orange-800', 
+      text: 'Sesiones pendientes', 
+      icon: '🟠' 
+    };
+    
+    if (order.presentation_status === 'pdf_generated') return { 
+      status: 'pdf_generated', 
+      color: 'bg-green-100 text-green-800', 
+      text: '🟢 PDF generado', 
+      icon: '🟢' 
+    };
+    
+    if (hasAllDocs && sessionsReady) return { 
+      status: 'ready_to_generate', 
+      color: 'bg-yellow-100 text-yellow-800', 
+      text: '🟡 Lista para generar', 
+      icon: '🟡' 
+    };
+    
+    return { 
+      status: 'incomplete', 
+      color: 'bg-red-100 text-red-800', 
+      text: '🔴 Incompleta', 
+      icon: '🔴' 
+    };
   };
 
   return (
@@ -751,17 +923,49 @@ export default function Presentaciones() {
                   </div>
 
                   {/* Actions */}
-                  {docStatus.status === 'complete' && order.presentation_status !== 'submitted' && (
-                    <div className="flex justify-end pt-2 border-t">
-                      <Button 
-                        onClick={() => markAsSubmitted(order.id)}
-                        className="gap-2"
-                      >
-                        <Send className="h-4 w-4" />
-                        Marcar como Enviada
-                      </Button>
+                  <div className="flex justify-end pt-2 border-t">
+                    <div className="flex gap-2">
+                      {docStatus.status === 'ready_to_generate' && (
+                        <Button 
+                          onClick={() => generatePDF(order)}
+                          className="gap-2"
+                          disabled={generatingPdf === order.id}
+                        >
+                          <FileDown className="h-4 w-4" />
+                          {generatingPdf === order.id ? 'Generando...' : 'Generar PDF'}
+                        </Button>
+                      )}
+                      
+                      {docStatus.status === 'pdf_generated' && (
+                        <>
+                          <Button 
+                            variant="outline"
+                            onClick={() => generatePDF(order)}
+                            className="gap-2"
+                            disabled={generatingPdf === order.id}
+                          >
+                            <FileDown className="h-4 w-4" />
+                            Regenerar PDF
+                          </Button>
+                          
+                          <Button 
+                            onClick={() => markAsSubmitted(order.id)}
+                            className="gap-2"
+                          >
+                            <Send className="h-4 w-4" />
+                            Marcar como Enviada
+                          </Button>
+                        </>
+                      )}
+                      
+                      {docStatus.status === 'incomplete' && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <AlertCircle className="h-4 w-4" />
+                          Complete todos los documentos para generar PDF
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
             );
