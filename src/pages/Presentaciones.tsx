@@ -415,12 +415,15 @@ export default function Presentaciones() {
 
   const handleDownloadDocument = async (fileUrl: string, fileName: string) => {
     try {
+      console.log("📥 Downloading document:", fileName, fileUrl);
+      
       const { data, error } = await supabase.storage
         .from('medical-orders')
         .createSignedUrl(fileUrl, 3600);
 
       let downloadUrl = '';
       if (error) {
+        console.log("❌ Error with signed URL for download, trying public URL:", error);
         const { data: publicData } = supabase.storage
           .from('medical-orders')
           .getPublicUrl(fileUrl);
@@ -430,16 +433,34 @@ export default function Presentaciones() {
       }
 
       if (downloadUrl) {
+        console.log("📥 Starting download from:", downloadUrl);
+        
+        // Fetch the file and create a blob
+        const response = await fetch(downloadUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
         const link = document.createElement('a');
-        link.href = downloadUrl;
+        link.href = url;
         link.download = fileName;
         document.body.appendChild(link);
         link.click();
+        
+        // Clean up
         document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        console.log("✅ Download completed successfully");
         toast.success("Descarga iniciada");
+      } else {
+        throw new Error("No se pudo obtener la URL del archivo");
       }
     } catch (error) {
-      console.error("Error downloading document:", error);
+      console.error("❌ Error downloading document:", error);
       toast.error("Error al descargar el documento");
     }
   };
@@ -1697,30 +1718,18 @@ export default function Presentaciones() {
             {viewingDocument && (
               <div className="w-full h-full">
                 {viewingDocument.type === 'pdf' ? (
-                  <div className="w-full h-full">
-                    {/* Try iframe first, with fallback to download */}
+                  <div className="w-full h-full relative">
                     <iframe
-                      src={`${viewingDocument.url}#toolbar=1&navpanes=1&scrollbar=1`}
+                      src={viewingDocument.url}
                       className="w-full h-full border-0"
                       title={viewingDocument.name}
                       style={{ minHeight: '500px' }}
                       onLoad={() => console.log("📄 PDF loaded successfully")}
                       onError={(e) => {
                         console.error("❌ Error loading PDF in iframe:", e);
+                        toast.error("Error al cargar el PDF");
                       }}
                     />
-                    {/* Fallback options */}
-                    <div className="absolute bottom-4 right-4 flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(viewingDocument.url, '_blank')}
-                        className="gap-2"
-                      >
-                        <Eye className="h-4 w-4" />
-                        Abrir en nueva pestaña
-                      </Button>
-                    </div>
                   </div>
                 ) : viewingDocument.type === 'image' ? (
                   <div className="w-full h-full flex items-center justify-center bg-gray-50">
@@ -1745,23 +1754,13 @@ export default function Presentaciones() {
                       <p className="text-sm text-gray-500 mb-4">
                         Tipo: {viewingDocument.name.split('.').pop()?.toUpperCase()}
                       </p>
-                      <div className="flex gap-2 justify-center">
-                        <Button
-                          onClick={() => window.open(viewingDocument.url, '_blank')}
-                          variant="outline"
-                          className="gap-2"
-                        >
-                          <Eye className="h-4 w-4" />
-                          Abrir en nueva pestaña
-                        </Button>
-                        <Button
-                          onClick={() => viewingDocument && handleDownloadDocument(viewingDocument.url, viewingDocument.name)}
-                          className="gap-2"
-                        >
-                          <Download className="h-4 w-4" />
-                          Descargar archivo
-                        </Button>
-                      </div>
+                      <Button
+                        onClick={() => viewingDocument && handleDownloadDocument(viewingDocument.url, viewingDocument.name)}
+                        className="gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        Descargar archivo
+                      </Button>
                     </div>
                   </div>
                 )}
