@@ -26,7 +26,8 @@ import {
   Building2,
   Clock,
   FileDown,
-  AlertCircle
+  AlertCircle,
+  Edit2
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -98,6 +99,7 @@ export default function Presentaciones() {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploadType, setUploadType] = useState<'clinical_evolution' | 'attendance_record' | 'social_work_authorization' | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
 
   // Fetch obras sociales
   const { data: obrasSociales } = useQuery({
@@ -313,7 +315,7 @@ export default function Presentaciones() {
     enabled: true
   });
 
-  const handleFileUpload = async (orderId: string, documentType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization', file: File) => {
+  const handleFileUpload = async (orderId: string, documentType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization', file: File, existingDocId?: string) => {
     if (!profile) return;
 
     try {
@@ -329,28 +331,53 @@ export default function Presentaciones() {
 
       if (uploadError) throw uploadError;
 
-      // Save document record
-      const { error: docError } = await supabase
-        .from('presentation_documents')
-        .upsert({
-          medical_order_id: orderId,
-          document_type: documentType,
-          file_url: fileName,
-          file_name: file.name,
-          uploaded_by: profile.id
-        });
+      // Save or update document record
+      if (existingDocId && editMode) {
+        // Update existing document
+        const { error: docError } = await supabase
+          .from('presentation_documents')
+          .update({
+            file_url: fileName,
+            file_name: file.name,
+            uploaded_by: profile.id,
+            uploaded_at: new Date().toISOString()
+          })
+          .eq('id', existingDocId);
 
-      if (docError) throw docError;
+        if (docError) throw docError;
+        toast.success("Documento actualizado correctamente");
+      } else {
+        // Create new document
+        const { error: docError } = await supabase
+          .from('presentation_documents')
+          .upsert({
+            medical_order_id: orderId,
+            document_type: documentType,
+            file_url: fileName,
+            file_name: file.name,
+            uploaded_by: profile.id
+          });
 
-      toast.success("Documento cargado correctamente");
+        if (docError) throw docError;
+        toast.success("Documento cargado correctamente");
+      }
+
       refetch();
       setIsUploadDialogOpen(false);
+      setEditMode(false);
     } catch (error) {
       console.error("Error uploading document:", error);
-      toast.error("Error al cargar el documento");
+      toast.error(editMode ? "Error al actualizar el documento" : "Error al cargar el documento");
     } finally {
       setUploadingDoc(null);
     }
+  };
+
+  const handleEditDocument = (order: PresentationOrder, documentType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization') => {
+    setSelectedOrder(order);
+    setUploadType(documentType);
+    setEditMode(true);
+    setIsUploadDialogOpen(true);
   };
 
   const handleViewDocument = async (fileUrl: string) => {
@@ -935,15 +962,25 @@ export default function Presentaciones() {
                       </div>
                       {order.documents.clinical_evolution ? (
                         <div className="space-y-1">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full text-xs"
-                            onClick={() => handleViewDocument(order.documents.clinical_evolution!.file_url)}
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            Ver evolutivo
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex-1 text-xs"
+                              onClick={() => handleViewDocument(order.documents.clinical_evolution!.file_url)}
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              Ver
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-xs px-2"
+                              onClick={() => handleEditDocument(order, 'clinical_evolution')}
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             Por: {order.documents.clinical_evolution.uploader_name}
                           </p>
@@ -981,15 +1018,25 @@ export default function Presentaciones() {
                       </div>
                       {order.documents.attendance_record ? (
                         <div className="space-y-1">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full text-xs"
-                            onClick={() => handleViewDocument(order.documents.attendance_record!.file_url)}
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            Ver registro
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex-1 text-xs"
+                              onClick={() => handleViewDocument(order.documents.attendance_record!.file_url)}
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              Ver
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-xs px-2"
+                              onClick={() => handleEditDocument(order, 'attendance_record')}
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             Por: {order.documents.attendance_record.uploader_name}
                           </p>
@@ -1027,15 +1074,25 @@ export default function Presentaciones() {
                       </div>
                       {order.documents.social_work_authorization ? (
                         <div className="space-y-1">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full text-xs"
-                            onClick={() => handleViewDocument(order.documents.social_work_authorization!.file_url)}
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            Ver autorización
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex-1 text-xs"
+                              onClick={() => handleViewDocument(order.documents.social_work_authorization!.file_url)}
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              Ver
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-xs px-2"
+                              onClick={() => handleEditDocument(order, 'social_work_authorization')}
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             Por: {order.documents.social_work_authorization.uploader_name}
                           </p>
@@ -1117,7 +1174,7 @@ export default function Presentaciones() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Subir {
+              {editMode ? 'Reemplazar' : 'Subir'} {
                 uploadType === 'clinical_evolution' ? 'Evolutivo Clínico' : 
                 uploadType === 'attendance_record' ? 'Registro de Asistencia' :
                 'Autorización de Obra Social'
@@ -1140,7 +1197,9 @@ export default function Presentaciones() {
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file && selectedOrder && uploadType) {
-                    handleFileUpload(selectedOrder.id, uploadType, file);
+                    const existingDoc = selectedOrder.documents[uploadType];
+                    const existingDocId = existingDoc?.id;
+                    handleFileUpload(selectedOrder.id, uploadType, file, existingDocId);
                   }
                 }}
                 disabled={!!uploadingDoc}
@@ -1149,8 +1208,16 @@ export default function Presentaciones() {
                 Formatos permitidos: PDF, JPG, PNG, DOC, DOCX
               </p>
             </div>
+            {editMode && selectedOrder && uploadType && selectedOrder.documents[uploadType] && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800 font-medium">⚠️ Reemplazando documento existente</p>
+                <p className="text-xs text-yellow-700">
+                  Archivo actual: {selectedOrder.documents[uploadType]!.file_name}
+                </p>
+              </div>
+            )}
             {uploadingDoc && (
-              <p className="text-sm text-blue-600">Subiendo documento...</p>
+              <p className="text-sm text-blue-600">{editMode ? 'Actualizando' : 'Subiendo'} documento...</p>
             )}
           </div>
         </DialogContent>
