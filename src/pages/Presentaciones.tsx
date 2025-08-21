@@ -565,46 +565,24 @@ export default function Presentaciones() {
         yPosition -= 20;
       });
 
-      // Process and add documents in order
+      // Process and add documents in order (without separators)
       const documentsToProcess = [
-        { title: '1. ORDEN MÉDICA', doc: docs.medical_order },
-        { title: '2. AUTORIZACIÓN DE OBRA SOCIAL', doc: docs.social_work_authorization },
-        { title: '3. EVOLUTIVO CLÍNICO', doc: docs.clinical_evolution },
-        { title: '4. REGISTRO DE ASISTENCIA', doc: docs.attendance_record }
+        docs.medical_order,
+        docs.social_work_authorization,
+        docs.clinical_evolution,
+        docs.attendance_record
       ];
 
-      for (const docInfo of documentsToProcess) {
-        // Add separator page for each document
-        const separatorPage = pdfDoc.addPage();
-        separatorPage.drawText(docInfo.title, {
-          x: 50,
-          y: height - 100,
-          size: 20,
-          font: timesRomanBoldFont,
-          color: rgb(0, 0, 0.8)
-        });
-
-        separatorPage.drawText(`Archivo: ${docInfo.doc.file_name}`, {
-          x: 50,
-          y: height - 140,
-          size: 12,
-          font: timesRomanFont
-        });
-
-        separatorPage.drawText(`Fecha de carga: ${format(new Date(docInfo.doc.uploaded_at), "dd/MM/yyyy HH:mm", { locale: es })}`, {
-          x: 50,
-          y: height - 160,
-          size: 12,
-          font: timesRomanFont
-        });
+      for (const doc of documentsToProcess) {
+        if (!doc) continue;
 
         try {
           // Download the document
-          const blob = await downloadDocument(docInfo.doc.file_url);
+          const blob = await downloadDocument(doc.file_url);
           
           if (blob) {
             if (blob.type.includes('pdf')) {
-              // Handle PDF files
+              // Handle PDF files - add pages directly without separator
               const arrayBuffer = await blob.arrayBuffer();
               const existingPdf = await PDFDocument.load(arrayBuffer);
               const pages = await pdfDoc.copyPages(existingPdf, existingPdf.getPageIndices());
@@ -612,7 +590,7 @@ export default function Presentaciones() {
               pages.forEach((page) => pdfDoc.addPage(page));
               
             } else if (blob.type.includes('image')) {
-              // Handle image files
+              // Handle image files - add directly without separator
               const arrayBuffer = await blob.arrayBuffer();
               let image;
               
@@ -626,8 +604,8 @@ export default function Presentaciones() {
               const { width: pageWidth, height: pageHeight } = imagePage.getSize();
               
               // Calculate scaling to fit image in page with margins
-              const maxWidth = pageWidth - 100; // 50px margin on each side
-              const maxHeight = pageHeight - 100; // 50px margin top and bottom
+              const maxWidth = pageWidth - 40; // Smaller margins for cleaner look
+              const maxHeight = pageHeight - 40;
               
               const imageScale = Math.min(
                 maxWidth / image.width,
@@ -649,28 +627,10 @@ export default function Presentaciones() {
               });
             }
           } else {
-            // Add error page if document couldn't be loaded
-            const errorPage = pdfDoc.addPage();
-            errorPage.drawText('Error al cargar el documento', {
-              x: 50,
-              y: height - 200,
-              size: 14,
-              font: timesRomanFont,
-              color: rgb(1, 0, 0)
-            });
+            console.warn(`Could not load document: ${doc.file_name}`);
           }
         } catch (error) {
-          console.error(`Error processing document ${docInfo.title}:`, error);
-          
-          // Add error page
-          const errorPage = pdfDoc.addPage();
-          errorPage.drawText('Error al procesar el documento', {
-            x: 50,
-            y: height - 200,
-            size: 14,
-            font: timesRomanFont,
-            color: rgb(1, 0, 0)
-          });
+          console.error(`Error processing document ${doc.file_name}:`, error);
         }
       }
 
