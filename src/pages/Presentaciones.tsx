@@ -650,11 +650,11 @@ export default function Presentaciones() {
       try {
         const logoImageBytes = await fetch('/lovable-uploads/2800aff0-a779-4fb4-9ad8-7d20459df869.png').then(res => res.arrayBuffer());
         const logoImage = await pdfDoc.embedPng(logoImageBytes);
-        const logoDims = logoImage.scale(0.15); // Adjust scale as needed
+        const logoDims = logoImage.scale(0.12); // Reduced scale to prevent overlap
         
         coverPage.drawImage(logoImage, {
-          x: 50,
-          y: height - 120,
+          x: 40,
+          y: height - 115,
           width: logoDims.width,
           height: logoDims.height,
         });
@@ -662,17 +662,17 @@ export default function Presentaciones() {
         console.log('Could not load logo, using placeholder');
         // Fallback rectangle if logo fails to load
         coverPage.drawRectangle({
-          x: 50,
-          y: height - 120,
-          width: 80,
-          height: 60,
+          x: 40,
+          y: height - 115,
+          width: 70,
+          height: 50,
           color: rgb(1, 1, 1),
           borderColor: lightBlue,
           borderWidth: 2,
         });
         
         coverPage.drawText('LOGO', {
-          x: 70,
+          x: 60,
           y: height - 95,
           size: 12,
           font: timesRomanFont,
@@ -680,18 +680,18 @@ export default function Presentaciones() {
         });
       }
       
-      // Medical center name
+      // Medical center name with safer margin
       coverPage.drawText('REHABILITARE', {
-        x: 150,
+        x: 180,
         y: height - 70,
         size: 24,
         font: timesRomanBoldFont,
         color: rgb(1, 1, 1)
       });
       
-      // Subtitle
+      // Subtitle with matching margin
       coverPage.drawText('Servicios Médicos Profesionales', {
-        x: 150,
+        x: 180,
         y: height - 95,
         size: 12,
         font: timesRomanFont,
