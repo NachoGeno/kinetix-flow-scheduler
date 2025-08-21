@@ -105,7 +105,7 @@ export default function Presentaciones() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<{orderId: string, docType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization', docId: string} | null>(null);
   const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
-  const [viewingDocument, setViewingDocument] = useState<{url: string, name: string, type: string} | null>(null);
+  const [viewingDocument, setViewingDocument] = useState<{url: string, name: string, type: string, originalPath?: string} | null>(null);
 
   // Fetch obras sociales
   const { data: obrasSociales } = useQuery({
@@ -417,19 +417,29 @@ export default function Presentaciones() {
     try {
       console.log("📥 Downloading document:", fileName, fileUrl);
       
-      const { data, error } = await supabase.storage
+      // First try signed URL
+      const { data: signedData, error: signedError } = await supabase.storage
         .from('medical-orders')
         .createSignedUrl(fileUrl, 3600);
 
       let downloadUrl = '';
-      if (error) {
-        console.log("❌ Error with signed URL for download, trying public URL:", error);
+      
+      if (signedError || !signedData?.signedUrl) {
+        console.log("❌ Error with signed URL, trying public URL:", signedError);
+        // Fallback to public URL using the original fileUrl
         const { data: publicData } = supabase.storage
           .from('medical-orders')
           .getPublicUrl(fileUrl);
-        downloadUrl = publicData.publicUrl;
+        
+        if (publicData?.publicUrl) {
+          downloadUrl = publicData.publicUrl;
+          console.log("✅ Using public URL for download:", downloadUrl);
+        } else {
+          throw new Error("No se pudo obtener ninguna URL válida");
+        }
       } else {
-        downloadUrl = data?.signedUrl || '';
+        downloadUrl = signedData.signedUrl;
+        console.log("✅ Using signed URL for download:", downloadUrl);
       }
 
       if (downloadUrl) {
@@ -456,8 +466,6 @@ export default function Presentaciones() {
         
         console.log("✅ Download completed successfully");
         toast.success("Descarga iniciada");
-      } else {
-        throw new Error("No se pudo obtener la URL del archivo");
       }
     } catch (error) {
       console.error("❌ Error downloading document:", error);
@@ -469,27 +477,29 @@ export default function Presentaciones() {
     try {
       console.log("🔍 Viewing document:", fileUrl, fileName);
       
-      const { data, error } = await supabase.storage
+      // First try signed URL
+      const { data: signedData, error: signedError } = await supabase.storage
         .from('medical-orders')
         .createSignedUrl(fileUrl, 3600);
 
       let documentUrl = '';
-      if (error) {
-        console.log("❌ Error with signed URL, trying public URL:", error);
-        // Fallback to public URL
+      
+      if (signedError || !signedData?.signedUrl) {
+        console.log("❌ Error with signed URL, trying public URL:", signedError);
+        // Fallback to public URL using the original fileUrl
         const { data: publicData } = supabase.storage
           .from('medical-orders')
           .getPublicUrl(fileUrl);
         
-        if (publicData.publicUrl) {
+        if (publicData?.publicUrl) {
           documentUrl = publicData.publicUrl;
-          console.log("✅ Using public URL:", documentUrl);
+          console.log("✅ Using public URL for viewing:", documentUrl);
         } else {
-          throw error;
+          throw new Error("No se pudo obtener ninguna URL válida para el documento");
         }
       } else {
-        documentUrl = data?.signedUrl || '';
-        console.log("✅ Using signed URL:", documentUrl);
+        documentUrl = signedData.signedUrl;
+        console.log("✅ Using signed URL for viewing:", documentUrl);
       }
 
       if (documentUrl) {
@@ -499,10 +509,12 @@ export default function Presentaciones() {
         
         console.log("📄 File type detected:", fileType, "Extension:", fileExtension);
         
+        // Store both the display URL and original file path for downloads
         setViewingDocument({
           url: documentUrl,
           name: fileName || 'Documento',
-          type: fileType
+          type: fileType,
+          originalPath: fileUrl // Store original path for downloads
         });
         setDocumentViewerOpen(true);
       }
@@ -1706,7 +1718,10 @@ export default function Presentaciones() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => viewingDocument && handleDownloadDocument(viewingDocument.url, viewingDocument.name)}
+                onClick={() => viewingDocument && handleDownloadDocument(
+                  viewingDocument.originalPath || viewingDocument.url, 
+                  viewingDocument.name
+                )}
                 className="gap-2 shrink-0 ml-4"
               >
                 <Download className="h-4 w-4" />
@@ -1755,7 +1770,10 @@ export default function Presentaciones() {
                         Tipo: {viewingDocument.name.split('.').pop()?.toUpperCase()}
                       </p>
                       <Button
-                        onClick={() => viewingDocument && handleDownloadDocument(viewingDocument.url, viewingDocument.name)}
+                        onClick={() => viewingDocument && handleDownloadDocument(
+                          viewingDocument.originalPath || viewingDocument.url, 
+                          viewingDocument.name
+                        )}
                         className="gap-2"
                       >
                         <Download className="h-4 w-4" />
