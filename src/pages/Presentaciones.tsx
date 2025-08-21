@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,7 +28,8 @@ import {
   Clock,
   FileDown,
   AlertCircle,
-  Edit2
+  Edit2,
+  Trash2
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -100,6 +102,8 @@ export default function Presentaciones() {
   const [uploadType, setUploadType] = useState<'clinical_evolution' | 'attendance_record' | 'social_work_authorization' | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<{orderId: string, docType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization', docId: string} | null>(null);
 
   // Fetch obras sociales
   const { data: obrasSociales } = useQuery({
@@ -378,6 +382,33 @@ export default function Presentaciones() {
     setUploadType(documentType);
     setEditMode(true);
     setIsUploadDialogOpen(true);
+  };
+
+  const handleDeleteDocument = async () => {
+    if (!documentToDelete) return;
+
+    try {
+      // Delete document from database
+      const { error } = await supabase
+        .from('presentation_documents')
+        .delete()
+        .eq('id', documentToDelete.docId);
+
+      if (error) throw error;
+
+      toast.success("Documento eliminado correctamente");
+      refetch();
+      setDeleteConfirmOpen(false);
+      setDocumentToDelete(null);
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      toast.error("Error al eliminar el documento");
+    }
+  };
+
+  const confirmDeleteDocument = (orderId: string, docType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization', docId: string) => {
+    setDocumentToDelete({ orderId, docType, docId });
+    setDeleteConfirmOpen(true);
   };
 
   const handleViewDocument = async (fileUrl: string) => {
@@ -1291,6 +1322,14 @@ export default function Presentaciones() {
                             >
                               <Edit2 className="h-3 w-3" />
                             </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-xs px-2 text-red-600 hover:text-red-700"
+                              onClick={() => confirmDeleteDocument(order.id, 'clinical_evolution', order.documents.clinical_evolution!.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
                           </div>
                           <p className="text-xs text-muted-foreground">
                             Por: {order.documents.clinical_evolution.uploader_name}
@@ -1347,6 +1386,14 @@ export default function Presentaciones() {
                             >
                               <Edit2 className="h-3 w-3" />
                             </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-xs px-2 text-red-600 hover:text-red-700"
+                              onClick={() => confirmDeleteDocument(order.id, 'attendance_record', order.documents.attendance_record!.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
                           </div>
                           <p className="text-xs text-muted-foreground">
                             Por: {order.documents.attendance_record.uploader_name}
@@ -1402,6 +1449,14 @@ export default function Presentaciones() {
                               onClick={() => handleEditDocument(order, 'social_work_authorization')}
                             >
                               <Edit2 className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-xs px-2 text-red-600 hover:text-red-700"
+                              onClick={() => confirmDeleteDocument(order.id, 'social_work_authorization', order.documents.social_work_authorization!.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
                           <p className="text-xs text-muted-foreground">
@@ -1547,6 +1602,27 @@ export default function Presentaciones() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar eliminación</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Está seguro de que desea eliminar este documento? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteDocument}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
