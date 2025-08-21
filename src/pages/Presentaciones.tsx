@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import jsPDF from 'jspdf';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 interface PresentationOrder {
   id: string;
@@ -431,99 +431,238 @@ export default function Presentaciones() {
     try {
       setGeneratingPdf(order.id);
       
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageHeight = pdf.internal.pageSize.height;
-      let yPosition = 20;
-
-      // Title page
-      pdf.setFontSize(20);
-      pdf.text('PRESENTACIÓN MÉDICA', 105, yPosition, { align: 'center' });
-      yPosition += 20;
-
-      pdf.setFontSize(14);
-      pdf.text(`Paciente: ${order.patient.profile.first_name} ${order.patient.profile.last_name}`, 20, yPosition);
-      yPosition += 10;
-      pdf.text(`DNI: ${order.patient.profile.dni || 'N/A'}`, 20, yPosition);
-      yPosition += 10;
-      pdf.text(`Obra Social: ${order.obra_social.nombre}`, 20, yPosition);
-      yPosition += 10;
-      pdf.text(`Fecha: ${format(new Date(), "dd/MM/yyyy", { locale: es })}`, 20, yPosition);
-      yPosition += 20;
-
-      const documents = [
-        { key: 'medical_order', title: '1. Orden Médica', doc: order.documents.medical_order },
-        { key: 'social_work_authorization', title: '2. Autorización de Obra Social', doc: order.documents.social_work_authorization },
-        { key: 'clinical_evolution', title: '3. Evolutivo Clínico', doc: order.documents.clinical_evolution },
-        { key: 'attendance_record', title: '4. Registro de Asistencia', doc: order.documents.attendance_record }
-      ];
-
-      for (const docInfo of documents) {
-        if (docInfo.doc) {
-          // Add new page for each document
-          if (yPosition > 50) {
-            pdf.addPage();
-            yPosition = 20;
-          }
-          
-          pdf.setFontSize(14);
-          pdf.text(docInfo.title, 20, yPosition);
-          yPosition += 10;
-          pdf.setFontSize(10);
-          pdf.text(`Archivo: ${docInfo.doc.file_name}`, 20, yPosition);
-          pdf.text(`Fecha: ${format(new Date(docInfo.doc.uploaded_at), "dd/MM/yyyy HH:mm", { locale: es })}`, 20, yPosition + 5);
-          yPosition += 20;
-
-          try {
-            const blob = await downloadDocument(docInfo.doc.file_url);
-            if (blob && blob.type.includes('image')) {
-              // Handle images
-              const reader = new FileReader();
-              reader.onload = function(e) {
-                if (e.target?.result) {
-                  const img = new Image();
-                  img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    
-                    // Calculate dimensions to fit page
-                    const maxWidth = 170;
-                    const maxHeight = pageHeight - yPosition - 20;
-                    const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
-                    
-                    canvas.width = img.width * ratio;
-                    canvas.height = img.height * ratio;
-                    
-                    ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    try {
-                      pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 20, yPosition, canvas.width / 4, canvas.height / 4);
-                    } catch (error) {
-                      console.error('Error adding image to PDF:', error);
-                      pdf.text('Error al cargar imagen', 20, yPosition);
-                    }
-                  };
-                  img.src = e.target.result as string;
-                }
-              };
-              reader.readAsDataURL(blob);
-            } else {
-              // For PDFs and other documents, just add a reference
-              pdf.text('Documento adjunto (ver archivo original)', 20, yPosition);
-            }
-          } catch (error) {
-            console.error('Error processing document:', error);
-            pdf.text('Error al cargar documento', 20, yPosition);
-          }
-        } else {
-          pdf.text(`${docInfo.title}: NO DISPONIBLE`, 20, yPosition);
-        }
-        yPosition += 30;
+      // Validate all documents are present
+      const docs = order.documents;
+      if (!docs.medical_order || !docs.clinical_evolution || !docs.attendance_record || !docs.social_work_authorization) {
+        toast.error("Faltan documentos requeridos para generar el PDF");
+        return;
       }
 
-      // Generate filename
-      const fileName = `Presentacion_${order.patient.profile.last_name}_${order.obra_social.nombre.replace(/[^a-zA-Z0-9]/g, '_')}_${format(new Date(), "yyyy-MM-dd")}.pdf`;
+      // Create new PDF document
+      const pdfDoc = await PDFDocument.create();
+      const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+      const timesRomanBoldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+
+      // Add cover page
+      const coverPage = pdfDoc.addPage();
+      const { width, height } = coverPage.getSize();
       
-      pdf.save(fileName);
+      // Cover page header
+      coverPage.drawText('PRESENTACIÓN MÉDICA', {
+        x: width / 2 - 120,
+        y: height - 100,
+        size: 24,
+        font: timesRomanBoldFont,
+        color: rgb(0, 0, 0.8)
+      });
+
+      // Patient information
+      let yPosition = height - 180;
+      const leftMargin = 50;
+      
+      coverPage.drawText('INFORMACIÓN DEL PACIENTE', {
+        x: leftMargin,
+        y: yPosition,
+        size: 16,
+        font: timesRomanBoldFont,
+        color: rgb(0, 0, 0.6)
+      });
+
+      yPosition -= 30;
+      const patientInfo = [
+        `Nombre: ${order.patient.profile.first_name} ${order.patient.profile.last_name}`,
+        `DNI: ${order.patient.profile.dni || 'No especificado'}`,
+        `Obra Social: ${order.obra_social.nombre}`,
+        `Tipo: ${order.obra_social.tipo}`,
+        `Profesional: ${order.doctor_name || 'No especificado'}`,
+        `Fecha de presentación: ${format(new Date(), "dd/MM/yyyy", { locale: es })}`
+      ];
+
+      patientInfo.forEach((info) => {
+        coverPage.drawText(info, {
+          x: leftMargin,
+          y: yPosition,
+          size: 12,
+          font: timesRomanFont
+        });
+        yPosition -= 20;
+      });
+
+      // Order description
+      yPosition -= 20;
+      coverPage.drawText('DESCRIPCIÓN DEL TRATAMIENTO', {
+        x: leftMargin,
+        y: yPosition,
+        size: 16,
+        font: timesRomanBoldFont,
+        color: rgb(0, 0, 0.6)
+      });
+
+      yPosition -= 30;
+      const descriptionLines = order.description.match(/.{1,80}/g) || [order.description];
+      descriptionLines.forEach((line) => {
+        coverPage.drawText(line, {
+          x: leftMargin,
+          y: yPosition,
+          size: 12,
+          font: timesRomanFont
+        });
+        yPosition -= 20;
+      });
+
+      // Document index
+      yPosition -= 30;
+      coverPage.drawText('DOCUMENTOS INCLUIDOS', {
+        x: leftMargin,
+        y: yPosition,
+        size: 16,
+        font: timesRomanBoldFont,
+        color: rgb(0, 0, 0.6)
+      });
+
+      yPosition -= 30;
+      const documentIndex = [
+        '1. Orden médica escaneada',
+        '2. Autorización de obra social',
+        '3. Evolutivo clínico completo',
+        '4. Registro de asistencia del paciente'
+      ];
+
+      documentIndex.forEach((doc) => {
+        coverPage.drawText(doc, {
+          x: leftMargin,
+          y: yPosition,
+          size: 12,
+          font: timesRomanFont
+        });
+        yPosition -= 20;
+      });
+
+      // Process and add documents in order
+      const documentsToProcess = [
+        { title: '1. ORDEN MÉDICA', doc: docs.medical_order },
+        { title: '2. AUTORIZACIÓN DE OBRA SOCIAL', doc: docs.social_work_authorization },
+        { title: '3. EVOLUTIVO CLÍNICO', doc: docs.clinical_evolution },
+        { title: '4. REGISTRO DE ASISTENCIA', doc: docs.attendance_record }
+      ];
+
+      for (const docInfo of documentsToProcess) {
+        // Add separator page for each document
+        const separatorPage = pdfDoc.addPage();
+        separatorPage.drawText(docInfo.title, {
+          x: 50,
+          y: height - 100,
+          size: 20,
+          font: timesRomanBoldFont,
+          color: rgb(0, 0, 0.8)
+        });
+
+        separatorPage.drawText(`Archivo: ${docInfo.doc.file_name}`, {
+          x: 50,
+          y: height - 140,
+          size: 12,
+          font: timesRomanFont
+        });
+
+        separatorPage.drawText(`Fecha de carga: ${format(new Date(docInfo.doc.uploaded_at), "dd/MM/yyyy HH:mm", { locale: es })}`, {
+          x: 50,
+          y: height - 160,
+          size: 12,
+          font: timesRomanFont
+        });
+
+        try {
+          // Download the document
+          const blob = await downloadDocument(docInfo.doc.file_url);
+          
+          if (blob) {
+            if (blob.type.includes('pdf')) {
+              // Handle PDF files
+              const arrayBuffer = await blob.arrayBuffer();
+              const existingPdf = await PDFDocument.load(arrayBuffer);
+              const pages = await pdfDoc.copyPages(existingPdf, existingPdf.getPageIndices());
+              
+              pages.forEach((page) => pdfDoc.addPage(page));
+              
+            } else if (blob.type.includes('image')) {
+              // Handle image files
+              const arrayBuffer = await blob.arrayBuffer();
+              let image;
+              
+              if (blob.type.includes('png')) {
+                image = await pdfDoc.embedPng(arrayBuffer);
+              } else {
+                image = await pdfDoc.embedJpg(arrayBuffer);
+              }
+              
+              const imagePage = pdfDoc.addPage();
+              const { width: pageWidth, height: pageHeight } = imagePage.getSize();
+              
+              // Calculate scaling to fit image in page with margins
+              const maxWidth = pageWidth - 100; // 50px margin on each side
+              const maxHeight = pageHeight - 100; // 50px margin top and bottom
+              
+              const imageScale = Math.min(
+                maxWidth / image.width,
+                maxHeight / image.height
+              );
+              
+              const scaledWidth = image.width * imageScale;
+              const scaledHeight = image.height * imageScale;
+              
+              // Center the image
+              const x = (pageWidth - scaledWidth) / 2;
+              const y = (pageHeight - scaledHeight) / 2;
+              
+              imagePage.drawImage(image, {
+                x,
+                y,
+                width: scaledWidth,
+                height: scaledHeight
+              });
+            }
+          } else {
+            // Add error page if document couldn't be loaded
+            const errorPage = pdfDoc.addPage();
+            errorPage.drawText('Error al cargar el documento', {
+              x: 50,
+              y: height - 200,
+              size: 14,
+              font: timesRomanFont,
+              color: rgb(1, 0, 0)
+            });
+          }
+        } catch (error) {
+          console.error(`Error processing document ${docInfo.title}:`, error);
+          
+          // Add error page
+          const errorPage = pdfDoc.addPage();
+          errorPage.drawText('Error al procesar el documento', {
+            x: 50,
+            y: height - 200,
+            size: 14,
+            font: timesRomanFont,
+            color: rgb(1, 0, 0)
+          });
+        }
+      }
+
+      // Generate the PDF
+      const pdfBytes = await pdfDoc.save();
+      
+      // Create filename
+      const fileName = `Presentacion_${order.patient.profile.last_name.replace(/[^a-zA-Z0-9]/g, '_')}_${order.obra_social.nombre.replace(/[^a-zA-Z0-9]/g, '_')}_${format(new Date(), "yyyy-MM-dd")}.pdf`;
+      
+      // Download the PDF
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
       // Mark as PDF generated
       await supabase
@@ -531,7 +670,7 @@ export default function Presentaciones() {
         .update({ presentation_status: 'pdf_generated' })
         .eq('id', order.id);
 
-      toast.success("PDF generado correctamente");
+      toast.success("PDF generado y descargado correctamente");
       refetch();
 
     } catch (error) {
