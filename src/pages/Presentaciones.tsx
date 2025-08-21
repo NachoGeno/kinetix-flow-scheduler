@@ -566,7 +566,7 @@ export default function Presentaciones() {
         color: lightBlue,
       });
       
-      coverPage.drawText('📋 DATOS DEL PACIENTE', {
+      coverPage.drawText('DATOS DEL PACIENTE', {
         x: 60,
         y: yPosition,
         size: 14,
@@ -612,7 +612,7 @@ export default function Presentaciones() {
         color: lightBlue,
       });
       
-      coverPage.drawText('🏥 INFORMACIÓN DEL TRATAMIENTO', {
+      coverPage.drawText('INFORMACION DEL TRATAMIENTO', {
         x: 60,
         y: yPosition,
         size: 14,
@@ -660,7 +660,7 @@ export default function Presentaciones() {
         color: lightBlue,
       });
       
-      coverPage.drawText('📝 DESCRIPCIÓN DEL TRATAMIENTO', {
+      coverPage.drawText('DESCRIPCION DEL TRATAMIENTO', {
         x: 60,
         y: yPosition,
         size: 14,
@@ -698,7 +698,7 @@ export default function Presentaciones() {
         color: lightBlue,
       });
       
-      coverPage.drawText('📂 DOCUMENTOS INCLUIDOS EN ESTA PRESENTACIÓN', {
+      coverPage.drawText('DOCUMENTOS INCLUIDOS EN ESTA PRESENTACION', {
         x: 60,
         y: yPosition,
         size: 14,
@@ -708,9 +708,9 @@ export default function Presentaciones() {
       
       yPosition -= 35;
       const documentsIncluded = [
-        '• Orden médica original',
-        '• Autorización de obra social/ART',
-        '• Evolutivo clínico completo',
+        '• Orden medica original',
+        '• Autorizacion de obra social/ART',
+        '• Evolutivo clinico completo',
         '• Registro de asistencia del paciente'
       ];
       
