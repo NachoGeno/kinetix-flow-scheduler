@@ -499,30 +499,45 @@ export default function Presentaciones() {
         color: lightBlue,
       });
       
-      // Medical center logo placeholder (space for future logo)
-      coverPage.drawRectangle({
-        x: 50,
-        y: height - 120,
-        width: 80,
-        height: 60,
-        color: rgb(1, 1, 1),
-        borderColor: lightBlue,
-        borderWidth: 2,
-      });
-      
-      coverPage.drawText('LOGO', {
-        x: 70,
-        y: height - 95,
-        size: 12,
-        font: timesRomanFont,
-        color: mediumGray
-      });
+      // Medical center logo
+      try {
+        const logoImageBytes = await fetch('/lovable-uploads/2800aff0-a779-4fb4-9ad8-7d20459df869.png').then(res => res.arrayBuffer());
+        const logoImage = await pdfDoc.embedPng(logoImageBytes);
+        const logoDims = logoImage.scale(0.15); // Adjust scale as needed
+        
+        coverPage.drawImage(logoImage, {
+          x: 50,
+          y: height - 120,
+          width: logoDims.width,
+          height: logoDims.height,
+        });
+      } catch (error) {
+        console.log('Could not load logo, using placeholder');
+        // Fallback rectangle if logo fails to load
+        coverPage.drawRectangle({
+          x: 50,
+          y: height - 120,
+          width: 80,
+          height: 60,
+          color: rgb(1, 1, 1),
+          borderColor: lightBlue,
+          borderWidth: 2,
+        });
+        
+        coverPage.drawText('LOGO', {
+          x: 70,
+          y: height - 95,
+          size: 12,
+          font: timesRomanFont,
+          color: mediumGray
+        });
+      }
       
       // Medical center name
-      coverPage.drawText('CENTRO MÉDICO MEDITURNOS', {
+      coverPage.drawText('REHABILITARE', {
         x: 150,
         y: height - 70,
-        size: 20,
+        size: 24,
         font: timesRomanBoldFont,
         color: rgb(1, 1, 1)
       });
@@ -538,8 +553,8 @@ export default function Presentaciones() {
       
       // Main document title
       let yPosition = height - 200;
-      coverPage.drawText('PRESENTACIÓN DE DOCUMENTACIÓN MÉDICA', {
-        x: width / 2 - 180,
+      coverPage.drawText('PRESENTACIÓN', {
+        x: width / 2 - 80,
         y: yPosition,
         size: 22,
         font: timesRomanBoldFont,
