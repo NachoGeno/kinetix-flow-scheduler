@@ -470,99 +470,287 @@ export default function Presentaciones() {
       const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
       const timesRomanBoldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
-      // Add cover page
+      // Create enhanced professional cover page
       const coverPage = pdfDoc.addPage();
       const { width, height } = coverPage.getSize();
       
-      // Cover page header
-      coverPage.drawText('PRESENTACIÓN MÉDICA', {
-        x: width / 2 - 120,
-        y: height - 100,
-        size: 24,
-        font: timesRomanBoldFont,
-        color: rgb(0, 0, 0.8)
-      });
-
-      // Patient information
-      let yPosition = height - 180;
-      const leftMargin = 50;
+      // Define colors using RGB values for professional medical theme
+      const primaryBlue = rgb(0.2, 0.4, 0.8);     // Professional blue
+      const lightBlue = rgb(0.85, 0.92, 0.98);    // Light blue background
+      const darkGray = rgb(0.2, 0.2, 0.2);        // Dark text
+      const mediumGray = rgb(0.4, 0.4, 0.4);      // Medium gray text
+      const accentGreen = rgb(0.2, 0.7, 0.5);     // Medical green accent
       
-      coverPage.drawText('INFORMACIÓN DEL PACIENTE', {
-        x: leftMargin,
-        y: yPosition,
-        size: 16,
+      // Header background with gradient effect (simulated with rectangles)
+      coverPage.drawRectangle({
+        x: 0,
+        y: height - 140,
+        width: width,
+        height: 140,
+        color: primaryBlue,
+      });
+      
+      // Light blue accent strip
+      coverPage.drawRectangle({
+        x: 0,
+        y: height - 150,
+        width: width,
+        height: 10,
+        color: lightBlue,
+      });
+      
+      // Medical center logo placeholder (space for future logo)
+      coverPage.drawRectangle({
+        x: 50,
+        y: height - 120,
+        width: 80,
+        height: 60,
+        color: rgb(1, 1, 1),
+        borderColor: lightBlue,
+        borderWidth: 2,
+      });
+      
+      coverPage.drawText('LOGO', {
+        x: 70,
+        y: height - 95,
+        size: 12,
+        font: timesRomanFont,
+        color: mediumGray
+      });
+      
+      // Medical center name
+      coverPage.drawText('CENTRO MÉDICO MEDITURNOS', {
+        x: 150,
+        y: height - 70,
+        size: 20,
         font: timesRomanBoldFont,
-        color: rgb(0, 0, 0.6)
+        color: rgb(1, 1, 1)
       });
-
-      yPosition -= 30;
-      const patientInfo = [
-        `Nombre: ${order.patient.profile.first_name} ${order.patient.profile.last_name}`,
-        `DNI: ${order.patient.profile.dni || 'No especificado'}`,
-        `Obra Social: ${order.obra_social.nombre}`,
-        `Tipo: ${order.obra_social.tipo}`,
-        `Profesional: ${order.doctor_name || 'No especificado'}`,
-        `Fecha de presentación: ${format(new Date(), "dd/MM/yyyy", { locale: es })}`
+      
+      // Subtitle
+      coverPage.drawText('Servicios Médicos Profesionales', {
+        x: 150,
+        y: height - 95,
+        size: 12,
+        font: timesRomanFont,
+        color: lightBlue
+      });
+      
+      // Main document title
+      let yPosition = height - 200;
+      coverPage.drawText('PRESENTACIÓN DE DOCUMENTACIÓN MÉDICA', {
+        x: width / 2 - 180,
+        y: yPosition,
+        size: 22,
+        font: timesRomanBoldFont,
+        color: primaryBlue
+      });
+      
+      // Decorative line under title
+      coverPage.drawLine({
+        start: { x: 50, y: yPosition - 15 },
+        end: { x: width - 50, y: yPosition - 15 },
+        thickness: 2,
+        color: accentGreen
+      });
+      
+      // Patient information section
+      yPosition = height - 280;
+      
+      // Section header with background
+      coverPage.drawRectangle({
+        x: 50,
+        y: yPosition - 5,
+        width: width - 100,
+        height: 25,
+        color: lightBlue,
+      });
+      
+      coverPage.drawText('📋 DATOS DEL PACIENTE', {
+        x: 60,
+        y: yPosition,
+        size: 14,
+        font: timesRomanBoldFont,
+        color: primaryBlue
+      });
+      
+      yPosition -= 40;
+      const patientData = [
+        { label: 'Nombre completo:', value: `${order.patient.profile.first_name} ${order.patient.profile.last_name}` },
+        { label: 'DNI:', value: order.patient.profile.dni || 'No especificado' },
+        { label: 'Obra Social/ART:', value: `${order.obra_social.nombre} (${order.obra_social.tipo})` }
       ];
-
-      patientInfo.forEach((info) => {
-        coverPage.drawText(info, {
-          x: leftMargin,
+      
+      patientData.forEach((item, index) => {
+        coverPage.drawText(`${item.label}`, {
+          x: 60,
           y: yPosition,
-          size: 12,
-          font: timesRomanFont
+          size: 11,
+          font: timesRomanBoldFont,
+          color: darkGray
         });
-        yPosition -= 20;
+        
+        coverPage.drawText(item.value, {
+          x: 200,
+          y: yPosition,
+          size: 11,
+          font: timesRomanFont,
+          color: darkGray
+        });
+        yPosition -= 22;
       });
-
-      // Order description
+      
+      // Medical order information section
       yPosition -= 20;
-      coverPage.drawText('DESCRIPCIÓN DEL TRATAMIENTO', {
-        x: leftMargin,
+      
+      // Section header with background
+      coverPage.drawRectangle({
+        x: 50,
+        y: yPosition - 5,
+        width: width - 100,
+        height: 25,
+        color: lightBlue,
+      });
+      
+      coverPage.drawText('🏥 INFORMACIÓN DEL TRATAMIENTO', {
+        x: 60,
         y: yPosition,
-        size: 16,
+        size: 14,
         font: timesRomanBoldFont,
-        color: rgb(0, 0, 0.6)
+        color: primaryBlue
       });
-
-      yPosition -= 30;
-      const descriptionLines = order.description.match(/.{1,80}/g) || [order.description];
-      descriptionLines.forEach((line) => {
-        coverPage.drawText(line, {
-          x: leftMargin,
-          y: yPosition,
-          size: 12,
-          font: timesRomanFont
-        });
-        yPosition -= 20;
-      });
-
-      // Document index
-      yPosition -= 30;
-      coverPage.drawText('DOCUMENTOS INCLUIDOS', {
-        x: leftMargin,
-        y: yPosition,
-        size: 16,
-        font: timesRomanBoldFont,
-        color: rgb(0, 0, 0.6)
-      });
-
-      yPosition -= 30;
-      const documentIndex = [
-        '1. Orden médica escaneada',
-        '2. Autorización de obra social',
-        '3. Evolutivo clínico completo',
-        '4. Registro de asistencia del paciente'
+      
+      yPosition -= 40;
+      const treatmentData = [
+        { label: 'ID de Orden:', value: order.id.substring(0, 8).toUpperCase() },
+        { label: 'Profesional:', value: order.doctor_name || 'No especificado' },
+        { label: 'Sesiones aprobadas:', value: order.total_sessions.toString() },
+        { label: 'Sesiones realizadas:', value: order.sessions_used.toString() },
+        { label: 'Fecha de creación:', value: format(new Date(order.created_at), "dd/MM/yyyy", { locale: es }) },
+        { label: 'Fecha de cierre:', value: order.completed ? format(new Date(), "dd/MM/yyyy", { locale: es }) : 'En curso' }
       ];
-
-      documentIndex.forEach((doc) => {
-        coverPage.drawText(doc, {
-          x: leftMargin,
+      
+      treatmentData.forEach((item, index) => {
+        coverPage.drawText(`${item.label}`, {
+          x: 60,
           y: yPosition,
-          size: 12,
-          font: timesRomanFont
+          size: 11,
+          font: timesRomanBoldFont,
+          color: darkGray
+        });
+        
+        coverPage.drawText(item.value, {
+          x: 200,
+          y: yPosition,
+          size: 11,
+          font: timesRomanFont,
+          color: darkGray
+        });
+        yPosition -= 22;
+      });
+      
+      // Treatment description section
+      yPosition -= 20;
+      
+      coverPage.drawRectangle({
+        x: 50,
+        y: yPosition - 5,
+        width: width - 100,
+        height: 25,
+        color: lightBlue,
+      });
+      
+      coverPage.drawText('📝 DESCRIPCIÓN DEL TRATAMIENTO', {
+        x: 60,
+        y: yPosition,
+        size: 14,
+        font: timesRomanBoldFont,
+        color: primaryBlue
+      });
+      
+      yPosition -= 30;
+      
+      // Split description into multiple lines if needed
+      const maxLineLength = 70;
+      const descriptionLines = order.description.length > maxLineLength 
+        ? order.description.match(new RegExp(`.{1,${maxLineLength}}(\\s|$)`, 'g')) || [order.description]
+        : [order.description];
+      
+      descriptionLines.forEach((line) => {
+        coverPage.drawText(line.trim(), {
+          x: 60,
+          y: yPosition,
+          size: 11,
+          font: timesRomanFont,
+          color: darkGray
+        });
+        yPosition -= 18;
+      });
+      
+      // Documents included section
+      yPosition = 180;
+      
+      coverPage.drawRectangle({
+        x: 50,
+        y: yPosition - 5,
+        width: width - 100,
+        height: 25,
+        color: lightBlue,
+      });
+      
+      coverPage.drawText('📂 DOCUMENTOS INCLUIDOS EN ESTA PRESENTACIÓN', {
+        x: 60,
+        y: yPosition,
+        size: 14,
+        font: timesRomanBoldFont,
+        color: primaryBlue
+      });
+      
+      yPosition -= 35;
+      const documentsIncluded = [
+        '• Orden médica original',
+        '• Autorización de obra social/ART',
+        '• Evolutivo clínico completo',
+        '• Registro de asistencia del paciente'
+      ];
+      
+      documentsIncluded.forEach((doc) => {
+        coverPage.drawText(doc, {
+          x: 60,
+          y: yPosition,
+          size: 11,
+          font: timesRomanFont,
+          color: darkGray
         });
         yPosition -= 20;
+      });
+      
+      // Footer with generation info
+      const footerY = 50;
+      
+      // Footer background
+      coverPage.drawRectangle({
+        x: 0,
+        y: footerY - 20,
+        width: width,
+        height: 40,
+        color: rgb(0.95, 0.95, 0.95),
+      });
+      
+      coverPage.drawText(`Documento generado el ${format(new Date(), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}`, {
+        x: 60,
+        y: footerY,
+        size: 10,
+        font: timesRomanFont,
+        color: mediumGray
+      });
+      
+      coverPage.drawText('Sistema Mediturnos - Gestión Médica Profesional', {
+        x: width - 280,
+        y: footerY,
+        size: 10,
+        font: timesRomanFont,
+        color: mediumGray
       });
 
       // Process and add documents in order (without separators)
