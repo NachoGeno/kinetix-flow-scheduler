@@ -1698,17 +1698,29 @@ export default function Presentaciones() {
               <div className="w-full h-full">
                 {viewingDocument.type === 'pdf' ? (
                   <div className="w-full h-full">
+                    {/* Try iframe first, with fallback to download */}
                     <iframe
                       src={`${viewingDocument.url}#toolbar=1&navpanes=1&scrollbar=1`}
                       className="w-full h-full border-0"
                       title={viewingDocument.name}
                       style={{ minHeight: '500px' }}
                       onLoad={() => console.log("📄 PDF loaded successfully")}
-                      onError={() => {
-                        console.error("❌ Error loading PDF in iframe");
-                        toast.error("Error al cargar el PDF. Intente descargar el archivo.");
+                      onError={(e) => {
+                        console.error("❌ Error loading PDF in iframe:", e);
                       }}
                     />
+                    {/* Fallback options */}
+                    <div className="absolute bottom-4 right-4 flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(viewingDocument.url, '_blank')}
+                        className="gap-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Abrir en nueva pestaña
+                      </Button>
+                    </div>
                   </div>
                 ) : viewingDocument.type === 'image' ? (
                   <div className="w-full h-full flex items-center justify-center bg-gray-50">
@@ -1733,13 +1745,23 @@ export default function Presentaciones() {
                       <p className="text-sm text-gray-500 mb-4">
                         Tipo: {viewingDocument.name.split('.').pop()?.toUpperCase()}
                       </p>
-                      <Button
-                        onClick={() => viewingDocument && handleDownloadDocument(viewingDocument.url, viewingDocument.name)}
-                        className="gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        Descargar archivo
-                      </Button>
+                      <div className="flex gap-2 justify-center">
+                        <Button
+                          onClick={() => window.open(viewingDocument.url, '_blank')}
+                          variant="outline"
+                          className="gap-2"
+                        >
+                          <Eye className="h-4 w-4" />
+                          Abrir en nueva pestaña
+                        </Button>
+                        <Button
+                          onClick={() => viewingDocument && handleDownloadDocument(viewingDocument.url, viewingDocument.name)}
+                          className="gap-2"
+                        >
+                          <Download className="h-4 w-4" />
+                          Descargar archivo
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}
