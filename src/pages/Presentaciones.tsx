@@ -1027,28 +1027,28 @@ export default function Presentaciones() {
       status: 'sessions_pending', 
       color: 'bg-orange-100 text-orange-800', 
       text: 'Sesiones pendientes', 
-      icon: '🟠' 
+      icon: <Clock className="h-3 w-3" />
     };
     
     if (order.presentation_status === 'pdf_generated') return { 
       status: 'pdf_generated', 
       color: 'bg-green-100 text-green-800', 
-      text: '🟢 PDF generado', 
-      icon: '🟢' 
+      text: 'PDF generado', 
+      icon: <CheckCircle2 className="h-3 w-3" />
     };
     
     if (hasAllDocs && sessionsReady) return { 
       status: 'ready_to_generate', 
       color: 'bg-yellow-100 text-yellow-800', 
-      text: '🟡 Lista para generar', 
-      icon: '🟡' 
+      text: 'Lista para generar', 
+      icon: <FileDown className="h-3 w-3" />
     };
     
     return { 
       status: 'incomplete', 
       color: 'bg-red-100 text-red-800', 
-      text: '🔴 Incompleta', 
-      icon: '🔴' 
+      text: 'Incompleta', 
+      icon: <AlertCircle className="h-3 w-3" />
     };
   };
 
@@ -1200,7 +1200,8 @@ export default function Presentaciones() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge className={docStatus.color} variant="secondary">
+                      <Badge className={`${docStatus.color} flex items-center gap-1`} variant="secondary">
+                        {docStatus.icon}
                         {docStatus.text}
                       </Badge>
                       {order.presentation_status === 'submitted' && (
