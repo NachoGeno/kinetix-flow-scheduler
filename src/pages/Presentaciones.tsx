@@ -446,12 +446,15 @@ export default function Presentaciones() {
 
   const handleViewDocument = async (fileUrl: string, fileName?: string) => {
     try {
+      console.log("🔍 Viewing document:", fileUrl, fileName);
+      
       const { data, error } = await supabase.storage
         .from('medical-orders')
         .createSignedUrl(fileUrl, 3600);
 
       let documentUrl = '';
       if (error) {
+        console.log("❌ Error with signed URL, trying public URL:", error);
         // Fallback to public URL
         const { data: publicData } = supabase.storage
           .from('medical-orders')
@@ -459,17 +462,21 @@ export default function Presentaciones() {
         
         if (publicData.publicUrl) {
           documentUrl = publicData.publicUrl;
+          console.log("✅ Using public URL:", documentUrl);
         } else {
           throw error;
         }
       } else {
         documentUrl = data?.signedUrl || '';
+        console.log("✅ Using signed URL:", documentUrl);
       }
 
       if (documentUrl) {
         const fileExtension = fileUrl.split('.').pop()?.toLowerCase() || '';
         const fileType = ['pdf'].includes(fileExtension) ? 'pdf' : 
                         ['jpg', 'jpeg', 'png'].includes(fileExtension) ? 'image' : 'other';
+        
+        console.log("📄 File type detected:", fileType, "Extension:", fileExtension);
         
         setViewingDocument({
           url: documentUrl,
@@ -479,7 +486,7 @@ export default function Presentaciones() {
         setDocumentViewerOpen(true);
       }
     } catch (error) {
-      console.error("Error viewing document:", error);
+      console.error("❌ Error viewing document:", error);
       toast.error("No se pudo abrir el documento");
     }
   };
@@ -1674,33 +1681,46 @@ export default function Presentaciones() {
         <DialogContent className="max-w-4xl h-[80vh]">
           <DialogHeader>
             <div className="flex items-center justify-between">
-              <DialogTitle>{viewingDocument?.name}</DialogTitle>
+              <DialogTitle className="truncate">{viewingDocument?.name}</DialogTitle>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => viewingDocument && handleDownloadDocument(viewingDocument.url, viewingDocument.name)}
-                className="gap-2"
+                className="gap-2 shrink-0 ml-4"
               >
                 <Download className="h-4 w-4" />
                 Descargar
               </Button>
             </div>
           </DialogHeader>
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 border rounded-lg overflow-hidden">
             {viewingDocument && (
               <div className="w-full h-full">
                 {viewingDocument.type === 'pdf' ? (
-                  <iframe
-                    src={viewingDocument.url}
-                    className="w-full h-full border-0"
-                    title={viewingDocument.name}
-                  />
+                  <div className="w-full h-full">
+                    <iframe
+                      src={`${viewingDocument.url}#toolbar=1&navpanes=1&scrollbar=1`}
+                      className="w-full h-full border-0"
+                      title={viewingDocument.name}
+                      style={{ minHeight: '500px' }}
+                      onLoad={() => console.log("📄 PDF loaded successfully")}
+                      onError={() => {
+                        console.error("❌ Error loading PDF in iframe");
+                        toast.error("Error al cargar el PDF. Intente descargar el archivo.");
+                      }}
+                    />
+                  </div>
                 ) : viewingDocument.type === 'image' ? (
                   <div className="w-full h-full flex items-center justify-center bg-gray-50">
                     <img
                       src={viewingDocument.url}
                       alt={viewingDocument.name}
                       className="max-w-full max-h-full object-contain"
+                      onLoad={() => console.log("🖼️ Image loaded successfully")}
+                      onError={() => {
+                        console.error("❌ Error loading image");
+                        toast.error("Error al cargar la imagen");
+                      }}
                     />
                   </div>
                 ) : (
@@ -1709,6 +1729,9 @@ export default function Presentaciones() {
                       <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
                       <p className="text-gray-600 mb-4">
                         No se puede previsualizar este tipo de archivo
+                      </p>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Tipo: {viewingDocument.name.split('.').pop()?.toUpperCase()}
                       </p>
                       <Button
                         onClick={() => viewingDocument && handleDownloadDocument(viewingDocument.url, viewingDocument.name)}
@@ -1720,6 +1743,11 @@ export default function Presentaciones() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+            {!viewingDocument && (
+              <div className="w-full h-full flex items-center justify-center">
+                <p className="text-gray-500">Cargando documento...</p>
               </div>
             )}
           </div>
