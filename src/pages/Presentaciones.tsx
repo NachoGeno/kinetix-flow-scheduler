@@ -454,17 +454,71 @@ export default function Presentaciones() {
     }
   };
 
+  const refreshPresentationFiles = async (orderId: string) => {
+    console.log(`🔄 Refreshing presentation files for order: ${orderId}`);
+    await refetch();
+    toast.success("Archivos de presentación actualizados");
+  };
+
+  const validateDocumentsForPDF = (order: PresentationOrder): { isValid: boolean; missingDocs: string[]; activeFiles: string[] } => {
+    const missingDocs: string[] = [];
+    const activeFiles: string[] = [];
+
+    if (!order.documents.medical_order) {
+      missingDocs.push("Orden médica escaneada");
+    } else {
+      activeFiles.push(`✓ Orden médica: ${order.documents.medical_order.file_name}`);
+    }
+
+    if (!order.documents.clinical_evolution) {
+      missingDocs.push("Evolutivo clínico final");
+    } else {
+      activeFiles.push(`✓ Evolutivo clínico: ${order.documents.clinical_evolution.file_name}`);
+    }
+
+    if (!order.documents.attendance_record) {
+      missingDocs.push("Registro de asistencia");
+    } else {
+      activeFiles.push(`✓ Registro de asistencia: ${order.documents.attendance_record.file_name}`);
+    }
+
+    if (!order.documents.social_work_authorization) {
+      missingDocs.push("Autorización de obra social");
+    } else {
+      activeFiles.push(`✓ Autorización de obra social: ${order.documents.social_work_authorization.file_name}`);
+    }
+
+    return {
+      isValid: missingDocs.length === 0,
+      missingDocs,
+      activeFiles
+    };
+  };
+
   const generatePDF = async (order: PresentationOrder) => {
     try {
       setGeneratingPdf(order.id);
       
-      // FRESH FETCH: Always get the most current documents from database
-      console.log(`🔄 Regenerating PDF from scratch for order: ${order.id}`);
+      // VALIDATION: Check for all required documents before proceeding
+      const validation = validateDocumentsForPDF(order);
       
-      // Force refresh of data to ensure we have the latest documents
+      if (!validation.isValid) {
+        const missingList = validation.missingDocs.join(', ');
+        console.warn(`❌ Cannot generate PDF - Missing documents: ${missingList}`);
+        toast.error(`No se puede generar el PDF. Faltan documentos: ${missingList}`, {
+          duration: 8000,
+          description: "Complete todos los archivos requeridos antes de generar el PDF"
+        });
+        return;
+      }
+
+      console.log(`🔄 Regenerating PDF from scratch for order: ${order.id}`);
+      console.log("📋 Files that will be included:", validation.activeFiles);
+      
+      // Force refresh to ensure latest data
       await refetch();
       
-      // Get fresh presentation documents directly from database
+      // Get ONLY current active documents from database (no cache)
       const { data: currentDocuments, error: docsError } = await supabase
         .from("presentation_documents")
         .select(`
@@ -484,9 +538,9 @@ export default function Presentaciones() {
         return;
       }
 
-      console.log(`📄 Found ${currentDocuments?.length || 0} current documents for order ${order.id}`);
+      console.log(`📄 Found ${currentDocuments?.length || 0} current active documents for order ${order.id}`);
 
-      // Organize ONLY current documents by type
+      // Organize ONLY current active documents by type
       const freshDocs = {
         medical_order: null as DocumentInfo | null,
         clinical_evolution: null as DocumentInfo | null,
@@ -506,9 +560,9 @@ export default function Presentaciones() {
         };
       }
 
-      // Process ONLY current documents from database
+      // Process ONLY current active documents from database
       currentDocuments?.forEach((doc: any) => {
-        console.log(`📋 Processing current document: ${doc.document_type} - ${doc.file_name}`);
+        console.log(`📋 Processing current active document: ${doc.document_type} - ${doc.file_name}`);
         
         if (doc.document_type === 'clinical_evolution') {
           freshDocs.clinical_evolution = {
@@ -540,19 +594,23 @@ export default function Presentaciones() {
         }
       });
 
-      // Validate ALL required documents are present with current data
-      if (!freshDocs.medical_order || !freshDocs.clinical_evolution || !freshDocs.attendance_record || !freshDocs.social_work_authorization) {
-        console.warn("❌ Missing required documents:", {
-          medical_order: !!freshDocs.medical_order,
-          clinical_evolution: !!freshDocs.clinical_evolution,
-          attendance_record: !!freshDocs.attendance_record,
-          social_work_authorization: !!freshDocs.social_work_authorization
+      // Final validation with fresh data - Abort if any document is missing
+      const missingDocs = [];
+      if (!freshDocs.medical_order) missingDocs.push("Orden médica");
+      if (!freshDocs.clinical_evolution) missingDocs.push("Evolutivo clínico");
+      if (!freshDocs.attendance_record) missingDocs.push("Registro de asistencia");
+      if (!freshDocs.social_work_authorization) missingDocs.push("Autorización de obra social");
+
+      if (missingDocs.length > 0) {
+        console.error("❌ Missing required documents after fresh fetch:", missingDocs);
+        toast.error(`Error: Faltan documentos activos: ${missingDocs.join(', ')}`, {
+          duration: 10000,
+          description: "Verifique que todos los archivos estén cargados correctamente"
         });
-        toast.error("Faltan documentos requeridos para generar el PDF");
         return;
       }
 
-      console.log("✅ All required documents found, generating PDF with current files only");
+      console.log("✅ All required active documents found - Generating PDF with current files ONLY");
 
       // Create new PDF document
       const pdfDoc = await PDFDocument.create();
@@ -1371,18 +1429,105 @@ export default function Presentaciones() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex justify-end pt-2 border-t">
+                  <div className="flex justify-between items-center pt-2 border-t">
                     <div className="flex gap-2">
-                      {docStatus.status === 'ready_to_generate' && (
-                        <Button 
-                          onClick={() => generatePDF(order)}
-                          className="gap-2"
-                          disabled={generatingPdf === order.id}
-                        >
-                          <FileDown className="h-4 w-4" />
-                          {generatingPdf === order.id ? 'Generando...' : 'Generar PDF'}
-                        </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => refreshPresentationFiles(order.id)}
+                        className="gap-1 text-xs"
+                      >
+                        🔄 Actualizar archivos
+                      </Button>
+                      
+                      {(docStatus.status === 'ready_to_generate' || docStatus.status === 'pdf_generated') && (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="gap-1 text-xs"
+                            >
+                              👁️ Previsualizar PDF
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-lg">
+                            <DialogHeader>
+                              <DialogTitle>Archivos incluidos en el PDF</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-3">
+                              <div className="p-3 bg-muted rounded-lg">
+                                <p className="text-sm font-medium mb-2">
+                                  {order.patient.profile.first_name} {order.patient.profile.last_name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {order.obra_social.nombre} - {order.description}
+                                </p>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <h4 className="font-medium text-sm">Documentos que se incluirán:</h4>
+                                {(() => {
+                                  const validation = validateDocumentsForPDF(order);
+                                  return (
+                                    <>
+                                      {validation.activeFiles.map((file, index) => (
+                                        <p key={index} className="text-sm text-green-700 bg-green-50 px-2 py-1 rounded">
+                                          {file}
+                                        </p>
+                                      ))}
+                                      
+                                      {validation.missingDocs.length > 0 && (
+                                        <>
+                                          <h4 className="font-medium text-sm text-red-600 mt-4">Documentos faltantes:</h4>
+                                          {validation.missingDocs.map((doc, index) => (
+                                            <p key={index} className="text-sm text-red-700 bg-red-50 px-2 py-1 rounded">
+                                              ❌ {doc}
+                                            </p>
+                                          ))}
+                                        </>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                              
+                              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-sm text-blue-800">
+                                  ℹ️ El PDF se genera completamente desde cero cada vez, 
+                                  incluyendo únicamente los archivos activos mostrados arriba.
+                                </p>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                       )}
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      {docStatus.status === 'ready_to_generate' && (() => {
+                        const validation = validateDocumentsForPDF(order);
+                        if (!validation.isValid) {
+                          return (
+                            <div className="flex items-center gap-2 text-sm">
+                              <AlertCircle className="h-4 w-4 text-red-600" />
+                              <span className="text-red-600">
+                                Faltan: {validation.missingDocs.join(', ')}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <Button 
+                            onClick={() => generatePDF(order)}
+                            className="gap-2"
+                            disabled={generatingPdf === order.id}
+                          >
+                            <FileDown className="h-4 w-4" />
+                            {generatingPdf === order.id ? 'Generando...' : 'Generar PDF'}
+                          </Button>
+                        );
+                      })()}
                       
                       {docStatus.status === 'pdf_generated' && (
                         <>
