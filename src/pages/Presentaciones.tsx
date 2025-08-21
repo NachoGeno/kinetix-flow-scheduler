@@ -713,7 +713,7 @@ export default function Presentaciones() {
         start: { x: 50, y: yPosition - 15 },
         end: { x: width - 50, y: yPosition - 15 },
         thickness: 2,
-        color: accentGreen
+        color: primaryBlue
       });
       
       // Patient information section
