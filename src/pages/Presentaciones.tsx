@@ -116,9 +116,9 @@ export default function Presentaciones() {
     }
   });
 
-  // Fetch presentations data
+  // Fetch presentations data with cache busting for fresh data
   const { data: presentations, refetch } = useQuery({
-    queryKey: ["presentations", filters],
+    queryKey: ["presentations", filters, Date.now()], // Add timestamp to prevent stale cache
     queryFn: async () => {
       console.log("🔍 Cargando presentaciones con filtros:", filters);
 
@@ -458,12 +458,101 @@ export default function Presentaciones() {
     try {
       setGeneratingPdf(order.id);
       
-      // Validate all documents are present
-      const docs = order.documents;
-      if (!docs.medical_order || !docs.clinical_evolution || !docs.attendance_record || !docs.social_work_authorization) {
+      // FRESH FETCH: Always get the most current documents from database
+      console.log(`🔄 Regenerating PDF from scratch for order: ${order.id}`);
+      
+      // Force refresh of data to ensure we have the latest documents
+      await refetch();
+      
+      // Get fresh presentation documents directly from database
+      const { data: currentDocuments, error: docsError } = await supabase
+        .from("presentation_documents")
+        .select(`
+          id,
+          document_type,
+          file_url,
+          file_name,
+          uploaded_at,
+          uploaded_by,
+          uploader:profiles!presentation_documents_uploaded_by_fkey(first_name, last_name)
+        `)
+        .eq("medical_order_id", order.id);
+
+      if (docsError) {
+        console.error("Error fetching fresh documents:", docsError);
+        toast.error("Error al obtener los documentos actuales");
+        return;
+      }
+
+      console.log(`📄 Found ${currentDocuments?.length || 0} current documents for order ${order.id}`);
+
+      // Organize ONLY current documents by type
+      const freshDocs = {
+        medical_order: null as DocumentInfo | null,
+        clinical_evolution: null as DocumentInfo | null,
+        attendance_record: null as DocumentInfo | null,
+        social_work_authorization: null as DocumentInfo | null,
+      };
+
+      // Medical order document (from the order itself - always current)
+      if (order.attachment_url) {
+        freshDocs.medical_order = {
+          id: 'medical_order',
+          file_url: order.attachment_url,
+          file_name: order.attachment_name || 'Orden médica',
+          uploaded_by: 'system',
+          uploaded_at: order.created_at,
+          uploader_name: 'Sistema'
+        };
+      }
+
+      // Process ONLY current documents from database
+      currentDocuments?.forEach((doc: any) => {
+        console.log(`📋 Processing current document: ${doc.document_type} - ${doc.file_name}`);
+        
+        if (doc.document_type === 'clinical_evolution') {
+          freshDocs.clinical_evolution = {
+            id: doc.id,
+            file_url: doc.file_url,
+            file_name: doc.file_name,
+            uploaded_by: doc.uploaded_by,
+            uploaded_at: doc.uploaded_at,
+            uploader_name: `${doc.uploader?.first_name || ''} ${doc.uploader?.last_name || ''}`.trim()
+          };
+        } else if (doc.document_type === 'attendance_record') {
+          freshDocs.attendance_record = {
+            id: doc.id,
+            file_url: doc.file_url,
+            file_name: doc.file_name,
+            uploaded_by: doc.uploaded_by,
+            uploaded_at: doc.uploaded_at,
+            uploader_name: `${doc.uploader?.first_name || ''} ${doc.uploader?.last_name || ''}`.trim()
+          };
+        } else if (doc.document_type === 'social_work_authorization') {
+          freshDocs.social_work_authorization = {
+            id: doc.id,
+            file_url: doc.file_url,
+            file_name: doc.file_name,
+            uploaded_by: doc.uploaded_by,
+            uploaded_at: doc.uploaded_at,
+            uploader_name: `${doc.uploader?.first_name || ''} ${doc.uploader?.last_name || ''}`.trim()
+          };
+        }
+      });
+
+      // Validate ALL required documents are present with current data
+      if (!freshDocs.medical_order || !freshDocs.clinical_evolution || !freshDocs.attendance_record || !freshDocs.social_work_authorization) {
+        console.warn("❌ Missing required documents:", {
+          medical_order: !!freshDocs.medical_order,
+          clinical_evolution: !!freshDocs.clinical_evolution,
+          attendance_record: !!freshDocs.attendance_record,
+          social_work_authorization: !!freshDocs.social_work_authorization
+        });
         toast.error("Faltan documentos requeridos para generar el PDF");
         return;
       }
+
+      console.log("✅ All required documents found, generating PDF with current files only");
 
       // Create new PDF document
       const pdfDoc = await PDFDocument.create();
@@ -768,12 +857,12 @@ export default function Presentaciones() {
         color: mediumGray
       });
 
-      // Process and add documents in order (without separators)
+      // Process and add documents in order (without separators) - USING ONLY CURRENT DOCUMENTS
       const documentsToProcess = [
-        docs.medical_order,
-        docs.social_work_authorization,
-        docs.clinical_evolution,
-        docs.attendance_record
+        freshDocs.medical_order,
+        freshDocs.social_work_authorization,
+        freshDocs.clinical_evolution,
+        freshDocs.attendance_record
       ];
 
       for (const doc of documentsToProcess) {
