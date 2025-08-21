@@ -57,6 +57,7 @@ interface PresentationOrder {
     medical_order: DocumentInfo | null;
     clinical_evolution: DocumentInfo | null;
     attendance_record: DocumentInfo | null;
+    social_work_authorization: DocumentInfo | null;
   };
   sessions_completed: boolean;
 }
@@ -92,7 +93,7 @@ export default function Presentaciones() {
   const [selectedOrder, setSelectedOrder] = useState<PresentationOrder | null>(null);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [uploadType, setUploadType] = useState<'clinical_evolution' | 'attendance_record' | null>(null);
+  const [uploadType, setUploadType] = useState<'clinical_evolution' | 'attendance_record' | 'social_work_authorization' | null>(null);
 
   // Fetch obras sociales
   const { data: obrasSociales } = useQuery({
@@ -203,6 +204,7 @@ export default function Presentaciones() {
             medical_order: null as DocumentInfo | null,
             clinical_evolution: null as DocumentInfo | null,
             attendance_record: null as DocumentInfo | null,
+            social_work_authorization: null as DocumentInfo | null,
           };
 
           // Medical order document (from the order itself)
@@ -230,6 +232,15 @@ export default function Presentaciones() {
               };
             } else if (doc.document_type === 'attendance_record') {
               documentsByType.attendance_record = {
+                id: doc.id,
+                file_url: doc.file_url,
+                file_name: doc.file_name,
+                uploaded_by: doc.uploaded_by,
+                uploaded_at: doc.uploaded_at,
+                uploader_name: `${doc.uploader?.first_name || ''} ${doc.uploader?.last_name || ''}`.trim()
+              };
+            } else if (doc.document_type === 'social_work_authorization') {
+              documentsByType.social_work_authorization = {
                 id: doc.id,
                 file_url: doc.file_url,
                 file_name: doc.file_name,
@@ -273,6 +284,7 @@ export default function Presentaciones() {
           const isComplete = order.documents.medical_order && 
                            order.documents.clinical_evolution && 
                            order.documents.attendance_record &&
+                           order.documents.social_work_authorization &&
                            order.sessions_completed;
           
           switch (filters.status) {
@@ -297,7 +309,7 @@ export default function Presentaciones() {
     enabled: true
   });
 
-  const handleFileUpload = async (orderId: string, documentType: 'clinical_evolution' | 'attendance_record', file: File) => {
+  const handleFileUpload = async (orderId: string, documentType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization', file: File) => {
     if (!profile) return;
 
     try {
@@ -384,7 +396,7 @@ export default function Presentaciones() {
 
   const getDocumentStatus = (order: PresentationOrder) => {
     const docs = order.documents;
-    const hasAllDocs = docs.medical_order && docs.clinical_evolution && docs.attendance_record;
+    const hasAllDocs = docs.medical_order && docs.clinical_evolution && docs.attendance_record && docs.social_work_authorization;
     const sessionsReady = order.sessions_completed;
     
     if (!sessionsReady) return { status: 'sessions_pending', color: 'bg-orange-100 text-orange-800', text: 'Sesiones pendientes' };
@@ -690,6 +702,52 @@ export default function Presentaciones() {
                         </Button>
                       )}
                     </div>
+
+                    {/* Social Work Authorization */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <span className="font-medium text-sm">Autorización Obra Social</span>
+                        {order.documents.social_work_authorization ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-600" />
+                        )}
+                      </div>
+                      {order.documents.social_work_authorization ? (
+                        <div className="space-y-1">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full text-xs"
+                            onClick={() => handleViewDocument(order.documents.social_work_authorization!.file_url)}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            Ver autorización
+                          </Button>
+                          <p className="text-xs text-muted-foreground">
+                            Por: {order.documents.social_work_authorization.uploader_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(order.documents.social_work_authorization.uploaded_at), "dd/MM/yy HH:mm", { locale: es })}
+                          </p>
+                        </div>
+                      ) : (
+                        <Button 
+                          size="sm" 
+                          className="w-full text-xs"
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setUploadType('social_work_authorization');
+                            setIsUploadDialogOpen(true);
+                          }}
+                          disabled={!order.sessions_completed}
+                        >
+                          <Upload className="h-3 w-3 mr-1" />
+                          Subir autorización
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Actions */}
@@ -716,7 +774,11 @@ export default function Presentaciones() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Subir {uploadType === 'clinical_evolution' ? 'Evolutivo Clínico' : 'Registro de Asistencia'}
+              Subir {
+                uploadType === 'clinical_evolution' ? 'Evolutivo Clínico' : 
+                uploadType === 'attendance_record' ? 'Registro de Asistencia' :
+                'Autorización de Obra Social'
+              }
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
