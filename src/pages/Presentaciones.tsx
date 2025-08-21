@@ -104,6 +104,8 @@ export default function Presentaciones() {
   const [editMode, setEditMode] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<{orderId: string, docType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization', docId: string} | null>(null);
+  const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
+  const [viewingDocument, setViewingDocument] = useState<{url: string, name: string, type: string} | null>(null);
 
   // Fetch obras sociales
   const { data: obrasSociales } = useQuery({
@@ -411,12 +413,44 @@ export default function Presentaciones() {
     setDeleteConfirmOpen(true);
   };
 
-  const handleViewDocument = async (fileUrl: string) => {
+  const handleDownloadDocument = async (fileUrl: string, fileName: string) => {
     try {
       const { data, error } = await supabase.storage
         .from('medical-orders')
         .createSignedUrl(fileUrl, 3600);
 
+      let downloadUrl = '';
+      if (error) {
+        const { data: publicData } = supabase.storage
+          .from('medical-orders')
+          .getPublicUrl(fileUrl);
+        downloadUrl = publicData.publicUrl;
+      } else {
+        downloadUrl = data?.signedUrl || '';
+      }
+
+      if (downloadUrl) {
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Descarga iniciada");
+      }
+    } catch (error) {
+      console.error("Error downloading document:", error);
+      toast.error("Error al descargar el documento");
+    }
+  };
+
+  const handleViewDocument = async (fileUrl: string, fileName?: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('medical-orders')
+        .createSignedUrl(fileUrl, 3600);
+
+      let documentUrl = '';
       if (error) {
         // Fallback to public URL
         const { data: publicData } = supabase.storage
@@ -424,14 +458,25 @@ export default function Presentaciones() {
           .getPublicUrl(fileUrl);
         
         if (publicData.publicUrl) {
-          window.open(publicData.publicUrl, '_blank');
-          return;
+          documentUrl = publicData.publicUrl;
+        } else {
+          throw error;
         }
-        throw error;
+      } else {
+        documentUrl = data?.signedUrl || '';
       }
 
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, '_blank');
+      if (documentUrl) {
+        const fileExtension = fileUrl.split('.').pop()?.toLowerCase() || '';
+        const fileType = ['pdf'].includes(fileExtension) ? 'pdf' : 
+                        ['jpg', 'jpeg', 'png'].includes(fileExtension) ? 'image' : 'other';
+        
+        setViewingDocument({
+          url: documentUrl,
+          name: fileName || 'Documento',
+          type: fileType
+        });
+        setDocumentViewerOpen(true);
       }
     } catch (error) {
       console.error("Error viewing document:", error);
@@ -1273,15 +1318,15 @@ export default function Presentaciones() {
                       </div>
                       {order.documents.medical_order ? (
                         <div className="space-y-1">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full text-xs"
-                            onClick={() => handleViewDocument(order.documents.medical_order!.file_url)}
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            Ver documento
-                          </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="w-full text-xs"
+                              onClick={() => handleViewDocument(order.documents.medical_order!.file_url, order.documents.medical_order!.file_name)}
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              Ver documento
+                            </Button>
                           <p className="text-xs text-muted-foreground">
                             Cargado: {format(new Date(order.documents.medical_order.uploaded_at), "dd/MM/yy HH:mm", { locale: es })}
                           </p>
@@ -1309,7 +1354,7 @@ export default function Presentaciones() {
                               variant="outline" 
                               size="sm" 
                               className="flex-1 text-xs"
-                              onClick={() => handleViewDocument(order.documents.clinical_evolution!.file_url)}
+                              onClick={() => handleViewDocument(order.documents.clinical_evolution!.file_url, order.documents.clinical_evolution!.file_name)}
                             >
                               <Eye className="h-3 w-3 mr-1" />
                               Ver
@@ -1373,7 +1418,7 @@ export default function Presentaciones() {
                               variant="outline" 
                               size="sm" 
                               className="flex-1 text-xs"
-                              onClick={() => handleViewDocument(order.documents.attendance_record!.file_url)}
+                              onClick={() => handleViewDocument(order.documents.attendance_record!.file_url, order.documents.attendance_record!.file_name)}
                             >
                               <Eye className="h-3 w-3 mr-1" />
                               Ver
@@ -1437,7 +1482,7 @@ export default function Presentaciones() {
                               variant="outline" 
                               size="sm" 
                               className="flex-1 text-xs"
-                              onClick={() => handleViewDocument(order.documents.social_work_authorization!.file_url)}
+                              onClick={() => handleViewDocument(order.documents.social_work_authorization!.file_url, order.documents.social_work_authorization!.file_name)}
                             >
                               <Eye className="h-3 w-3 mr-1" />
                               Ver
@@ -1623,6 +1668,63 @@ export default function Presentaciones() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Document Viewer Modal */}
+      <Dialog open={documentViewerOpen} onOpenChange={setDocumentViewerOpen}>
+        <DialogContent className="max-w-4xl h-[80vh]">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>{viewingDocument?.name}</DialogTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => viewingDocument && handleDownloadDocument(viewingDocument.url, viewingDocument.name)}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Descargar
+              </Button>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            {viewingDocument && (
+              <div className="w-full h-full">
+                {viewingDocument.type === 'pdf' ? (
+                  <iframe
+                    src={viewingDocument.url}
+                    className="w-full h-full border-0"
+                    title={viewingDocument.name}
+                  />
+                ) : viewingDocument.type === 'image' ? (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                    <img
+                      src={viewingDocument.url}
+                      alt={viewingDocument.name}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                    <div className="text-center">
+                      <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                      <p className="text-gray-600 mb-4">
+                        No se puede previsualizar este tipo de archivo
+                      </p>
+                      <Button
+                        onClick={() => viewingDocument && handleDownloadDocument(viewingDocument.url, viewingDocument.name)}
+                        className="gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        Descargar archivo
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
