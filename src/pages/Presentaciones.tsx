@@ -116,9 +116,9 @@ export default function Presentaciones() {
     }
   });
 
-  // Fetch presentations data with cache busting for fresh data
+  // Fetch presentations data
   const { data: presentations, refetch } = useQuery({
-    queryKey: ["presentations", filters, Date.now()], // Add timestamp to prevent stale cache
+    queryKey: ["presentations", filters],
     queryFn: async () => {
       console.log("🔍 Cargando presentaciones con filtros:", filters);
 
