@@ -516,12 +516,12 @@ export default function AppointmentCalendar() {
                                                 onOpenChange={(open) => setOpenPopovers(prev => ({ ...prev, [appointment.id]: open }))}
                                               >
                                                 <PopoverTrigger asChild>
-                                                  <Badge className="text-xs cursor-pointer bg-blue-500 hover:bg-blue-600 text-white">
+                                                  <div className="inline-flex items-center text-xs cursor-pointer bg-blue-500 hover:bg-blue-600 text-white rounded-md px-2 py-1 border">
                                                     <CalendarIcon className="h-3 w-3 mr-1" />
                                                     Agendado
-                                                  </Badge>
+                                                  </div>
                                                 </PopoverTrigger>
-                                                <PopoverContent className="w-48 p-2">
+                                                <PopoverContent className="w-48 p-2 bg-white shadow-lg border rounded-md z-50">
                                                   <div className="space-y-1">
                                                     <Button
                                                       variant="ghost"
