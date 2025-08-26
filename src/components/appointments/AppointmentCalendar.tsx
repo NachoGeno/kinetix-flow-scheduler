@@ -240,7 +240,7 @@ export default function AppointmentCalendar() {
 
       const statusMessages = {
         completed: "Paciente marcado como asistido y sesión completada",
-        no_show: "Paciente marcado como ausente (no asistió)"
+        no_show: "Paciente marcado como ausente"
       };
 
       toast({
@@ -558,12 +558,12 @@ export default function AppointmentCalendar() {
                                                   const StatusIcon = statusIcons[appointment.status as keyof typeof statusIcons] || CalendarIcon;
                                                   return <StatusIcon className="h-3 w-3 mr-1" />;
                                                 })()}
-                                                {appointment.status === 'scheduled' ? 'Agendado' : 
-                                                 appointment.status === 'in_progress' ? 'Asistido' : 
-                                                 appointment.status === 'completed' ? 'Completado' : 
-                                                 appointment.status === 'confirmed' ? 'Confirmado' :
-                                                 appointment.status === 'cancelled' ? 'Cancelado' :
-                                                 appointment.status === 'no_show' ? 'No asistió' : appointment.status}
+                                                 {appointment.status === 'scheduled' ? 'Agendado' : 
+                                                  appointment.status === 'in_progress' ? 'Asistido' : 
+                                                  appointment.status === 'completed' ? 'Completado' : 
+                                                  appointment.status === 'confirmed' ? 'Confirmado' :
+                                                  appointment.status === 'cancelled' ? 'Cancelado' :
+                                                  appointment.status === 'no_show' ? 'Ausente' : appointment.status}
                                               </Badge>
                                             )}
                                          </div>
