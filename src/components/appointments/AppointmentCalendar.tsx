@@ -478,15 +478,14 @@ export default function AppointmentCalendar() {
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {timeSlots.map((slot) => {
                       return (
-                        <Card
-                          key={slot.time}
-                          className={`cursor-pointer transition-all duration-200 hover:shadow-md border-2 ${
-                            slot.isFull
-                              ? 'bg-red-50 border-red-200 hover:bg-red-100'
-                              : 'bg-green-50 border-green-200 hover:bg-green-100'
-                          }`}
-                          onClick={() => handleTimeSlotClick(slot.time, slot.isFull)}
-                        >
+                         <Card
+                           key={slot.time}
+                           className={`transition-all duration-200 hover:shadow-md border-2 ${
+                             slot.isFull
+                               ? 'bg-red-50 border-red-200 hover:bg-red-100'
+                               : 'bg-green-50 border-green-200 hover:bg-green-100'
+                           }`}
+                         >
                           <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
@@ -581,23 +580,35 @@ export default function AppointmentCalendar() {
                                     </div>
                                   );
                                 })}
-                                {!slot.isFull && (
-                                  <div className="text-center pt-2 border-t border-dashed border-green-300">
-                                    <div className="text-xs text-green-600 font-medium">
-                                      <Plus className="h-3 w-3 inline mr-1" />
-                                      {slot.availableSlots} disponible{slot.availableSlots !== 1 ? 's' : ''}
-                                    </div>
-                                  </div>
-                                )}
+                                 {!slot.isFull && (
+                                   <div 
+                                     className="text-center pt-2 border-t border-dashed border-green-300 cursor-pointer hover:bg-green-200 transition-colors rounded-md p-2"
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       handleTimeSlotClick(slot.time, slot.isFull);
+                                     }}
+                                   >
+                                     <div className="text-xs text-green-600 font-medium">
+                                       <Plus className="h-3 w-3 inline mr-1" />
+                                       {slot.availableSlots} disponible{slot.availableSlots !== 1 ? 's' : ''}
+                                     </div>
+                                   </div>
+                                 )}
                               </div>
                             ) : (
-                              <div className="text-center py-6">
-                                <div className="p-3 rounded-full bg-green-200 mx-auto w-fit mb-2">
-                                  <Plus className="h-6 w-6 text-green-600" />
-                                </div>
-                                <p className="text-sm font-medium text-green-700">Disponible</p>
-                                <p className="text-xs text-green-600">Click para agendar</p>
-                              </div>
+                               <div 
+                                 className="text-center py-6 cursor-pointer hover:bg-green-200 transition-colors rounded-md"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   handleTimeSlotClick(slot.time, slot.isFull);
+                                 }}
+                               >
+                                 <div className="p-3 rounded-full bg-green-200 mx-auto w-fit mb-2">
+                                   <Plus className="h-6 w-6 text-green-600" />
+                                 </div>
+                                 <p className="text-sm font-medium text-green-700">Disponible</p>
+                                 <p className="text-xs text-green-600">Click para agendar</p>
+                               </div>
                             )}
                           </CardContent>
                         </Card>
