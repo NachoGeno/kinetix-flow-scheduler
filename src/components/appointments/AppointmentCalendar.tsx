@@ -510,10 +510,7 @@ export default function AppointmentCalendar() {
                                              <Popover>
                                                <PopoverTrigger asChild>
                                                  <Badge className="text-xs cursor-pointer bg-blue-500 hover:bg-blue-600 text-white">
-                                                   {(() => {
-                                                     const StatusIcon = statusIcons[appointment.status as keyof typeof statusIcons];
-                                                     return <StatusIcon className="h-3 w-3 mr-1" />;
-                                                   })()}
+                                                   <CalendarIcon className="h-3 w-3 mr-1" />
                                                    Agendado
                                                  </Badge>
                                                </PopoverTrigger>
@@ -542,10 +539,10 @@ export default function AppointmentCalendar() {
                                              </Popover>
                                             ) : (
                                               <Badge 
-                                                className={`text-xs ${statusColors[appointment.status as keyof typeof statusColors]}`}
+                                                className={`text-xs ${statusColors[appointment.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-700'}`}
                                               >
                                                 {(() => {
-                                                  const StatusIcon = statusIcons[appointment.status as keyof typeof statusIcons];
+                                                  const StatusIcon = statusIcons[appointment.status as keyof typeof statusIcons] || CalendarIcon;
                                                   return <StatusIcon className="h-3 w-3 mr-1" />;
                                                 })()}
                                                 {appointment.status === 'scheduled' ? 'Agendado' : 
