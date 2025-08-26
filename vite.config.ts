@@ -25,9 +25,15 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['@radix-ui/react-select', '@radix-ui/react-dialog', '@radix-ui/react-tabs'],
+          vendor: ['react', 'react-dom'],
+          'react-router': ['react-router-dom'],
+          'ui-radix': ['@radix-ui/react-select', '@radix-ui/react-dialog', '@radix-ui/react-tabs', '@radix-ui/react-popover'],
+          'ui-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
           supabase: ['@supabase/supabase-js'],
+          'react-query': ['@tanstack/react-query'],
+          'date-utils': ['date-fns', 'react-day-picker'],
+          charts: ['recharts'],
+          pdf: ['jspdf', 'pdf-lib'],
         },
       },
     },
