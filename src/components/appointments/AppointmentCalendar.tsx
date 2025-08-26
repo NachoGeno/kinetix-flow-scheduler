@@ -525,7 +525,7 @@ export default function AppointmentCalendar() {
                                           <div className="font-medium text-sm text-slate-900 mb-1">
                                             {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
                                           </div>
-                                             {(appointment.status === 'scheduled' || appointment.status === 'confirmed') && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
+                                             {(appointment.status === 'scheduled' || appointment.status === 'confirmed' || appointment.status === 'in_progress') && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
                                               <Popover 
                                                 open={openPopovers[appointment.id] || false}
                                                 onOpenChange={(open) => setOpenPopovers(prev => ({ ...prev, [appointment.id]: open }))}
