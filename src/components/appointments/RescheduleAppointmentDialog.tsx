@@ -192,8 +192,8 @@ export function RescheduleAppointmentDialog({
     const labels = {
       scheduled: 'Programada',
       confirmed: 'Confirmada',
-      no_show: 'No Asistió',
-      no_show_rescheduled: 'No Asistió - Reprogramado',
+      no_show: 'Ausente',
+      no_show_rescheduled: 'Ausente - Reprogramado',
     };
     return labels[status as keyof typeof labels] || status;
   };

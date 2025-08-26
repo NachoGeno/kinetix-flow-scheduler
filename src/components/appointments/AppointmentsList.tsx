@@ -87,9 +87,9 @@ const statusLabels = {
   in_progress: 'En Progreso',
   completed: 'Completada',
   cancelled: 'Cancelada',
-  no_show: 'No Asistió',
-  no_show_rescheduled: 'No Asistió - Reprogramado',
-  no_show_session_lost: 'No Asistió - Sesión Descontada',
+  no_show: 'Ausente',
+  no_show_rescheduled: 'Ausente - Reprogramado',
+  no_show_session_lost: 'Ausente - Sesión Descontada',
   rescheduled: 'Reprogramado',
 };
 
@@ -466,9 +466,9 @@ export default function AppointmentsList() {
                 <SelectItem value="in_progress">En Progreso</SelectItem>
                 <SelectItem value="completed">Completada</SelectItem>
                 <SelectItem value="cancelled">Cancelada</SelectItem>
-                <SelectItem value="no_show">No Asistió</SelectItem>
-                <SelectItem value="no_show_rescheduled">No Asistió - Reprogramado</SelectItem>
-                <SelectItem value="no_show_session_lost">No Asistió - Sesión Descontada</SelectItem>
+                <SelectItem value="no_show">Ausente</SelectItem>
+                <SelectItem value="no_show_rescheduled">Ausente - Reprogramado</SelectItem>
+                <SelectItem value="no_show_session_lost">Ausente - Sesión Descontada</SelectItem>
                 <SelectItem value="rescheduled">Reprogramado</SelectItem>
               </SelectContent>
             </Select>
@@ -661,7 +661,7 @@ export default function AppointmentsList() {
                              onClick={() => handleNoShow(appointment)}
                            >
                              <UserX className="h-3 w-3 mr-1" />
-                             No asistió
+                             Ausente
                            </Button>
                         </>
                        )}
