@@ -67,6 +67,18 @@ interface Appointment {
   };
 }
 
+const statusLabels = {
+  scheduled: 'Agendado',
+  confirmed: 'Confirmado',
+  in_progress: 'Asistido', 
+  completed: 'Completado',
+  cancelled: 'Cancelado',
+  rescheduled: 'Reprogramado',
+  no_show: 'Ausente',
+  no_show_rescheduled: 'Ausente - Reprogramado',
+  no_show_session_lost: 'Ausente - Sesión Descontada',
+};
+
 const statusColors = {
   scheduled: 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border-blue-200',
   confirmed: 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-green-200',
@@ -82,7 +94,10 @@ const statusIcons = {
   in_progress: PlayCircle,
   completed: CheckCircle,
   cancelled: XCircle,
+  rescheduled: CalendarIcon,
   no_show: AlertCircle,
+  no_show_rescheduled: AlertCircle,
+  no_show_session_lost: AlertCircle,
 };
 
 export default function AppointmentCalendar() {
@@ -558,12 +573,7 @@ export default function AppointmentCalendar() {
                                                   const StatusIcon = statusIcons[appointment.status as keyof typeof statusIcons] || CalendarIcon;
                                                   return <StatusIcon className="h-3 w-3 mr-1" />;
                                                 })()}
-                                                 {appointment.status === 'scheduled' ? 'Agendado' : 
-                                                  appointment.status === 'in_progress' ? 'Asistido' : 
-                                                  appointment.status === 'completed' ? 'Completado' : 
-                                                  appointment.status === 'confirmed' ? 'Confirmado' :
-                                                  appointment.status === 'cancelled' ? 'Cancelado' :
-                                                  appointment.status === 'no_show' ? 'Ausente' : appointment.status}
+                                                 {statusLabels[appointment.status] || appointment.status}
                                               </Badge>
                                             )}
                                          </div>
