@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX, RotateCcw, ArrowRight, Info } from 'lucide-react';
+import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX, RotateCcw, ArrowRight, Info, Edit } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import NoShowOptionsDialog from './NoShowOptionsDialog';
 import PatientNoShowAlert from './PatientNoShowAlert';
 import ResetNoShowDialog from './ResetNoShowDialog';
 import { RescheduleAppointmentDialog } from './RescheduleAppointmentDialog';
+import EditAppointmentDialog from './EditAppointmentDialog';
 import { usePatientNoShowsMultiple } from '@/hooks/usePatientNoShows';
 import { usePatientNoShowResets } from '@/hooks/usePatientNoShowResets';
 
@@ -27,6 +28,7 @@ interface Appointment {
   appointment_time: string;
   status: string;
   reason: string;
+  notes?: string;
   patient_id: string;
   doctor_id: string;
   no_show_reason?: string;
@@ -97,6 +99,7 @@ export default function AppointmentsList() {
   const [noShowDialogOpen, setNoShowDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [selectedPatientForReset, setSelectedPatientForReset] = useState<{id: string, name: string, noShowCount: number} | null>(null);
   const { profile } = useAuth();
@@ -277,6 +280,11 @@ export default function AppointmentsList() {
   const handleReschedule = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setRescheduleDialogOpen(true);
+  };
+
+  const handleEdit = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setEditDialogOpen(true);
   };
 
   const handleResetNoShows = (patientId: string, patientName: string, noShowCount: number) => {
@@ -521,6 +529,20 @@ export default function AppointmentsList() {
                         </>
                        )}
                        
+                       {/* Botón editar - para admin/doctor y estados específicos */}
+                       {(profile?.role === 'doctor' || profile?.role === 'admin') && 
+                        (appointment.status === 'scheduled' || appointment.status === 'confirmed') && (
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           className="h-8 px-2 text-blue-600 hover:text-blue-700"
+                           onClick={() => handleEdit(appointment)}
+                         >
+                           <Edit className="h-3 w-3 mr-1" />
+                           Editar
+                         </Button>
+                       )}
+                       
                        {/* Botón reprogramar - para admin/doctor y estados específicos */}
                        {(profile?.role === 'doctor' || profile?.role === 'admin') && 
                         (appointment.status === 'scheduled' || appointment.status === 'confirmed' || 
@@ -665,6 +687,23 @@ export default function AppointmentsList() {
         patientName={selectedPatientForReset?.name || ''}
         currentNoShowCount={selectedPatientForReset?.noShowCount || 0}
       />
+
+      {/* Edit Appointment Dialog */}
+      {selectedAppointment && (
+        <EditAppointmentDialog
+          open={editDialogOpen}
+          onOpenChange={(open) => {
+            setEditDialogOpen(open);
+            if (!open) setSelectedAppointment(null);
+          }}
+          appointment={selectedAppointment}
+          onSuccess={() => {
+            fetchAppointments();
+            setEditDialogOpen(false);
+            setSelectedAppointment(null);
+          }}
+        />
+      )}
 
       {/* Reschedule Appointment Dialog */}
       {selectedAppointment && (
