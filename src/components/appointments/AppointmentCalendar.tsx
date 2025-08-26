@@ -228,33 +228,33 @@ export default function AppointmentCalendar() {
     }
   };
 
-  const handleStatusClick = async (appointmentId: string, currentStatus: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    // From 'scheduled' directly to 'completed' (skipping in_progress)
-    if (currentStatus === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')) {
-      try {
-        const { error } = await supabase
-          .from('appointments')
-          .update({ status: 'completed' })
-          .eq('id', appointmentId);
+  const handleStatusUpdate = async (appointmentId: string, newStatus: 'completed' | 'no_show') => {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: newStatus })
+        .eq('id', appointmentId);
 
-        if (error) throw error;
+      if (error) throw error;
 
-        toast({
-          title: "Éxito",
-          description: "Paciente marcado como asistido y sesión completada",
-        });
+      const statusMessages = {
+        completed: "Paciente marcado como asistido y sesión completada",
+        no_show: "Paciente marcado como ausente (no asistió)"
+      };
 
-        fetchAppointments();
-      } catch (error) {
-        console.error('Error updating appointment status:', error);
-        toast({
-          title: "Error",
-          description: "No se pudo actualizar el estado de la cita",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Éxito",
+        description: statusMessages[newStatus],
+      });
+
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error updating appointment status:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de la cita",
+        variant: "destructive",
+      });
     }
   };
 
@@ -506,25 +506,51 @@ export default function AppointmentCalendar() {
                                           <div className="font-medium text-sm text-slate-900 mb-1">
                                             {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
                                           </div>
-                                           <Badge 
-                                             className={`text-xs cursor-pointer ${
-                                               appointment.status === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')
-                                                 ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                                                 : appointment.status === 'in_progress' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception')
-                                                 ? 'bg-orange-500 hover:bg-orange-600 text-white'
-                                                 : statusColors[appointment.status as keyof typeof statusColors]
-                                             }`}
-                                             onClick={(e) => handleStatusClick(appointment.id, appointment.status, e)}
-                                           >
-                                            <AppointmentStatusIcon className="h-3 w-3 mr-1" />
-                                             {appointment.status === 'scheduled' ? 'Agendado' : 
-                                              appointment.status === 'in_progress' ? 'Asistido' : 
-                                              appointment.status === 'completed' ? 'Completado' : 
-                                              appointment.status === 'confirmed' ? 'Confirmado' :
-                                              appointment.status === 'cancelled' ? 'Cancelado' :
-                                              appointment.status === 'no_show' ? 'No asistió' : appointment.status}
-                                          </Badge>
-                                        </div>
+                                           {appointment.status === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
+                                             <Popover>
+                                               <PopoverTrigger asChild>
+                                                 <Badge className="text-xs cursor-pointer bg-blue-500 hover:bg-blue-600 text-white">
+                                                   <AppointmentStatusIcon className="h-3 w-3 mr-1" />
+                                                   Agendado
+                                                 </Badge>
+                                               </PopoverTrigger>
+                                               <PopoverContent className="w-48 p-2">
+                                                 <div className="space-y-1">
+                                                   <Button
+                                                     variant="ghost"
+                                                     size="sm"
+                                                     className="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                     onClick={() => handleStatusUpdate(appointment.id, 'completed')}
+                                                   >
+                                                     <CheckCircle className="h-4 w-4 mr-2" />
+                                                     Marcar Asistido
+                                                   </Button>
+                                                   <Button
+                                                     variant="ghost"
+                                                     size="sm"
+                                                     className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                     onClick={() => handleStatusUpdate(appointment.id, 'no_show')}
+                                                   >
+                                                     <XCircle className="h-4 w-4 mr-2" />
+                                                     Marcar Ausente
+                                                   </Button>
+                                                 </div>
+                                               </PopoverContent>
+                                             </Popover>
+                                            ) : (
+                                              <Badge 
+                                                className={`text-xs ${statusColors[appointment.status as keyof typeof statusColors]}`}
+                                              >
+                                                <AppointmentStatusIcon className="h-3 w-3 mr-1" />
+                                                {appointment.status === 'scheduled' ? 'Agendado' : 
+                                                 appointment.status === 'in_progress' ? 'Asistido' : 
+                                                 appointment.status === 'completed' ? 'Completado' : 
+                                                 appointment.status === 'confirmed' ? 'Confirmado' :
+                                                 appointment.status === 'cancelled' ? 'Cancelado' :
+                                                 appointment.status === 'no_show' ? 'No asistió' : appointment.status}
+                                              </Badge>
+                                            )}
+                                         </div>
                                       </div>
                                     </div>
                                   );
