@@ -506,11 +506,14 @@ export default function AppointmentCalendar() {
                                           <div className="font-medium text-sm text-slate-900 mb-1">
                                             {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
                                           </div>
-                                           {appointment.status === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
+                                            {appointment.status === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
                                              <Popover>
                                                <PopoverTrigger asChild>
                                                  <Badge className="text-xs cursor-pointer bg-blue-500 hover:bg-blue-600 text-white">
-                                                   <AppointmentStatusIcon className="h-3 w-3 mr-1" />
+                                                   {(() => {
+                                                     const StatusIcon = statusIcons[appointment.status as keyof typeof statusIcons];
+                                                     return <StatusIcon className="h-3 w-3 mr-1" />;
+                                                   })()}
                                                    Agendado
                                                  </Badge>
                                                </PopoverTrigger>
@@ -541,7 +544,10 @@ export default function AppointmentCalendar() {
                                               <Badge 
                                                 className={`text-xs ${statusColors[appointment.status as keyof typeof statusColors]}`}
                                               >
-                                                <AppointmentStatusIcon className="h-3 w-3 mr-1" />
+                                                {(() => {
+                                                  const StatusIcon = statusIcons[appointment.status as keyof typeof statusIcons];
+                                                  return <StatusIcon className="h-3 w-3 mr-1" />;
+                                                })()}
                                                 {appointment.status === 'scheduled' ? 'Agendado' : 
                                                  appointment.status === 'in_progress' ? 'Asistido' : 
                                                  appointment.status === 'completed' ? 'Completado' : 
