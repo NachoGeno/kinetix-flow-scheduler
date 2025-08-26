@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX, RotateCcw, ArrowRight, Info, Edit } from 'lucide-react';
+import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX, RotateCcw, ArrowRight, Info, Edit, CalendarIcon, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,11 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, parseISO, isAfter, isBefore, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import AppointmentForm from './AppointmentForm';
 import { useUnifiedMedicalHistory } from '@/hooks/useUnifiedMedicalHistory';
 import NoShowOptionsDialog from './NoShowOptionsDialog';
@@ -95,6 +98,9 @@ export default function AppointmentsList() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
+  const [dateRangeStart, setDateRangeStart] = useState<Date | undefined>(undefined);
+  const [dateRangeEnd, setDateRangeEnd] = useState<Date | undefined>(undefined);
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = useState(false);
   const [noShowDialogOpen, setNoShowDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -379,7 +385,21 @@ export default function AppointmentsList() {
     
     const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    // Date filtering
+    let matchesDate = true;
+    if (dateFilter) {
+      const appointmentDate = parseISO(appointment.appointment_date);
+      matchesDate = isSameDay(appointmentDate, dateFilter);
+    } else if (dateRangeStart && dateRangeEnd) {
+      const appointmentDate = parseISO(appointment.appointment_date);
+      matchesDate = (isSameDay(appointmentDate, dateRangeStart) || isAfter(appointmentDate, dateRangeStart)) &&
+                    (isSameDay(appointmentDate, dateRangeEnd) || isBefore(appointmentDate, dateRangeEnd));
+    } else if (dateRangeStart) {
+      const appointmentDate = parseISO(appointment.appointment_date);
+      matchesDate = isSameDay(appointmentDate, dateRangeStart) || isAfter(appointmentDate, dateRangeStart);
+    }
+    
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   if (loading) {
@@ -416,35 +436,152 @@ export default function AppointmentsList() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar citas..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-48">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Estado" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los estados</SelectItem>
-            <SelectItem value="scheduled">Programada</SelectItem>
-            <SelectItem value="confirmed">Confirmada</SelectItem>
-            <SelectItem value="in_progress">En Progreso</SelectItem>
-            <SelectItem value="completed">Completada</SelectItem>
-            <SelectItem value="cancelled">Cancelada</SelectItem>
-            <SelectItem value="no_show">No Asistió</SelectItem>
-            <SelectItem value="no_show_rescheduled">No Asistió - Reprogramado</SelectItem>
-            <SelectItem value="no_show_session_lost">No Asistió - Sesión Descontada</SelectItem>
-            <SelectItem value="rescheduled">Reprogramado</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filtros
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Search and Status Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por paciente, doctor o motivo..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Filtrar por estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="scheduled">Programada</SelectItem>
+                <SelectItem value="confirmed">Confirmada</SelectItem>
+                <SelectItem value="in_progress">En Progreso</SelectItem>
+                <SelectItem value="completed">Completada</SelectItem>
+                <SelectItem value="cancelled">Cancelada</SelectItem>
+                <SelectItem value="no_show">No Asistió</SelectItem>
+                <SelectItem value="no_show_rescheduled">No Asistió - Reprogramado</SelectItem>
+                <SelectItem value="no_show_session_lost">No Asistió - Sesión Descontada</SelectItem>
+                <SelectItem value="rescheduled">Reprogramado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Date Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Single Date Filter */}
+            <div className="flex-1">
+              <label className="text-sm font-medium mb-2 block">Fecha específica</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dateFilter && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateFilter ? format(dateFilter, "PPP", { locale: es }) : "Seleccionar fecha"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateFilter}
+                    onSelect={setDateFilter}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Date Range Filters */}
+            <div className="flex-1">
+              <label className="text-sm font-medium mb-2 block">Desde</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dateRangeStart && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRangeStart ? format(dateRangeStart, "PPP", { locale: es }) : "Fecha inicio"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateRangeStart}
+                    onSelect={setDateRangeStart}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="flex-1">
+              <label className="text-sm font-medium mb-2 block">Hasta</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dateRangeEnd && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRangeEnd ? format(dateRangeEnd, "PPP", { locale: es }) : "Fecha fin"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateRangeEnd}
+                    onSelect={setDateRangeEnd}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          {/* Clear Filters */}
+          {(searchTerm || statusFilter !== 'all' || dateFilter || dateRangeStart || dateRangeEnd) && (
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                  setDateFilter(undefined);
+                  setDateRangeStart(undefined);
+                  setDateRangeEnd(undefined);
+                }}
+                className="text-muted-foreground"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Limpiar filtros
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Appointments List */}
       <div className="grid gap-4">
