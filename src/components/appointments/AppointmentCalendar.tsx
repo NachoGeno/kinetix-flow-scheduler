@@ -93,6 +93,7 @@ export default function AppointmentCalendar() {
   const [loading, setLoading] = useState(true);
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
+  const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -247,6 +248,9 @@ export default function AppointmentCalendar() {
         description: statusMessages[newStatus],
       });
 
+      // Cerrar el popover
+      setOpenPopovers(prev => ({ ...prev, [appointmentId]: false }));
+      
       fetchAppointments();
     } catch (error) {
       console.error('Error updating appointment status:', error);
@@ -506,37 +510,46 @@ export default function AppointmentCalendar() {
                                           <div className="font-medium text-sm text-slate-900 mb-1">
                                             {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
                                           </div>
-                                            {appointment.status === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
-                                             <Popover>
-                                               <PopoverTrigger asChild>
-                                                 <Badge className="text-xs cursor-pointer bg-blue-500 hover:bg-blue-600 text-white">
-                                                   <CalendarIcon className="h-3 w-3 mr-1" />
-                                                   Agendado
-                                                 </Badge>
-                                               </PopoverTrigger>
-                                               <PopoverContent className="w-48 p-2">
-                                                 <div className="space-y-1">
-                                                   <Button
-                                                     variant="ghost"
-                                                     size="sm"
-                                                     className="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                     onClick={() => handleStatusUpdate(appointment.id, 'completed')}
-                                                   >
-                                                     <CheckCircle className="h-4 w-4 mr-2" />
-                                                     Marcar Asistido
-                                                   </Button>
-                                                   <Button
-                                                     variant="ghost"
-                                                     size="sm"
-                                                     className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                     onClick={() => handleStatusUpdate(appointment.id, 'no_show')}
-                                                   >
-                                                     <XCircle className="h-4 w-4 mr-2" />
-                                                     Marcar Ausente
-                                                   </Button>
-                                                 </div>
-                                               </PopoverContent>
-                                             </Popover>
+                                             {appointment.status === 'scheduled' && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
+                                              <Popover 
+                                                open={openPopovers[appointment.id] || false}
+                                                onOpenChange={(open) => setOpenPopovers(prev => ({ ...prev, [appointment.id]: open }))}
+                                              >
+                                                <PopoverTrigger asChild>
+                                                  <Badge className="text-xs cursor-pointer bg-blue-500 hover:bg-blue-600 text-white">
+                                                    <CalendarIcon className="h-3 w-3 mr-1" />
+                                                    Agendado
+                                                  </Badge>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-48 p-2">
+                                                  <div className="space-y-1">
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      className="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleStatusUpdate(appointment.id, 'completed');
+                                                      }}
+                                                    >
+                                                      <CheckCircle className="h-4 w-4 mr-2" />
+                                                      Marcar Asistido
+                                                    </Button>
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleStatusUpdate(appointment.id, 'no_show');
+                                                      }}
+                                                    >
+                                                      <XCircle className="h-4 w-4 mr-2" />
+                                                      Marcar Ausente
+                                                    </Button>
+                                                  </div>
+                                                </PopoverContent>
+                                              </Popover>
                                             ) : (
                                               <Badge 
                                                 className={`text-xs ${statusColors[appointment.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-700'}`}
