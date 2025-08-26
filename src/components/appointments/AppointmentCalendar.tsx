@@ -525,16 +525,16 @@ export default function AppointmentCalendar() {
                                           <div className="font-medium text-sm text-slate-900 mb-1">
                                             {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
                                           </div>
-                                             {(appointment.status === 'scheduled' || appointment.status === 'confirmed' || appointment.status === 'in_progress') && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
+                                             {(appointment.status !== 'completed' && appointment.status !== 'no_show' && appointment.status !== 'cancelled') && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
                                               <Popover 
                                                 open={openPopovers[appointment.id] || false}
                                                 onOpenChange={(open) => setOpenPopovers(prev => ({ ...prev, [appointment.id]: open }))}
                                               >
                                                 <PopoverTrigger asChild>
-                                                  <div className="inline-flex items-center text-xs cursor-pointer bg-blue-500 hover:bg-blue-600 text-white rounded-md px-2 py-1 border">
-                                                    <CalendarIcon className="h-3 w-3 mr-1" />
-                                                    Agendado
-                                                  </div>
+                                                   <div className="inline-flex items-center text-xs cursor-pointer bg-blue-500 hover:bg-blue-600 text-white rounded-md px-2 py-1 border">
+                                                     <CalendarIcon className="h-3 w-3 mr-1" />
+                                                     {statusLabels[appointment.status] || appointment.status}
+                                                   </div>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-48 p-2 bg-white shadow-lg border rounded-md z-50">
                                                   <div className="space-y-1">
