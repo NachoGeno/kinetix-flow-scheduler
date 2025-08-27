@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs-18_x", "npm-9_x"]
+providers = ["nodejs_18", "npm-9_x", "openssl", "curl", "wget"]
 
 [phases.install]
 cmds = ["npm ci"]
