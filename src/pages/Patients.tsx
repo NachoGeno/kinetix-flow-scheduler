@@ -320,9 +320,6 @@ export default function Patients() {
                   )}
                 </div>
                 <div className="flex justify-end space-x-2 mt-4">
-                  <Button variant="outline" size="sm">
-                    Ver Historia
-                  </Button>
                   <Button 
                     variant="outline" 
                     size="sm"
