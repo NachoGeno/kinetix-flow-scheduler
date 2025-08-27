@@ -1451,7 +1451,6 @@ export default function Presentaciones() {
                             setUploadType('clinical_evolution');
                             setIsUploadDialogOpen(true);
                           }}
-                          disabled={!order.sessions_completed}
                         >
                           <Upload className="h-3 w-3 mr-1" />
                           Subir evolutivo
@@ -1515,7 +1514,6 @@ export default function Presentaciones() {
                             setUploadType('attendance_record');
                             setIsUploadDialogOpen(true);
                           }}
-                          disabled={!order.sessions_completed}
                         >
                           <Upload className="h-3 w-3 mr-1" />
                           Subir registro
@@ -1579,7 +1577,6 @@ export default function Presentaciones() {
                             setUploadType('social_work_authorization');
                             setIsUploadDialogOpen(true);
                           }}
-                          disabled={!order.sessions_completed}
                         >
                           <Upload className="h-3 w-3 mr-1" />
                           Subir autorización
