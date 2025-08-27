@@ -1034,6 +1034,17 @@ export type Database = {
         Args: { order_id: string }
         Returns: boolean
       }
+      fix_medical_orders_data_integrity: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          new_completed: boolean
+          new_sessions_used: number
+          old_completed: boolean
+          old_sessions_used: number
+          order_id: string
+          patient_name: string
+        }[]
+      }
       generate_final_summary_for_completed_order: {
         Args: { order_id: string }
         Returns: boolean
@@ -1157,6 +1168,10 @@ export type Database = {
           patients_attended: number
           specialty_name: string
         }[]
+      }
+      get_real_session_count: {
+        Args: { patient_uuid: string }
+        Returns: number
       }
       get_stats_by_obra_social: {
         Args: { end_date?: string; start_date?: string }

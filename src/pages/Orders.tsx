@@ -277,32 +277,17 @@ export default function Orders() {
     setSelectedOrder(null);
   };
 
-  const handleCompleteOrder = async (orderId: string) => {
-    try {
-      const { error } = await supabase
-        .from('medical_orders')
-        .update({
-          completed: true,
-          completed_at: new Date().toISOString(),
-        })
-        .eq('id', orderId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Éxito",
-        description: "Orden médica completada",
-      });
-
-      fetchOrders();
-    } catch (error) {
-      console.error('Error completing order:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo completar la orden médica",
-        variant: "destructive",
-      });
-    }
+  // REMOVED: Manual completion function - orders now complete automatically 
+  // when all sessions are actually attended through appointment completions
+  const handleCompleteOrder_DISABLED = async (orderId: string) => {
+    // This function has been disabled to prevent data integrity issues
+    // Orders should only be marked as completed when patients actually attend sessions
+    console.warn('Manual order completion is disabled for data integrity');
+    toast({
+      title: "Función deshabilitada",
+      description: "Las órdenes se completan automáticamente cuando el paciente asiste a todas las sesiones",
+      variant: "destructive",
+    });
   };
 
   const handleDeleteOrder = async (orderId: string) => {
@@ -589,15 +574,7 @@ export default function Orders() {
                       Editar
                     </Button>
                     
-                    {!order.completed && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleCompleteOrder(order.id)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        Completar
-                      </Button>
-                    )}
+                    {/* REMOVED: Manual completion button - orders now complete automatically when sessions are actually attended */}
                     
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
