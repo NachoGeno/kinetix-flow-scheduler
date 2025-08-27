@@ -323,9 +323,6 @@ export default function Patients() {
                   <Button variant="outline" size="sm">
                     Ver Historia
                   </Button>
-                  <Button variant="outline" size="sm">
-                    Nueva Cita
-                  </Button>
                   <Button 
                     variant="outline" 
                     size="sm"
