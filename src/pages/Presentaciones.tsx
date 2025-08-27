@@ -1337,7 +1337,9 @@ export default function Presentaciones() {
                     <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {order.sessions_completed ? 'Tratamiento finalizado' : 'En progreso'}
+                        {order.sessions_completed 
+                          ? `${order.sessions_used} de ${order.total_sessions} sesiones completadas`
+                          : `Sesión ${order.sessions_used} de ${order.total_sessions}`}
                       </span>
                     </div>
                   </div>
