@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery } from "@tanstack/react-query";
@@ -100,6 +101,8 @@ export default function Presentaciones() {
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploadType, setUploadType] = useState<'clinical_evolution' | 'attendance_record' | 'social_work_authorization' | null>(null);
+  const [isMultiUpload, setIsMultiUpload] = useState(false);
+  const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<('clinical_evolution' | 'attendance_record' | 'social_work_authorization')[]>([]);
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -318,15 +321,20 @@ export default function Presentaciones() {
     enabled: true
   });
 
-  const handleFileUpload = async (orderId: string, documentType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization', file: File, existingDocId?: string) => {
+  const handleFileUpload = async (
+    orderId: string, 
+    documentTypes: ('clinical_evolution' | 'attendance_record' | 'social_work_authorization')[], 
+    file: File, 
+    existingDocId?: string
+  ) => {
     if (!profile) return;
 
     try {
-      setUploadingDoc(documentType);
+      setUploadingDoc('multiple');
       
       // Upload file to storage
       const fileExt = file.name.split('.').pop();
-      const fileName = `${documentType}/${orderId}_${Date.now()}.${fileExt}`;
+      const fileName = `combined/${orderId}_${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('medical-orders')
@@ -334,9 +342,11 @@ export default function Presentaciones() {
 
       if (uploadError) throw uploadError;
 
-      // Save or update document record
+      // Generate shared file ID for multiple document types
+      const sharedFileId = documentTypes.length > 1 ? crypto.randomUUID() : null;
+
       if (existingDocId && editMode) {
-        // Update existing document
+        // Update existing document - only for single document edit mode
         const { error: docError } = await supabase
           .from('presentation_documents')
           .update({
@@ -350,30 +360,50 @@ export default function Presentaciones() {
         if (docError) throw docError;
         toast.success("Documento actualizado correctamente");
       } else {
-        // Create new document
+        // Create new document(s) - one record per document type
+        const documentRecords = documentTypes.map(docType => ({
+          medical_order_id: orderId,
+          document_type: docType,
+          file_url: fileName,
+          file_name: file.name,
+          uploaded_by: profile.id,
+          shared_file_id: sharedFileId
+        }));
+
         const { error: docError } = await supabase
           .from('presentation_documents')
-          .upsert({
-            medical_order_id: orderId,
-            document_type: documentType,
-            file_url: fileName,
-            file_name: file.name,
-            uploaded_by: profile.id
-          });
+          .upsert(documentRecords);
 
         if (docError) throw docError;
-        toast.success("Documento cargado correctamente");
+        
+        if (documentTypes.length > 1) {
+          toast.success(`Documento combinado cargado para ${documentTypes.length} categorías`);
+        } else {
+          toast.success("Documento cargado correctamente");
+        }
       }
 
       refetch();
       setIsUploadDialogOpen(false);
       setEditMode(false);
+      setIsMultiUpload(false);
+      setSelectedDocumentTypes([]);
     } catch (error) {
       console.error("Error uploading document:", error);
       toast.error(editMode ? "Error al actualizar el documento" : "Error al cargar el documento");
     } finally {
       setUploadingDoc(null);
     }
+  };
+
+  // Single document upload handler (backward compatibility)
+  const handleSingleFileUpload = async (
+    orderId: string, 
+    documentType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization', 
+    file: File, 
+    existingDocId?: string
+  ) => {
+    await handleFileUpload(orderId, [documentType], file, existingDocId);
   };
 
   const handleEditDocument = (order: PresentationOrder, documentType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization') => {
@@ -1449,6 +1479,8 @@ export default function Presentaciones() {
                           onClick={() => {
                             setSelectedOrder(order);
                             setUploadType('clinical_evolution');
+                            setIsMultiUpload(false);
+                            setSelectedDocumentTypes([]);
                             setIsUploadDialogOpen(true);
                           }}
                         >
@@ -1512,6 +1544,8 @@ export default function Presentaciones() {
                           onClick={() => {
                             setSelectedOrder(order);
                             setUploadType('attendance_record');
+                            setIsMultiUpload(false);
+                            setSelectedDocumentTypes([]);
                             setIsUploadDialogOpen(true);
                           }}
                         >
@@ -1575,6 +1609,8 @@ export default function Presentaciones() {
                           onClick={() => {
                             setSelectedOrder(order);
                             setUploadType('social_work_authorization');
+                            setIsMultiUpload(false);
+                            setSelectedDocumentTypes([]);
                             setIsUploadDialogOpen(true);
                           }}
                         >
@@ -1582,10 +1618,29 @@ export default function Presentaciones() {
                           Subir autorización
                         </Button>
                       )}
-                    </div>
-                  </div>
+                     </div>
+                   </div>
 
-                  {/* Actions */}
+                   {/* Combined Upload Button */}
+                   <div className="mt-4 pt-3 border-t border-dashed">
+                     <Button 
+                       variant="outline"
+                       size="sm" 
+                       className="w-full text-xs"
+                       onClick={() => {
+                         setSelectedOrder(order);
+                         setIsMultiUpload(true);
+                         setUploadType(null);
+                         setSelectedDocumentTypes([]);
+                         setIsUploadDialogOpen(true);
+                       }}
+                     >
+                       <Upload className="h-3 w-3 mr-1" />
+                       Subir documento combinado
+                     </Button>
+                   </div>
+
+                   {/* Actions */}
                   <div className="flex justify-between items-center pt-2 border-t">
                     
                     <div className="flex gap-2">
@@ -1655,10 +1710,13 @@ export default function Presentaciones() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editMode ? 'Reemplazar' : 'Subir'} {
-                uploadType === 'clinical_evolution' ? 'Evolutivo Clínico' : 
-                uploadType === 'attendance_record' ? 'Registro de Asistencia' :
-                'Autorización de Obra Social'
+              {isMultiUpload ? 'Subir documento combinado' : 
+               editMode ? 'Reemplazar' : 'Subir'} {
+                !isMultiUpload && uploadType ? (
+                  uploadType === 'clinical_evolution' ? 'Evolutivo Clínico' : 
+                  uploadType === 'attendance_record' ? 'Registro de Asistencia' :
+                  'Autorización de Obra Social'
+                ) : ''
               }
             </DialogTitle>
           </DialogHeader>
@@ -1669,6 +1727,60 @@ export default function Presentaciones() {
                 <p><strong>Orden:</strong> {selectedOrder.description}</p>
               </div>
             )}
+            
+            {isMultiUpload && (
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Seleccionar tipos de documento incluidos:</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="clinical_evolution"
+                      checked={selectedDocumentTypes.includes('clinical_evolution')}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedDocumentTypes([...selectedDocumentTypes, 'clinical_evolution']);
+                        } else {
+                          setSelectedDocumentTypes(selectedDocumentTypes.filter(t => t !== 'clinical_evolution'));
+                        }
+                      }}
+                    />
+                    <Label htmlFor="clinical_evolution" className="text-sm">Evolutivo Clínico</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="attendance_record"
+                      checked={selectedDocumentTypes.includes('attendance_record')}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedDocumentTypes([...selectedDocumentTypes, 'attendance_record']);
+                        } else {
+                          setSelectedDocumentTypes(selectedDocumentTypes.filter(t => t !== 'attendance_record'));
+                        }
+                      }}
+                    />
+                    <Label htmlFor="attendance_record" className="text-sm">Registro de Asistencia</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="social_work_authorization"
+                      checked={selectedDocumentTypes.includes('social_work_authorization')}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedDocumentTypes([...selectedDocumentTypes, 'social_work_authorization']);
+                        } else {
+                          setSelectedDocumentTypes(selectedDocumentTypes.filter(t => t !== 'social_work_authorization'));
+                        }
+                      }}
+                    />
+                    <Label htmlFor="social_work_authorization" className="text-sm">Autorización de Obra Social</Label>
+                  </div>
+                </div>
+                {selectedDocumentTypes.length === 0 && (
+                  <p className="text-xs text-red-600">Debe seleccionar al menos un tipo de documento</p>
+                )}
+              </div>
+            )}
+
             <div>
               <Label htmlFor="document-file">Seleccionar archivo</Label>
               <Input
@@ -1677,13 +1789,17 @@ export default function Presentaciones() {
                 accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file && selectedOrder && uploadType) {
-                    const existingDoc = selectedOrder.documents[uploadType];
-                    const existingDocId = existingDoc?.id;
-                    handleFileUpload(selectedOrder.id, uploadType, file, existingDocId);
+                  if (file && selectedOrder) {
+                    if (isMultiUpload && selectedDocumentTypes.length > 0) {
+                      handleFileUpload(selectedOrder.id, selectedDocumentTypes, file);
+                    } else if (uploadType) {
+                      const existingDoc = selectedOrder.documents[uploadType];
+                      const existingDocId = existingDoc?.id;
+                      handleSingleFileUpload(selectedOrder.id, uploadType, file, existingDocId);
+                    }
                   }
                 }}
-                disabled={!!uploadingDoc}
+                disabled={!!uploadingDoc || (isMultiUpload && selectedDocumentTypes.length === 0)}
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Formatos permitidos: PDF, JPG, PNG, DOC, DOCX

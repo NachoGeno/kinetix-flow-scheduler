@@ -755,6 +755,7 @@ export type Database = {
           file_url: string
           id: string
           medical_order_id: string
+          shared_file_id: string | null
           updated_at: string
           uploaded_at: string
           uploaded_by: string
@@ -766,6 +767,7 @@ export type Database = {
           file_url: string
           id?: string
           medical_order_id: string
+          shared_file_id?: string | null
           updated_at?: string
           uploaded_at?: string
           uploaded_by: string
@@ -777,6 +779,7 @@ export type Database = {
           file_url?: string
           id?: string
           medical_order_id?: string
+          shared_file_id?: string | null
           updated_at?: string
           uploaded_at?: string
           uploaded_by?: string
