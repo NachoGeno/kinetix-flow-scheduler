@@ -1335,7 +1335,6 @@ export default function Presentaciones() {
                     <h4 className="font-medium text-sm mb-1">Descripción de la Orden</h4>
                     <p className="text-sm text-muted-foreground">{order.description}</p>
                     <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                      <span>{presentations?.filter(p => p.patient.id === order.patient.id && p.sessions_completed).length || 0} presentaciones de {presentations?.filter(p => p.patient.id === order.patient.id).length || 0} órdenes</span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {order.sessions_completed ? 'Tratamiento finalizado' : 'En progreso'}
