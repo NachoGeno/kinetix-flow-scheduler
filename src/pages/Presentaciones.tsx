@@ -82,7 +82,7 @@ interface FilterState {
   professional: string;
   date_from: string;
   date_to: string;
-  status: 'all' | 'complete' | 'incomplete' | 'submitted';
+  status: 'all' | 'ready_to_present' | 'in_preparation' | 'pdf_generated' | 'submitted';
   search_term: string;
 }
 
@@ -290,33 +290,30 @@ export default function Presentaciones() {
         );
       }
 
-      // Filter by status
-      if (filters.status !== 'all') {
-        filteredOrders = filteredOrders.filter(order => {
-          const isComplete = order.documents.medical_order && 
-                           order.documents.clinical_evolution && 
-                           order.documents.attendance_record &&
-                           order.documents.social_work_authorization &&
-                           order.sessions_completed;
-          
-          switch (filters.status) {
-            case 'complete':
-              return isComplete;
-            case 'incomplete':
-              return !isComplete;
-            case 'submitted':
-              return order.presentation_status === 'submitted';
-            default:
-              return true;
-          }
-        });
-      }
+       // Filter by status
+       if (filters.status !== 'all') {
+         filteredOrders = filteredOrders.filter(order => {
+           const docs = order.documents;
+           const hasAllDocs = docs.medical_order && docs.clinical_evolution && docs.attendance_record && docs.social_work_authorization;
+           const sessionsReady = order.sessions_completed;
+           
+           switch (filters.status) {
+             case 'ready_to_present':
+               return hasAllDocs && sessionsReady && order.presentation_status !== 'pdf_generated';
+             case 'in_preparation':
+               return !sessionsReady;
+             case 'pdf_generated':
+               return order.presentation_status === 'pdf_generated';
+             case 'submitted':
+               return order.presentation_status === 'submitted';
+             default:
+               return true;
+           }
+         });
+       }
 
-      // Only show orders where sessions are completed (main requirement)
-      const readyOrders = filteredOrders.filter(order => order.sessions_completed);
-
-      console.log(`✅ Final filtered orders: ${readyOrders.length}`);
-      return readyOrders;
+      console.log(`✅ Final filtered orders: ${filteredOrders.length}`);
+      return filteredOrders;
     },
     enabled: true
   });
@@ -1139,13 +1136,7 @@ export default function Presentaciones() {
     const hasAllDocs = docs.medical_order && docs.clinical_evolution && docs.attendance_record && docs.social_work_authorization;
     const sessionsReady = order.sessions_completed;
     
-    if (!sessionsReady) return { 
-      status: 'sessions_pending', 
-      color: 'bg-orange-100 text-orange-800', 
-      text: 'Sesiones pendientes', 
-      icon: <Clock className="h-3 w-3" />
-    };
-    
+    // PDF already generated - highest priority
     if (order.presentation_status === 'pdf_generated') return { 
       status: 'pdf_generated', 
       color: 'bg-green-100 text-green-800', 
@@ -1153,13 +1144,39 @@ export default function Presentaciones() {
       icon: <CheckCircle2 className="h-3 w-3" />
     };
     
+    // Sessions completed and all docs ready - ready to present
     if (hasAllDocs && sessionsReady) return { 
-      status: 'ready_to_generate', 
-      color: 'bg-yellow-100 text-yellow-800', 
-      text: 'Lista para generar', 
+      status: 'ready_to_present', 
+      color: 'bg-blue-100 text-blue-800', 
+      text: 'Lista para presentar', 
       icon: <FileDown className="h-3 w-3" />
     };
     
+    // Sessions completed but missing documents
+    if (sessionsReady && !hasAllDocs) return { 
+      status: 'sessions_complete_docs_pending', 
+      color: 'bg-yellow-100 text-yellow-800', 
+      text: 'Faltan documentos', 
+      icon: <AlertCircle className="h-3 w-3" />
+    };
+    
+    // Sessions pending but some docs can be uploaded
+    if (!sessionsReady && hasAllDocs) return { 
+      status: 'docs_ready_sessions_pending', 
+      color: 'bg-purple-100 text-purple-800', 
+      text: 'En preparación', 
+      icon: <Clock className="h-3 w-3" />
+    };
+    
+    // Sessions pending and incomplete docs - in preparation
+    if (!sessionsReady) return { 
+      status: 'in_preparation', 
+      color: 'bg-orange-100 text-orange-800', 
+      text: 'En preparación', 
+      icon: <Clock className="h-3 w-3" />
+    };
+    
+    // Fallback - incomplete
     return { 
       status: 'incomplete', 
       color: 'bg-red-100 text-red-800', 
@@ -1226,12 +1243,13 @@ export default function Presentaciones() {
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="complete">Completas</SelectItem>
-                  <SelectItem value="incomplete">Incompletas</SelectItem>
-                  <SelectItem value="submitted">Enviadas</SelectItem>
-                </SelectContent>
+                 <SelectContent>
+                   <SelectItem value="all">Todos</SelectItem>
+                   <SelectItem value="ready_to_present">Listas para presentar</SelectItem>
+                   <SelectItem value="in_preparation">En preparación</SelectItem>
+                   <SelectItem value="pdf_generated">PDF generado</SelectItem>
+                   <SelectItem value="submitted">Enviadas</SelectItem>
+                 </SelectContent>
               </Select>
             </div>
 
@@ -1277,7 +1295,7 @@ export default function Presentaciones() {
             <CardContent className="py-8 text-center text-muted-foreground">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No hay presentaciones que mostrar</p>
-              <p className="text-sm">Las órdenes aparecerán aquí cuando todas sus sesiones estén completadas</p>
+              <p className="text-sm">No hay órdenes médicas que coincidan con los filtros aplicados</p>
             </CardContent>
           </Card>
         ) : (
