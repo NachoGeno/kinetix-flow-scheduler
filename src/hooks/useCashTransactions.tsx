@@ -220,12 +220,22 @@ export function useCashTransactions() {
   };
 
   // Map shift types between TypeScript and database values
-  const mapShiftTypeToDb = (shift: ShiftType): 'morning' | 'afternoon' | 'full_day' => {
-    return shift; // Direct mapping since we're using English values
+  const mapShiftTypeToDb = (shift: ShiftType): 'mañana' | 'tarde' | 'completo' => {
+    switch (shift) {
+      case 'morning': return 'mañana';
+      case 'afternoon': return 'tarde';
+      case 'full_day': return 'completo';
+      default: return 'completo';
+    }
   };
 
   const mapShiftTypeFromDb = (shift: string): ShiftType => {
-    return shift as ShiftType; // Direct mapping since we're using English values
+    switch (shift) {
+      case 'mañana': return 'morning';
+      case 'tarde': return 'afternoon';
+      case 'completo': return 'full_day';
+      default: return 'full_day';
+    }
   };
 
   // Get shift cash summary
