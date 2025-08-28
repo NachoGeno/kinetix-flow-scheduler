@@ -113,7 +113,7 @@ export function PlusPaymentsList() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
-            Plus Payments Registrados
+            Plus registrados
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
