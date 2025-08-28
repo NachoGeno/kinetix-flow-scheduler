@@ -92,12 +92,21 @@ export function usePlusPayments() {
 
   const deletePlusPayment = useCallback(async (id: string) => {
     try {
-      const { error } = await supabase
+      // First delete related cash transactions
+      const { error: cashTransactionError } = await supabase
+        .from('cash_transactions')
+        .delete()
+        .eq('plus_payment_id', id);
+
+      if (cashTransactionError) throw cashTransactionError;
+
+      // Then delete the plus payment
+      const { error: plusPaymentError } = await supabase
         .from('plus_payments')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (plusPaymentError) throw plusPaymentError;
       
       toast.success('Plus payment eliminado correctamente');
     } catch (error) {
