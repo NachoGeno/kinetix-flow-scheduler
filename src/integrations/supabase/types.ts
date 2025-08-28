@@ -1401,6 +1401,7 @@ export type Database = {
         | "no_show_rescheduled"
         | "no_show_session_lost"
         | "rescheduled"
+        | "discharged"
       insurance_type: "obra_social" | "art"
       news_category: "tecnica" | "administrativa" | "medica" | "urgente"
       order_type: "laboratory" | "imaging" | "prescription" | "referral"
@@ -1544,6 +1545,7 @@ export const Constants = {
         "no_show_rescheduled",
         "no_show_session_lost",
         "rescheduled",
+        "discharged",
       ],
       insurance_type: ["obra_social", "art"],
       news_category: ["tecnica", "administrativa", "medica", "urgente"],

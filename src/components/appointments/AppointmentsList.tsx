@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX, RotateCcw, ArrowRight, Info, Edit, CalendarIcon, X } from 'lucide-react';
+import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX, RotateCcw, ArrowRight, Info, Edit, CalendarIcon, X, LogOut } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ import PatientNoShowAlert from './PatientNoShowAlert';
 import ResetNoShowDialog from './ResetNoShowDialog';
 import { RescheduleAppointmentDialog } from './RescheduleAppointmentDialog';
 import EditAppointmentDialog from './EditAppointmentDialog';
+import DischargePatientDialog from './DischargePatientDialog';
 import { usePatientNoShowsMultiple } from '@/hooks/usePatientNoShows';
 import { usePatientNoShowResets } from '@/hooks/usePatientNoShowResets';
 
@@ -79,6 +80,7 @@ const statusColors = {
   no_show_rescheduled: 'bg-orange-100 text-orange-800',
   no_show_session_lost: 'bg-red-100 text-red-800',
   rescheduled: 'bg-purple-100 text-purple-800',
+  discharged: 'bg-cyan-100 text-cyan-800',
 };
 
 const statusLabels = {
@@ -91,6 +93,7 @@ const statusLabels = {
   no_show_rescheduled: 'Ausente - Reprogramado',
   no_show_session_lost: 'Ausente - Sesión Descontada',
   rescheduled: 'Reprogramado',
+  discharged: 'Alta Temprana',
 };
 
 export default function AppointmentsList() {
@@ -106,7 +109,9 @@ export default function AppointmentsList() {
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [dischargeDialogOpen, setDischargeDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [patientToDischarge, setPatientToDischarge] = useState<any>(null);
   const [selectedPatientForReset, setSelectedPatientForReset] = useState<{id: string, name: string, noShowCount: number} | null>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -293,6 +298,83 @@ export default function AppointmentsList() {
     setEditDialogOpen(true);
   };
 
+  const handleDischarge = async (patientId: string) => {
+    try {
+      // Obtener información del paciente y sus citas futuras
+      const { data: patientData, error: patientError } = await supabase
+        .from('patients')
+        .select(`
+          id,
+          profile:profiles(first_name, last_name)
+        `)
+        .eq('id', patientId)
+        .single();
+
+      if (patientError || !patientData) throw patientError;
+
+      // Obtener orden médica activa
+      const { data: medicalOrder, error: orderError } = await supabase
+        .from('medical_orders')
+        .select('id, total_sessions, sessions_used')
+        .eq('patient_id', patientId)
+        .eq('completed', false)
+        .order('created_at', { ascending: false })
+        .maybeSingle();
+
+      if (orderError) throw orderError;
+      if (!medicalOrder) {
+        toast({
+          title: "Error",
+          description: "No se encontró una orden médica activa para este paciente",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Obtener citas futuras
+      const { data: futureAppointments, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select(`
+          id,
+          appointment_date,
+          appointment_time,
+          doctor:doctors(
+            profile:profiles(first_name, last_name)
+          )
+        `)
+        .eq('patient_id', patientId)
+        .in('status', ['scheduled', 'confirmed'])
+        .gte('appointment_date', new Date().toISOString().split('T')[0])
+        .order('appointment_date', { ascending: true });
+
+      if (appointmentsError) throw appointmentsError;
+
+      const patientInfo = {
+        id: patientId,
+        name: `${patientData.profile.first_name} ${patientData.profile.last_name}`,
+        totalSessions: medicalOrder.total_sessions,
+        usedSessions: medicalOrder.sessions_used,
+        futureAppointments: (futureAppointments || []).map(apt => ({
+          id: apt.id,
+          appointment_date: apt.appointment_date,
+          appointment_time: apt.appointment_time,
+          doctor_name: `Dr. ${apt.doctor.profile.first_name} ${apt.doctor.profile.last_name}`
+        })),
+        medicalOrderId: medicalOrder.id
+      };
+
+      setPatientToDischarge(patientInfo);
+      setDischargeDialogOpen(true);
+    } catch (error) {
+      console.error('Error preparing discharge:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo preparar el alta del paciente",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleResetNoShows = (patientId: string, patientName: string, noShowCount: number) => {
     setSelectedPatientForReset({ id: patientId, name: patientName, noShowCount });
     setResetDialogOpen(true);
@@ -470,6 +552,7 @@ export default function AppointmentsList() {
                 <SelectItem value="no_show_rescheduled">Ausente - Reprogramado</SelectItem>
                 <SelectItem value="no_show_session_lost">Ausente - Sesión Descontada</SelectItem>
                 <SelectItem value="rescheduled">Reprogramado</SelectItem>
+                <SelectItem value="discharged">Alta Temprana</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -694,8 +777,22 @@ export default function AppointmentsList() {
                            Reprogramar
                          </Button>
                        )}
-                      
-                      {/* Botón cancelar */}
+                       
+                       {/* Botón Alta Temprana - solo para admin/doctor */}
+                       {(profile?.role === 'doctor' || profile?.role === 'admin') && 
+                        appointment.status !== 'cancelled' && appointment.status !== 'completed' && appointment.status !== 'discharged' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2 text-orange-600 hover:text-orange-700"
+                            onClick={() => handleDischarge(appointment.patient_id)}
+                          >
+                            <LogOut className="h-3 w-3 mr-1" />
+                            Alta Temprana
+                          </Button>
+                        )}
+                       
+                       {/* Botón cancelar */}
                       {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -855,6 +952,18 @@ export default function AppointmentsList() {
           }}
         />
       )}
+
+      {/* Discharge Patient Dialog */}
+      <DischargePatientDialog
+        open={dischargeDialogOpen}
+        onOpenChange={setDischargeDialogOpen}
+        patientInfo={patientToDischarge}
+        onSuccess={() => {
+          fetchAppointments();
+          setDischargeDialogOpen(false);
+          setPatientToDischarge(null);
+        }}
+      />
     </div>
   );
 }
