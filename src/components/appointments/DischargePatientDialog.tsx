@@ -74,10 +74,10 @@ export default function DischargePatientDialog({
       const { error: orderError } = await supabase
         .from('medical_orders')
         .update({
+          early_discharge: true, // Marcar PRIMERO como alta temprana
           completed: true,
           completed_at: new Date().toISOString(),
           sessions_used: patientInfo.usedSessions,
-          early_discharge: true, // Marcar como alta temprana para bypasear validaciones
           results: `Alta temprana: ${reason}. Sesiones completadas: ${patientInfo.usedSessions}/${patientInfo.totalSessions}`,
           updated_at: new Date().toISOString()
         })
