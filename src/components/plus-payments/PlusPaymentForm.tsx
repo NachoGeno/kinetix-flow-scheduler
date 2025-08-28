@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -67,19 +68,32 @@ export function PlusPaymentForm({ onSuccess, onCancel, initialData }: PlusPaymen
     const fetchPatients = async () => {
       setLoadingPatients(true);
       try {
+        console.log('Fetching patients...');
+        
+        // Simplificar la consulta para evitar errores
         const { data, error } = await supabase
           .from('patients')
           .select(`
             id,
-            profiles!inner(first_name, last_name)
+            profile_id,
+            profiles!inner(
+              id,
+              first_name,
+              last_name
+            )
           `)
-          .eq('is_active', true)
-          .order('profiles.last_name');
+          .eq('is_active', true);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching patients:', error);
+          throw error;
+        }
+
+        console.log('Patients data:', data);
         setPatients(data || []);
       } catch (error) {
         console.error('Error fetching patients:', error);
+        setPatients([]);
       } finally {
         setLoadingPatients(false);
       }
@@ -95,6 +109,8 @@ export function PlusPaymentForm({ onSuccess, onCancel, initialData }: PlusPaymen
       const fetchMedicalOrders = async () => {
         setLoadingOrders(true);
         try {
+          console.log('Fetching medical orders for patient:', patientId);
+          
           const { data, error } = await supabase
             .from('medical_orders')
             .select(`
@@ -106,10 +122,16 @@ export function PlusPaymentForm({ onSuccess, onCancel, initialData }: PlusPaymen
             .eq('patient_id', patientId)
             .order('created_at', { ascending: false });
 
-          if (error) throw error;
+          if (error) {
+            console.error('Error fetching medical orders:', error);
+            throw error;
+          }
+
+          console.log('Medical orders data:', data);
           setMedicalOrders(data || []);
         } catch (error) {
           console.error('Error fetching medical orders:', error);
+          setMedicalOrders([]);
         } finally {
           setLoadingOrders(false);
         }
@@ -191,7 +213,7 @@ export function PlusPaymentForm({ onSuccess, onCancel, initialData }: PlusPaymen
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Paciente *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder={loadingPatients ? "Cargando..." : "Seleccionar paciente"} />
@@ -216,10 +238,20 @@ export function PlusPaymentForm({ onSuccess, onCancel, initialData }: PlusPaymen
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Orden Médica *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!form.watch('patient_id')}>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value} 
+                      disabled={!form.watch('patient_id') || loadingOrders}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={loadingOrders ? "Cargando..." : "Seleccionar orden"} />
+                          <SelectValue placeholder={
+                            !form.watch('patient_id') 
+                              ? "Primero seleccione un paciente" 
+                              : loadingOrders 
+                                ? "Cargando..." 
+                                : "Seleccionar orden"
+                          } />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
