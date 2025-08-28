@@ -54,6 +54,11 @@ interface Doctor {
   consultation_fee: number;
   bio: string;
   is_active: boolean;
+  work_start_time: string;
+  work_end_time: string;
+  work_days: string[];
+  appointment_duration: number;
+  hire_date: string;
   profile: {
     first_name: string;
     last_name: string;
@@ -141,11 +146,11 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData }: Profession
         years_experience: doctorData.years_experience || 0,
         consultation_fee: doctorData.consultation_fee || 0,
         bio: doctorData.bio || '',
-        hire_date: new Date(), // Por defecto
-        work_days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-        work_start_time: '08:00',
-        work_end_time: '17:00',
-        appointment_duration: 30,
+        hire_date: doctorData.hire_date ? new Date(doctorData.hire_date) : new Date(),
+        work_days: doctorData.work_days || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+        work_start_time: doctorData.work_start_time ? doctorData.work_start_time.substring(0, 5) : '08:00',
+        work_end_time: doctorData.work_end_time ? doctorData.work_end_time.substring(0, 5) : '17:00',
+        appointment_duration: doctorData.appointment_duration || 30,
       });
     }
   }, [doctorData, specialties, form]);

@@ -20,6 +20,11 @@ interface Doctor {
   consultation_fee: number;
   bio: string;
   is_active: boolean;
+  work_start_time: string;
+  work_end_time: string;
+  work_days: string[];
+  appointment_duration: number;
+  hire_date: string;
   profile: {
     first_name: string;
     last_name: string;
