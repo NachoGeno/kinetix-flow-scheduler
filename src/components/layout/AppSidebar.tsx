@@ -81,7 +81,7 @@ const navigationItems = [
     roles: ['admin', 'doctor']
   },
   {
-    title: "Plus Payments",
+    title: "Plus",
     url: "/plus-payments",
     icon: DollarSign,
     description: "Gestión de plus payments",
