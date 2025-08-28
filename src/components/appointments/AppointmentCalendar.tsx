@@ -757,6 +757,7 @@ export default function AppointmentCalendar() {
           </div>
         </div>
       </div>
+    </div>
     </TooltipProvider>
   );
 }
