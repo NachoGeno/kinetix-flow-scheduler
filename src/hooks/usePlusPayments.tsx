@@ -38,6 +38,21 @@ export interface PlusPaymentReport {
 export function usePlusPayments() {
   const createPlusPayment = useCallback(async (payment: PlusPayment) => {
     try {
+      console.log('Creating plus payment:', payment);
+      
+      // Verificar que el usuario tenga un perfil antes de crear el payment
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', payment.collected_by)
+        .single();
+
+      if (profileError || !profile) {
+        console.error('Profile not found for user:', payment.collected_by);
+        toast.error('Error: Usuario sin perfil configurado');
+        throw new Error('Usuario sin perfil configurado');
+      }
+
       const { data, error } = await supabase
         .from('plus_payments')
         .insert(payment)
