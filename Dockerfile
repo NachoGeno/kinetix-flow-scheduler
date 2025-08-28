@@ -19,5 +19,5 @@ RUN npm run build
 # Expose port (Railway uses dynamic port)
 EXPOSE 8080
 
-# Start the application
-CMD ["npm", "run", "preview"]
+# Start the application with dynamic port
+CMD ["sh", "-c", "npx vite preview --host 0.0.0.0 --port $PORT"]
