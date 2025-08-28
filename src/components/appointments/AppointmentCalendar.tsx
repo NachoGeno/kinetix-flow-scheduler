@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Clock, 
   Plus, 
@@ -364,7 +365,8 @@ export default function AppointmentCalendar() {
   const timeSlots = generateTimeSlots();
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4">
+    <TooltipProvider>
+      <div className="min-h-screen bg-slate-50 p-4">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -638,41 +640,62 @@ export default function AppointmentCalendar() {
                                                    <div className="space-y-1">
                                                      {appointment.status !== 'in_progress' ? (
                                                        <>
-                                                         <Button
-                                                           variant="ghost"
-                                                           size="sm"
-                                                           className="w-8 h-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                           onClick={(e) => {
-                                                             e.stopPropagation();
-                                                             handleStatusUpdate(appointment.id, 'completed');
-                                                           }}
-                                                         >
-                                                           <CheckCircle className="h-4 w-4" />
-                                                         </Button>
-                                                         <Button
-                                                           variant="ghost"
-                                                           size="sm"
-                                                           className="w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                           onClick={(e) => {
-                                                             e.stopPropagation();
-                                                             handleStatusUpdate(appointment.id, 'no_show');
-                                                           }}
-                                                         >
-                                                           <XCircle className="h-4 w-4" />
-                                                         </Button>
+                                                         <Tooltip>
+                                                           <TooltipTrigger asChild>
+                                                             <Button
+                                                               variant="ghost"
+                                                               size="sm"
+                                                               className="w-8 h-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                               onClick={(e) => {
+                                                                 e.stopPropagation();
+                                                                 handleStatusUpdate(appointment.id, 'completed');
+                                                               }}
+                                                             >
+                                                               <CheckCircle className="h-4 w-4" />
+                                                             </Button>
+                                                           </TooltipTrigger>
+                                                           <TooltipContent>
+                                                             <p>Marcar como asistido</p>
+                                                           </TooltipContent>
+                                                         </Tooltip>
+                                                         <Tooltip>
+                                                           <TooltipTrigger asChild>
+                                                             <Button
+                                                               variant="ghost"
+                                                               size="sm"
+                                                               className="w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                               onClick={(e) => {
+                                                                 e.stopPropagation();
+                                                                 handleStatusUpdate(appointment.id, 'no_show');
+                                                               }}
+                                                             >
+                                                               <XCircle className="h-4 w-4" />
+                                                             </Button>
+                                                           </TooltipTrigger>
+                                                           <TooltipContent>
+                                                             <p>Marcar como ausente</p>
+                                                           </TooltipContent>
+                                                         </Tooltip>
                                                        </>
                                                      ) : (
-                                                       <Button
-                                                         variant="ghost"
-                                                         size="sm"
-                                                         className="w-8 h-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                                                         onClick={(e) => {
-                                                           e.stopPropagation();
-                                                           handleRevertAttendance(appointment.id);
-                                                         }}
-                                                       >
-                                                         <RotateCcw className="h-4 w-4" />
-                                                       </Button>
+                                                       <Tooltip>
+                                                         <TooltipTrigger asChild>
+                                                           <Button
+                                                             variant="ghost"
+                                                             size="sm"
+                                                             className="w-8 h-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                                             onClick={(e) => {
+                                                               e.stopPropagation();
+                                                               handleRevertAttendance(appointment.id);
+                                                             }}
+                                                           >
+                                                             <RotateCcw className="h-4 w-4" />
+                                                           </Button>
+                                                         </TooltipTrigger>
+                                                         <TooltipContent>
+                                                           <p>Revertir asistencia</p>
+                                                         </TooltipContent>
+                                                       </Tooltip>
                                                      )}
                                                    </div>
                                                  </PopoverContent>
@@ -734,6 +757,6 @@ export default function AppointmentCalendar() {
           </div>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

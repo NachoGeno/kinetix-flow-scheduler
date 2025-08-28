@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -553,17 +554,20 @@ export default function AppointmentsList() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Citas Médicas</h1>
+      <TooltipProvider>
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold">Citas Médicas</h1>
+          </div>
+          <div className="text-center py-8">Cargando citas...</div>
         </div>
-        <div className="text-center py-8">Cargando citas...</div>
-      </div>
+      </TooltipProvider>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <TooltipProvider>
+      <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Lista de Citas</h1>
         {profile?.role === 'patient' && (
@@ -795,22 +799,36 @@ export default function AppointmentsList() {
                        {(profile?.role === 'doctor' || profile?.role === 'admin') && 
                         appointment.status === 'scheduled' && (
                          <>
-                           <Button
-                             variant="outline"
-                             size="sm"
-                             className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
-                             onClick={() => handleMarkAttendance(appointment.id, 'in_progress')}
-                           >
-                             <UserCheck className="h-4 w-4" />
-                           </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700"
-                              onClick={() => handleNoShow(appointment)}
-                            >
-                              <UserX className="h-4 w-4" />
-                            </Button>
+                           <Tooltip>
+                             <TooltipTrigger asChild>
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+                                 onClick={() => handleMarkAttendance(appointment.id, 'in_progress')}
+                               >
+                                 <UserCheck className="h-4 w-4" />
+                               </Button>
+                             </TooltipTrigger>
+                             <TooltipContent>
+                               <p>Marcar como asistido</p>
+                             </TooltipContent>
+                           </Tooltip>
+                           <Tooltip>
+                             <TooltipTrigger asChild>
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700"
+                                 onClick={() => handleNoShow(appointment)}
+                               >
+                                 <UserX className="h-4 w-4" />
+                               </Button>
+                             </TooltipTrigger>
+                             <TooltipContent>
+                               <p>Marcar como ausente</p>
+                             </TooltipContent>
+                           </Tooltip>
                          </>
                         )}
                         
@@ -818,15 +836,22 @@ export default function AppointmentsList() {
                         {(profile?.role === 'doctor' || profile?.role === 'admin' || profile?.role === 'reception') && 
                          appointment.status === 'in_progress' && (
                           <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700"
-                              >
-                                <RotateCcw className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700"
+                                  >
+                                    <RotateCcw className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Revertir asistencia</p>
+                              </TooltipContent>
+                            </Tooltip>
                             <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>¿Revertir asistencia?</AlertDialogTitle>
@@ -843,78 +868,106 @@ export default function AppointmentsList() {
                             </AlertDialogContent>
                           </AlertDialog>
                         )}
-                       
+                        
                         {/* Botón editar - para admin/doctor y estados específicos */}
                         {(profile?.role === 'doctor' || profile?.role === 'admin') && 
                          (appointment.status === 'scheduled' || appointment.status === 'confirmed') && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
-                            onClick={() => handleEdit(appointment)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+                                onClick={() => handleEdit(appointment)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Editar cita</p>
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                         
                         {/* Botón reprogramar - para admin/doctor y estados específicos */}
                         {(profile?.role === 'doctor' || profile?.role === 'admin') && 
                          (appointment.status === 'scheduled' || appointment.status === 'confirmed' || 
                           appointment.status === 'no_show' || appointment.status === 'no_show_rescheduled') && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-purple-600 hover:text-purple-700"
-                            onClick={() => handleReschedule(appointment)}
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-purple-600 hover:text-purple-700"
+                                onClick={() => handleReschedule(appointment)}
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Reprogramar cita</p>
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                         
                         {/* Botón Alta Temprana - solo para admin/doctor */}
                         {(profile?.role === 'doctor' || profile?.role === 'admin') && 
                          appointment.status !== 'cancelled' && appointment.status !== 'completed' && appointment.status !== 'discharged' && (
-                           <Button
-                             variant="outline"
-                             size="sm"
-                             className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700"
-                             onClick={() => handleDischarge(appointment.patient_id)}
-                           >
-                             <LogOut className="h-4 w-4" />
-                           </Button>
+                           <Tooltip>
+                             <TooltipTrigger asChild>
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700"
+                                 onClick={() => handleDischarge(appointment.patient_id)}
+                               >
+                                 <LogOut className="h-4 w-4" />
+                               </Button>
+                             </TooltipTrigger>
+                             <TooltipContent>
+                               <p>Alta temprana</p>
+                             </TooltipContent>
+                           </Tooltip>
                          )}
-                       
-                       {/* Botón cancelar */}
-                      {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Cancelar cita?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Esta acción cancelará la cita programada. El horario quedará disponible para otros pacientes. ¿Estás seguro de que deseas continuar?
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                onClick={() => handleCancelAppointment(appointment.id)}
-                              >
-                                Sí, cancelar cita
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
+                        
+                        {/* Botón cancelar */}
+                       {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                         <AlertDialog>
+                           <Tooltip>
+                             <TooltipTrigger asChild>
+                               <AlertDialogTrigger asChild>
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                 >
+                                   <Trash2 className="h-4 w-4" />
+                                 </Button>
+                               </AlertDialogTrigger>
+                             </TooltipTrigger>
+                             <TooltipContent>
+                               <p>Cancelar cita</p>
+                             </TooltipContent>
+                           </Tooltip>
+                           <AlertDialogContent>
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>¿Cancelar cita?</AlertDialogTitle>
+                               <AlertDialogDescription>
+                                 Esta acción cancelará la cita programada. El horario quedará disponible para otros pacientes. ¿Estás seguro de que deseas continuar?
+                               </AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                               <AlertDialogAction
+                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                 onClick={() => handleCancelAppointment(appointment.id)}
+                               >
+                                 Sí, cancelar cita
+                               </AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
+                         </AlertDialog>
+                       )}
                     </div>
                   </div>
                 </div>
@@ -1056,6 +1109,7 @@ export default function AppointmentsList() {
           setPatientToDischarge(null);
         }}
       />
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
