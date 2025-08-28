@@ -231,22 +231,25 @@ export default function AppointmentsList() {
   };
 
   const handleMarkAttendance = async (appointmentId: string, status: 'in_progress') => {
-    try {
-      // Get the appointment details first
-      const appointment = appointments.find(apt => apt.id === appointmentId);
-      if (!appointment) {
-        throw new Error('Appointment not found');
-      }
+    if (!profile) return;
 
+    try {
       // Update appointment status
-      const { error } = await supabase
+      const { error: appointmentError } = await supabase
         .from('appointments')
-        .update({ status })
+        .update({ 
+          status: status,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', appointmentId);
 
-      if (error) throw error;
+      if (appointmentError) throw appointmentError;
 
-      // Check if there's a medical order for this appointment
+      // Find the appointment to get its details
+      const appointment = appointments.find(a => a.id === appointmentId);
+      if (!appointment) throw new Error('Appointment not found');
+
+      // Get medical order associated with this appointment
       const { data: medicalOrderData, error: orderError } = await supabase
         .from('medical_orders')
         .select('id')
@@ -278,6 +281,70 @@ export default function AppointmentsList() {
       toast({
         title: "Error",
         description: "No se pudo actualizar el estado de la cita",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRevertAttendance = async (appointmentId: string) => {
+    if (!profile) return;
+
+    try {
+      // Find the appointment to get its details
+      const appointment = appointments.find(a => a.id === appointmentId);
+      if (!appointment) throw new Error('Appointment not found');
+
+      // Update appointment status back to confirmed
+      const { error: appointmentError } = await supabase
+        .from('appointments')
+        .update({ 
+          status: 'confirmed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', appointmentId);
+
+      if (appointmentError) throw appointmentError;
+
+      // Add reversal note to medical history entry if it exists
+      const { data: medicalOrderData } = await supabase
+        .from('medical_orders')
+        .select('id')
+        .eq('appointment_id', appointmentId)
+        .maybeSingle();
+
+      if (medicalOrderData?.id) {
+        // Find existing medical history entry for this appointment
+        const { data: historyEntry } = await supabase
+          .from('medical_history_entries')
+          .select('*')
+          .eq('appointment_id', appointmentId)
+          .maybeSingle();
+
+        if (historyEntry) {
+          // Add reversal note to existing observations
+          const revertNote = `\n\n[REVERSIÓN] Asistencia revertida el ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })} por ${profile.first_name} ${profile.last_name}. Motivo: Corrección de error de marcado.`;
+          
+          await supabase
+            .from('medical_history_entries')
+            .update({
+              observations: (historyEntry.observations || '') + revertNote,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', historyEntry.id);
+        }
+      }
+
+      toast({
+        title: "Éxito",
+        description: 'Asistencia revertida correctamente',
+      });
+
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error reverting attendance:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo revertir la asistencia",
         variant: "destructive",
       });
     }
@@ -724,30 +791,61 @@ export default function AppointmentsList() {
                       {statusLabels[appointment.status as keyof typeof statusLabels]}
                     </Badge>
                     <div className="flex items-center gap-1">
-                      {/* Botones de asistencia para doctores y admins */}
-                      {(profile?.role === 'doctor' || profile?.role === 'admin') && 
-                       appointment.status === 'scheduled' && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 px-2 text-green-600 hover:text-green-700"
-                            onClick={() => handleMarkAttendance(appointment.id, 'in_progress')}
-                          >
-                            <UserCheck className="h-3 w-3 mr-1" />
-                            Asistió
-                          </Button>
+                        {/* Botones de asistencia para doctores y admins */}
+                       {(profile?.role === 'doctor' || profile?.role === 'admin') && 
+                        appointment.status === 'scheduled' && (
+                         <>
                            <Button
                              variant="outline"
                              size="sm"
-                             className="h-8 px-2 text-gray-600 hover:text-gray-700"
-                             onClick={() => handleNoShow(appointment)}
+                             className="h-8 px-2 text-green-600 hover:text-green-700"
+                             onClick={() => handleMarkAttendance(appointment.id, 'in_progress')}
                            >
-                             <UserX className="h-3 w-3 mr-1" />
-                             Ausente
+                             <UserCheck className="h-3 w-3 mr-1" />
+                             Asistió
                            </Button>
-                        </>
-                       )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-2 text-gray-600 hover:text-gray-700"
+                              onClick={() => handleNoShow(appointment)}
+                            >
+                              <UserX className="h-3 w-3 mr-1" />
+                              Ausente
+                            </Button>
+                         </>
+                        )}
+                        
+                        {/* Botón Revertir Asistencia - solo para in_progress */}
+                        {(profile?.role === 'doctor' || profile?.role === 'admin' || profile?.role === 'reception') && 
+                         appointment.status === 'in_progress' && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2 text-orange-600 hover:text-orange-700"
+                              >
+                                <RotateCcw className="h-3 w-3 mr-1" />
+                                Revertir
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Revertir asistencia?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta acción marcará al paciente como no asistido y agregará una nota de reversión en la historia clínica. ¿Estás seguro?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleRevertAttendance(appointment.id)}>
+                                  Sí, revertir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                        
                        {/* Botón editar - para admin/doctor y estados específicos */}
                        {(profile?.role === 'doctor' || profile?.role === 'admin') && 

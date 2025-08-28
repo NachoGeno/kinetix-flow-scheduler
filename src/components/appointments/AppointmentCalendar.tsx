@@ -17,7 +17,8 @@ import {
   CheckCircle,
   AlertCircle,
   XCircle,
-  PlayCircle
+  PlayCircle,
+  RotateCcw
 } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -288,6 +289,73 @@ export default function AppointmentCalendar() {
       toast({
         title: "Error",
         description: "No se pudo actualizar el estado de la cita",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRevertAttendance = async (appointmentId: string) => {
+    if (!profile) return;
+
+    try {
+      // Find the appointment to get its details
+      const appointment = appointments.find(a => a.id === appointmentId);
+      if (!appointment) throw new Error('Appointment not found');
+
+      // Update appointment status back to confirmed
+      const { error: appointmentError } = await supabase
+        .from('appointments')
+        .update({ 
+          status: 'confirmed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', appointmentId);
+
+      if (appointmentError) throw appointmentError;
+
+      // Add reversal note to medical history entry if it exists
+      const { data: medicalOrderData } = await supabase
+        .from('medical_orders')
+        .select('id')
+        .eq('appointment_id', appointmentId)
+        .maybeSingle();
+
+      if (medicalOrderData?.id) {
+        // Find existing medical history entry for this appointment
+        const { data: historyEntry } = await supabase
+          .from('medical_history_entries')
+          .select('*')
+          .eq('appointment_id', appointmentId)
+          .maybeSingle();
+
+        if (historyEntry) {
+          // Add reversal note to existing observations
+          const revertNote = `\n\n[REVERSIÓN] Asistencia revertida el ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })} por ${profile.first_name} ${profile.last_name}. Motivo: Corrección de error de marcado.`;
+          
+          await supabase
+            .from('medical_history_entries')
+            .update({
+              observations: (historyEntry.observations || '') + revertNote,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', historyEntry.id);
+        }
+      }
+
+      toast({
+        title: "Éxito",
+        description: 'Asistencia revertida correctamente',
+      });
+
+      // Cerrar el popover
+      setOpenPopovers(prev => ({ ...prev, [appointmentId]: false }));
+
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error reverting attendance:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo revertir la asistencia",
         variant: "destructive",
       });
     }
@@ -566,34 +634,51 @@ export default function AppointmentCalendar() {
                                                      {statusLabels[appointment.status] || appointment.status}
                                                    </div>
                                                 </PopoverTrigger>
-                                                <PopoverContent className="w-48 p-2 bg-white shadow-lg border rounded-md z-50">
-                                                  <div className="space-y-1">
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      className="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleStatusUpdate(appointment.id, 'completed');
-                                                      }}
-                                                    >
-                                                      <CheckCircle className="h-4 w-4 mr-2" />
-                                                      Marcar Asistido
-                                                    </Button>
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleStatusUpdate(appointment.id, 'no_show');
-                                                      }}
-                                                    >
-                                                      <XCircle className="h-4 w-4 mr-2" />
-                                                      Marcar Ausente
-                                                    </Button>
-                                                  </div>
-                                                </PopoverContent>
+                                                 <PopoverContent className="w-48 p-2 bg-white shadow-lg border rounded-md z-50">
+                                                   <div className="space-y-1">
+                                                     {appointment.status !== 'in_progress' ? (
+                                                       <>
+                                                         <Button
+                                                           variant="ghost"
+                                                           size="sm"
+                                                           className="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                           onClick={(e) => {
+                                                             e.stopPropagation();
+                                                             handleStatusUpdate(appointment.id, 'completed');
+                                                           }}
+                                                         >
+                                                           <CheckCircle className="h-4 w-4 mr-2" />
+                                                           Marcar Asistido
+                                                         </Button>
+                                                         <Button
+                                                           variant="ghost"
+                                                           size="sm"
+                                                           className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                           onClick={(e) => {
+                                                             e.stopPropagation();
+                                                             handleStatusUpdate(appointment.id, 'no_show');
+                                                           }}
+                                                         >
+                                                           <XCircle className="h-4 w-4 mr-2" />
+                                                           Marcar Ausente
+                                                         </Button>
+                                                       </>
+                                                     ) : (
+                                                       <Button
+                                                         variant="ghost"
+                                                         size="sm"
+                                                         className="w-full justify-start text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                                         onClick={(e) => {
+                                                           e.stopPropagation();
+                                                           handleRevertAttendance(appointment.id);
+                                                         }}
+                                                       >
+                                                         <RotateCcw className="h-4 w-4 mr-2" />
+                                                         Revertir Asistencia
+                                                       </Button>
+                                                     )}
+                                                   </div>
+                                                 </PopoverContent>
                                               </Popover>
                                             ) : (
                                               <Badge 
