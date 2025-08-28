@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { usePlusPayments, type PaymentMethod } from '@/hooks/usePlusPayments';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const plusPaymentSchema = z.object({
   patient_id: z.string().min(1, 'Seleccione un paciente'),
@@ -43,6 +44,10 @@ export function PlusPaymentForm({ onSuccess, onCancel, initialData }: PlusPaymen
   const { createPlusPayment, checkExistingPlusPayment } = usePlusPayments();
   const [loading, setLoading] = useState(false);
   const [existingPayment, setExistingPayment] = useState<any>(null);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [medicalOrders, setMedicalOrders] = useState<any[]>([]);
+  const [loadingPatients, setLoadingPatients] = useState(false);
+  const [loadingOrders, setLoadingOrders] = useState(false);
 
   const form = useForm<PlusPaymentFormData>({
     resolver: zodResolver(plusPaymentSchema),
@@ -57,17 +62,79 @@ export function PlusPaymentForm({ onSuccess, onCancel, initialData }: PlusPaymen
     }
   });
 
+  // Cargar pacientes al montar el componente
+  useEffect(() => {
+    const fetchPatients = async () => {
+      setLoadingPatients(true);
+      try {
+        const { data, error } = await supabase
+          .from('patients')
+          .select(`
+            id,
+            profiles!inner(first_name, last_name)
+          `)
+          .eq('is_active', true)
+          .order('profiles.last_name');
+
+        if (error) throw error;
+        setPatients(data || []);
+      } catch (error) {
+        console.error('Error fetching patients:', error);
+      } finally {
+        setLoadingPatients(false);
+      }
+    };
+
+    fetchPatients();
+  }, []);
+
+  // Cargar órdenes médicas cuando se selecciona un paciente
+  useEffect(() => {
+    const patientId = form.watch('patient_id');
+    if (patientId) {
+      const fetchMedicalOrders = async () => {
+        setLoadingOrders(true);
+        try {
+          const { data, error } = await supabase
+            .from('medical_orders')
+            .select(`
+              id,
+              description,
+              created_at,
+              completed
+            `)
+            .eq('patient_id', patientId)
+            .order('created_at', { ascending: false });
+
+          if (error) throw error;
+          setMedicalOrders(data || []);
+        } catch (error) {
+          console.error('Error fetching medical orders:', error);
+        } finally {
+          setLoadingOrders(false);
+        }
+      };
+
+      fetchMedicalOrders();
+    } else {
+      setMedicalOrders([]);
+    }
+  }, [form.watch('patient_id')]);
+
   // Verificar si ya existe un plus payment para esta orden médica
   useEffect(() => {
+    const medicalOrderId = form.watch('medical_order_id');
     const checkExisting = async () => {
-      if (initialData?.medical_order_id) {
-        const existing = await checkExistingPlusPayment(initialData.medical_order_id);
+      if (medicalOrderId) {
+        const existing = await checkExistingPlusPayment(medicalOrderId);
         setExistingPayment(existing);
+      } else {
+        setExistingPayment(null);
       }
     };
     
     checkExisting();
-  }, [initialData?.medical_order_id, checkExistingPlusPayment]);
+  }, [form.watch('medical_order_id'), checkExistingPlusPayment]);
 
   const onSubmit = async (data: PlusPaymentFormData) => {
     if (!user) return;
@@ -117,6 +184,59 @@ export function PlusPaymentForm({ onSuccess, onCancel, initialData }: PlusPaymen
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="patient_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Paciente *</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={loadingPatients ? "Cargando..." : "Seleccionar paciente"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {patients.map((patient) => (
+                          <SelectItem key={patient.id} value={patient.id}>
+                            {patient.profiles.last_name}, {patient.profiles.first_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="medical_order_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Orden Médica *</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!form.watch('patient_id')}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={loadingOrders ? "Cargando..." : "Seleccionar orden"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {medicalOrders.map((order) => (
+                          <SelectItem key={order.id} value={order.id}>
+                            {order.description} ({format(new Date(order.created_at), 'dd/MM/yyyy')})
+                            {order.completed && " ✓"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
