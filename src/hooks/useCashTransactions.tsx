@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export type TransactionType = 'income' | 'expense';
+export type ShiftType = 'morning' | 'afternoon' | 'full_day';
 
 export interface ExpenseCategory {
   id: string;
@@ -41,10 +42,19 @@ export interface DailyCashSummary {
   is_reconciled: boolean;
 }
 
+export interface ShiftCashSummary extends DailyCashSummary {
+  shift_reconciliation_exists: boolean;
+  is_shift_closed: boolean;
+}
+
 export interface CashReconciliation {
   id: string;
   reconciliation_date: string;
+  shift_type: ShiftType;
+  shift_start_time?: string;
+  shift_end_time?: string;
   opening_balance: number;
+  previous_balance: number;
   total_income: number;
   total_expenses: number;
   calculated_balance: number;
@@ -209,9 +219,138 @@ export function useCashTransactions() {
     }
   };
 
-  // Create or update cash reconciliation
-  const createCashReconciliation = async (reconciliation: {
+  // Map shift types between TypeScript and database values
+  const mapShiftTypeToDb = (shift: ShiftType): 'morning' | 'afternoon' | 'full_day' => {
+    return shift; // Direct mapping since we're using English values
+  };
+
+  const mapShiftTypeFromDb = (shift: string): ShiftType => {
+    return shift as ShiftType; // Direct mapping since we're using English values
+  };
+
+  // Get shift cash summary
+  const getShiftCashSummary = async (
+    date?: string, 
+    shift: ShiftType = 'full_day'
+  ): Promise<ShiftCashSummary> => {
+    try {
+      const targetDate = date || new Date().toISOString().split('T')[0];
+      
+      let query = supabase
+        .from('cash_transactions')
+        .select('*')
+        .eq('transaction_date', targetDate);
+
+      const { data: transactions, error } = await query;
+      if (error) throw error;
+
+      // Calculate totals
+      const total_income = transactions
+        ?.filter(t => t.transaction_type === 'income')
+        .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0) || 0;
+      
+      const total_expenses = transactions
+        ?.filter(t => t.transaction_type === 'expense')
+        .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0) || 0;
+
+      const net_balance = total_income - total_expenses;
+      const transaction_count = transactions?.length || 0;
+
+      // Check if shift reconciliation exists
+      const { data: reconciliation } = await supabase
+        .from('cash_reconciliation')
+        .select('*')
+        .eq('reconciliation_date', targetDate)
+        .eq('shift_type', mapShiftTypeToDb(shift))
+        .single();
+
+      return {
+        total_income,
+        total_expenses,
+        net_balance,
+        transaction_count,
+        is_reconciled: reconciliation?.is_closed || false,
+        shift_reconciliation_exists: !!reconciliation,
+        is_shift_closed: reconciliation?.is_closed || false
+      };
+    } catch (error) {
+      console.error('Error fetching shift cash summary:', error);
+      throw error;
+    }
+  };
+
+  // Get previous shift balance
+  const getPreviousShiftBalance = async (date: string, shift: ShiftType): Promise<number> => {
+    try {
+      if (shift === 'morning') {
+        // For morning shift, get the previous day's final balance
+        const previousDate = new Date(date);
+        previousDate.setDate(previousDate.getDate() - 1);
+        const prevDateStr = previousDate.toISOString().split('T')[0];
+
+        const { data, error } = await supabase
+          .from('cash_reconciliation')
+          .select('calculated_balance')
+          .eq('reconciliation_date', prevDateStr)
+          .eq('is_closed', true)
+          .in('shift_type', [mapShiftTypeToDb('afternoon'), mapShiftTypeToDb('full_day')])
+          .order('shift_end_time', { ascending: false })
+          .limit(1);
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return data?.[0]?.calculated_balance || 0;
+      } else if (shift === 'afternoon') {
+        // For afternoon shift, get the morning shift balance of the same day
+        const { data, error } = await supabase
+          .from('cash_reconciliation')
+          .select('calculated_balance')
+          .eq('reconciliation_date', date)
+          .eq('shift_type', mapShiftTypeToDb('morning'))
+          .eq('is_closed', true)
+          .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return data?.calculated_balance || 0;
+      } else {
+        // For full day, get the previous day's final balance
+        const previousDate = new Date(date);
+        previousDate.setDate(previousDate.getDate() - 1);
+        const prevDateStr = previousDate.toISOString().split('T')[0];
+
+        const { data, error } = await supabase
+          .from('cash_reconciliation')
+          .select('calculated_balance')
+          .eq('reconciliation_date', prevDateStr)
+          .eq('is_closed', true)
+          .order('shift_end_time', { ascending: false })
+          .limit(1);
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return data?.[0]?.calculated_balance || 0;
+      }
+    } catch (error) {
+      console.error('Error fetching previous shift balance:', error);
+      return 0;
+    }
+  };
+
+  // Helper function to get shift times
+  const getShiftTimes = (shift: ShiftType) => {
+    switch (shift) {
+      case 'morning':
+        return { start: '08:00:00', end: '14:00:00' };
+      case 'afternoon':
+        return { start: '14:00:00', end: '20:00:00' };
+      case 'full_day':
+      default:
+        return { start: '08:00:00', end: '20:00:00' };
+    }
+  };
+
+  // Create or update shift cash reconciliation
+  const createShiftReconciliation = async (reconciliation: {
     reconciliation_date: string;
+    shift_type: ShiftType;
     opening_balance: number;
     physical_count: number;
     observations?: string;
@@ -230,17 +369,28 @@ export function useCashTransactions() {
 
       if (!profile) throw new Error('Perfil de usuario no encontrado');
 
-      // Get daily summary to calculate totals
-      const summary = await getDailyCashSummary(reconciliation.reconciliation_date);
+      // Get shift summary to calculate totals
+      const summary = await getShiftCashSummary(reconciliation.reconciliation_date, reconciliation.shift_type);
       
       const calculatedBalance = reconciliation.opening_balance + summary.net_balance;
       const difference = reconciliation.physical_count - calculatedBalance;
+      const shiftTimes = getShiftTimes(reconciliation.shift_type);
+
+      // Get previous shift balance
+      const previousBalance = await getPreviousShiftBalance(
+        reconciliation.reconciliation_date, 
+        reconciliation.shift_type
+      );
 
       const { data, error } = await supabase
         .from('cash_reconciliation')
         .upsert({
           reconciliation_date: reconciliation.reconciliation_date,
+          shift_type: mapShiftTypeToDb(reconciliation.shift_type),
+          shift_start_time: shiftTimes.start,
+          shift_end_time: shiftTimes.end,
           opening_balance: reconciliation.opening_balance,
+          previous_balance: previousBalance,
           total_income: summary.total_income,
           total_expenses: summary.total_expenses,
           calculated_balance: calculatedBalance,
@@ -250,38 +400,76 @@ export function useCashTransactions() {
           closed_by: profile.id,
           closed_at: new Date().toISOString(),
           observations: reconciliation.observations,
+        }, { 
+          onConflict: 'reconciliation_date,shift_type'
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      toast.success('Arqueo de caja completado exitosamente');
-      return data;
+      // Transform the returned data to match our TypeScript types
+      const transformedData = {
+        ...data,
+        shift_type: mapShiftTypeFromDb(data.shift_type)
+      } as CashReconciliation;
+
+      toast.success('Arqueo de turno completado exitosamente');
+      return transformedData;
     } catch (error: any) {
-      console.error('Error creating cash reconciliation:', error);
-      toast.error(error.message || 'Error al realizar arqueo de caja');
+      console.error('Error creating shift reconciliation:', error);
+      toast.error(error.message || 'Error al realizar arqueo de turno');
       throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  // Get cash reconciliation for date
-  const getCashReconciliation = async (date: string): Promise<CashReconciliation | null> => {
+  // Get shift reconciliation for date and shift
+  const getShiftReconciliation = async (
+    date: string, 
+    shift: ShiftType
+  ): Promise<CashReconciliation | null> => {
     try {
       const { data, error } = await supabase
         .from('cash_reconciliation')
         .select('*')
         .eq('reconciliation_date', date)
+        .eq('shift_type', mapShiftTypeToDb(shift))
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
-      return data || null;
+      
+      if (!data) return null;
+
+      // Transform the data to match our TypeScript types
+      return {
+        ...data,
+        shift_type: mapShiftTypeFromDb(data.shift_type)
+      } as CashReconciliation;
     } catch (error) {
-      console.error('Error fetching cash reconciliation:', error);
+      console.error('Error fetching shift reconciliation:', error);
       return null;
     }
+  };
+
+  // Create or update cash reconciliation (legacy - now uses full_day shift)
+  const createCashReconciliation = async (reconciliation: {
+    reconciliation_date: string;
+    opening_balance: number;
+    physical_count: number;
+    observations?: string;
+  }) => {
+    // Use the shift reconciliation with full_day
+    return createShiftReconciliation({
+      ...reconciliation,
+      shift_type: 'full_day'
+    });
+  };
+
+  // Get cash reconciliation for date (legacy - looks for full_day shift)
+  const getCashReconciliation = async (date: string): Promise<CashReconciliation | null> => {
+    return getShiftReconciliation(date, 'full_day');
   };
 
   // Delete transaction
@@ -315,8 +503,12 @@ export function useCashTransactions() {
     createExpenseTransaction,
     getTransactions,
     getDailyCashSummary,
+    getShiftCashSummary,
     createCashReconciliation,
+    createShiftReconciliation,
     getCashReconciliation,
+    getShiftReconciliation,
+    getPreviousShiftBalance,
     deleteTransaction,
     fetchExpenseCategories,
   };

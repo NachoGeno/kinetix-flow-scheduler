@@ -133,7 +133,11 @@ export type Database = {
           observations: string | null
           opening_balance: number
           physical_count: number | null
+          previous_balance: number | null
           reconciliation_date: string
+          shift_end_time: string | null
+          shift_start_time: string | null
+          shift_type: Database["public"]["Enums"]["shift_type"]
           total_expenses: number
           total_income: number
           updated_at: string
@@ -149,7 +153,11 @@ export type Database = {
           observations?: string | null
           opening_balance?: number
           physical_count?: number | null
+          previous_balance?: number | null
           reconciliation_date?: string
+          shift_end_time?: string | null
+          shift_start_time?: string | null
+          shift_type: Database["public"]["Enums"]["shift_type"]
           total_expenses?: number
           total_income?: number
           updated_at?: string
@@ -165,7 +173,11 @@ export type Database = {
           observations?: string | null
           opening_balance?: number
           physical_count?: number | null
+          previous_balance?: number | null
           reconciliation_date?: string
+          shift_end_time?: string | null
+          shift_start_time?: string | null
+          shift_type?: Database["public"]["Enums"]["shift_type"]
           total_expenses?: number
           total_income?: number
           updated_at?: string
