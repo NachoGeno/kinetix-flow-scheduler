@@ -13,6 +13,7 @@ import {
   Activity,
   Building2,
   DollarSign,
+  Wallet,
   MessageCircle
 } from "lucide-react";
 
@@ -78,6 +79,20 @@ const navigationItems = [
     icon: FileText,
     description: "Documentos para facturación por obra social",
     roles: ['admin', 'doctor']
+  },
+  {
+    title: "Plus Payments",
+    url: "/plus-payments",
+    icon: DollarSign,
+    description: "Gestión de plus payments",
+    roles: ['admin', 'reception']
+  },
+  {
+    title: "Gestión de Caja",
+    url: "/cash-management",
+    icon: Wallet,
+    description: "Control de ingresos, egresos y arqueos",
+    roles: ['admin', 'reception']
   },
   {
     title: "Historia Clínica",

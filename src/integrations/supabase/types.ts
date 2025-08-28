@@ -121,6 +121,149 @@ export type Database = {
           },
         ]
       }
+      cash_reconciliation: {
+        Row: {
+          calculated_balance: number
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          difference: number | null
+          id: string
+          is_closed: boolean
+          observations: string | null
+          opening_balance: number
+          physical_count: number | null
+          reconciliation_date: string
+          total_expenses: number
+          total_income: number
+          updated_at: string
+        }
+        Insert: {
+          calculated_balance?: number
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          difference?: number | null
+          id?: string
+          is_closed?: boolean
+          observations?: string | null
+          opening_balance?: number
+          physical_count?: number | null
+          reconciliation_date?: string
+          total_expenses?: number
+          total_income?: number
+          updated_at?: string
+        }
+        Update: {
+          calculated_balance?: number
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          difference?: number | null
+          id?: string
+          is_closed?: boolean
+          observations?: string | null
+          opening_balance?: number
+          physical_count?: number | null
+          reconciliation_date?: string
+          total_expenses?: number
+          total_income?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_reconciliation_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          description: string
+          expense_category_id: string | null
+          id: string
+          medical_order_id: string | null
+          observations: string | null
+          patient_id: string | null
+          plus_payment_id: string | null
+          transaction_date: string
+          transaction_type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          description: string
+          expense_category_id?: string | null
+          id?: string
+          medical_order_id?: string | null
+          observations?: string | null
+          patient_id?: string | null
+          plus_payment_id?: string | null
+          transaction_date?: string
+          transaction_type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          description?: string
+          expense_category_id?: string | null
+          id?: string
+          medical_order_id?: string | null
+          observations?: string | null
+          patient_id?: string | null
+          plus_payment_id?: string | null
+          transaction_date?: string
+          transaction_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_transactions_expense_category_id_fkey"
+            columns: ["expense_category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_transactions_medical_order_id_fkey"
+            columns: ["medical_order_id"]
+            isOneToOne: false
+            referencedRelation: "medical_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_transactions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_transactions_plus_payment_id_fkey"
+            columns: ["plus_payment_id"]
+            isOneToOne: false
+            referencedRelation: "plus_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_cash_control: {
         Row: {
           actual_cash_amount: number | null
@@ -296,6 +439,33 @@ export type Database = {
           default_sender_name?: string
           id?: string
           reply_to?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      expense_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
           updated_at?: string
         }
         Relationships: []
@@ -1087,6 +1257,17 @@ export type Database = {
       get_current_user_profile_id: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_daily_cash_summary: {
+        Args: { target_date?: string }
+        Returns: {
+          is_reconciled: boolean
+          last_reconciliation_date: string
+          net_balance: number
+          total_expenses: number
+          total_income: number
+          transaction_count: number
+        }[]
       }
       get_daily_plus_stats: {
         Args: { target_date?: string }

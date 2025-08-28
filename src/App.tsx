@@ -14,6 +14,7 @@ import Orders from "./pages/Orders";
 import ObrasSociales from "./pages/ObrasSociales";
 import Presentaciones from "./pages/Presentaciones";
 import PlusPayments from "./pages/PlusPayments";
+import CashManagement from "./pages/CashManagement";
 import MedicalRecords from "./pages/MedicalRecords";
 import Novedades from "./pages/Novedades";
 import Configuration from "./pages/Configuration";
@@ -83,6 +84,11 @@ const App = () => (
             <Route path="/plus-payments" element={
               <ProtectedRoute>
                 <PlusPayments />
+              </ProtectedRoute>
+            } />
+            <Route path="/cash-management" element={
+              <ProtectedRoute>
+                <CashManagement />
               </ProtectedRoute>
             } />
             <Route path="/medical-records" element={
