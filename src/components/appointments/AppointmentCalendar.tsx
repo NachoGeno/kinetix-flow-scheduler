@@ -641,40 +641,37 @@ export default function AppointmentCalendar() {
                                                          <Button
                                                            variant="ghost"
                                                            size="sm"
-                                                           className="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                           className="w-8 h-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                                                            onClick={(e) => {
                                                              e.stopPropagation();
                                                              handleStatusUpdate(appointment.id, 'completed');
                                                            }}
                                                          >
-                                                           <CheckCircle className="h-4 w-4 mr-2" />
-                                                           Marcar Asistido
+                                                           <CheckCircle className="h-4 w-4" />
                                                          </Button>
                                                          <Button
                                                            variant="ghost"
                                                            size="sm"
-                                                           className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                           className="w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                                                            onClick={(e) => {
                                                              e.stopPropagation();
                                                              handleStatusUpdate(appointment.id, 'no_show');
                                                            }}
                                                          >
-                                                           <XCircle className="h-4 w-4 mr-2" />
-                                                           Marcar Ausente
+                                                           <XCircle className="h-4 w-4" />
                                                          </Button>
                                                        </>
                                                      ) : (
                                                        <Button
                                                          variant="ghost"
                                                          size="sm"
-                                                         className="w-full justify-start text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                                         className="w-8 h-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                                                          onClick={(e) => {
                                                            e.stopPropagation();
                                                            handleRevertAttendance(appointment.id);
                                                          }}
                                                        >
-                                                         <RotateCcw className="h-4 w-4 mr-2" />
-                                                         Revertir Asistencia
+                                                         <RotateCcw className="h-4 w-4" />
                                                        </Button>
                                                      )}
                                                    </div>

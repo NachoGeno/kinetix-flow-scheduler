@@ -798,20 +798,18 @@ export default function AppointmentsList() {
                            <Button
                              variant="outline"
                              size="sm"
-                             className="h-8 px-2 text-green-600 hover:text-green-700"
+                             className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
                              onClick={() => handleMarkAttendance(appointment.id, 'in_progress')}
                            >
-                             <UserCheck className="h-3 w-3 mr-1" />
-                             Asistió
+                             <UserCheck className="h-4 w-4" />
                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 px-2 text-gray-600 hover:text-gray-700"
+                              className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700"
                               onClick={() => handleNoShow(appointment)}
                             >
-                              <UserX className="h-3 w-3 mr-1" />
-                              Ausente
+                              <UserX className="h-4 w-4" />
                             </Button>
                          </>
                         )}
@@ -824,10 +822,9 @@ export default function AppointmentsList() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-8 px-2 text-orange-600 hover:text-orange-700"
+                                className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700"
                               >
-                                <RotateCcw className="h-3 w-3 mr-1" />
-                                Revertir
+                                <RotateCcw className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -847,48 +844,45 @@ export default function AppointmentsList() {
                           </AlertDialog>
                         )}
                        
-                       {/* Botón editar - para admin/doctor y estados específicos */}
-                       {(profile?.role === 'doctor' || profile?.role === 'admin') && 
-                        (appointment.status === 'scheduled' || appointment.status === 'confirmed') && (
-                         <Button
-                           variant="outline"
-                           size="sm"
-                           className="h-8 px-2 text-blue-600 hover:text-blue-700"
-                           onClick={() => handleEdit(appointment)}
-                         >
-                           <Edit className="h-3 w-3 mr-1" />
-                           Editar
-                         </Button>
-                       )}
-                       
-                       {/* Botón reprogramar - para admin/doctor y estados específicos */}
-                       {(profile?.role === 'doctor' || profile?.role === 'admin') && 
-                        (appointment.status === 'scheduled' || appointment.status === 'confirmed' || 
-                         appointment.status === 'no_show' || appointment.status === 'no_show_rescheduled') && (
-                         <Button
-                           variant="outline"
-                           size="sm"
-                           className="h-8 px-2 text-purple-600 hover:text-purple-700"
-                           onClick={() => handleReschedule(appointment)}
-                         >
-                           <RotateCcw className="h-3 w-3 mr-1" />
-                           Reprogramar
-                         </Button>
-                       )}
-                       
-                       {/* Botón Alta Temprana - solo para admin/doctor */}
-                       {(profile?.role === 'doctor' || profile?.role === 'admin') && 
-                        appointment.status !== 'cancelled' && appointment.status !== 'completed' && appointment.status !== 'discharged' && (
+                        {/* Botón editar - para admin/doctor y estados específicos */}
+                        {(profile?.role === 'doctor' || profile?.role === 'admin') && 
+                         (appointment.status === 'scheduled' || appointment.status === 'confirmed') && (
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-8 px-2 text-orange-600 hover:text-orange-700"
-                            onClick={() => handleDischarge(appointment.patient_id)}
+                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+                            onClick={() => handleEdit(appointment)}
                           >
-                            <LogOut className="h-3 w-3 mr-1" />
-                            Alta Temprana
+                            <Edit className="h-4 w-4" />
                           </Button>
                         )}
+                        
+                        {/* Botón reprogramar - para admin/doctor y estados específicos */}
+                        {(profile?.role === 'doctor' || profile?.role === 'admin') && 
+                         (appointment.status === 'scheduled' || appointment.status === 'confirmed' || 
+                          appointment.status === 'no_show' || appointment.status === 'no_show_rescheduled') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-purple-600 hover:text-purple-700"
+                            onClick={() => handleReschedule(appointment)}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
+                        
+                        {/* Botón Alta Temprana - solo para admin/doctor */}
+                        {(profile?.role === 'doctor' || profile?.role === 'admin') && 
+                         appointment.status !== 'cancelled' && appointment.status !== 'completed' && appointment.status !== 'discharged' && (
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700"
+                             onClick={() => handleDischarge(appointment.patient_id)}
+                           >
+                             <LogOut className="h-4 w-4" />
+                           </Button>
+                         )}
                        
                        {/* Botón cancelar */}
                       {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
