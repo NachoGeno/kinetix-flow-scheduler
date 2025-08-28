@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,7 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 const plusPaymentSchema = z.object({
   patient_id: z.string().min(1, 'Seleccione un paciente'),
   medical_order_id: z.string().min(1, 'Seleccione una orden médica'),
-  professional_id: z.string().optional(),
+  professional_id: z.string().optional().nullable(),
   amount: z.number().min(0.01, 'El monto debe ser mayor a 0'),
   payment_method: z.enum(['cash', 'transfer', 'mercado_pago'] as const),
   payment_date: z.date(),
@@ -55,7 +54,7 @@ export function PlusPaymentForm({ onSuccess, onCancel, initialData }: PlusPaymen
     defaultValues: {
       patient_id: initialData?.patient_id || '',
       medical_order_id: initialData?.medical_order_id || '',
-      professional_id: initialData?.professional_id || '',
+      professional_id: initialData?.professional_id || null,
       amount: 0,
       payment_method: 'cash',
       payment_date: new Date(),
@@ -164,10 +163,12 @@ export function PlusPaymentForm({ onSuccess, onCancel, initialData }: PlusPaymen
     try {
       setLoading(true);
       
+      console.log('Submitting plus payment with data:', data);
+      
       await createPlusPayment({
         patient_id: data.patient_id,
         medical_order_id: data.medical_order_id,
-        professional_id: data.professional_id,
+        professional_id: data.professional_id || undefined,
         amount: data.amount,
         payment_method: data.payment_method,
         collected_by: user.id,
