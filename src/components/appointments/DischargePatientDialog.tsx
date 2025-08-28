@@ -77,6 +77,7 @@ export default function DischargePatientDialog({
           completed: true,
           completed_at: new Date().toISOString(),
           sessions_used: patientInfo.usedSessions,
+          early_discharge: true, // Marcar como alta temprana para bypasear validaciones
           results: `Alta temprana: ${reason}. Sesiones completadas: ${patientInfo.usedSessions}/${patientInfo.totalSessions}`,
           updated_at: new Date().toISOString()
         })
