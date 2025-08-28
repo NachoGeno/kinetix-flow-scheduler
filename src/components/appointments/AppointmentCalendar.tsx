@@ -193,9 +193,24 @@ export default function AppointmentCalendar() {
     
     if (!doctor) return [];
 
+    // Check if the selected date is a working day for this doctor
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const selectedDayName = dayNames[selectedDate.getDay()];
+    
+    console.log('Selected day:', selectedDayName);
+    console.log('Doctor work days:', doctor.work_days);
+    
+    // If the doctor doesn't work on this day, return empty slots
+    if (!doctor.work_days || !doctor.work_days.includes(selectedDayName)) {
+      console.log('Doctor does not work on this day');
+      return [];
+    }
+
     const startTime = doctor.work_start_time || '08:00:00';
     const endTime = doctor.work_end_time || '17:00:00';
     const duration = doctor.appointment_duration || 30;
+
+    console.log('Generating time slots from', startTime, 'to', endTime, 'with duration', duration);
 
     const [startHour, startMinute] = startTime.split(':').map(Number);
     const [endHour, endMinute] = endTime.split(':').map(Number);
@@ -228,6 +243,7 @@ export default function AppointmentCalendar() {
       }
     }
 
+    console.log('Generated', slots.length, 'time slots');
     return slots;
   };
 
@@ -472,7 +488,18 @@ export default function AppointmentCalendar() {
                   <div className="text-center py-12">
                     <AlertCircle className="h-12 w-12 text-slate-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-slate-900 mb-2">Sin horarios disponibles</h3>
-                    <p className="text-slate-500">No hay turnos programados para este doctor</p>
+                    <p className="text-slate-500">
+                      {(() => {
+                        const doctor = doctors.find(d => d.id === selectedDoctor);
+                        const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+                        const selectedDayName = dayNames[selectedDate.getDay()];
+                        
+                        if (doctor && doctor.work_days && !doctor.work_days.includes(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][selectedDate.getDay()])) {
+                          return `El Dr. ${doctor.profile?.first_name} ${doctor.profile?.last_name} no trabaja los ${selectedDayName}s`;
+                        }
+                        return 'No hay turnos programados para este doctor en esta fecha';
+                      })()}
+                    </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
