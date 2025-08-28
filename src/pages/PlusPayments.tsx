@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { PlusPaymentForm } from '@/components/plus-payments/PlusPaymentForm';
 import { PlusPaymentsList } from '@/components/plus-payments/PlusPaymentsList';
 import { DailyIncomeControl } from '@/components/plus-payments/DailyIncomeControl';
+import { PlusPaymentsReport } from '@/components/plus-payments/PlusPaymentsReport';
 
 export default function PlusPayments() {
   const [showForm, setShowForm] = useState(false);
@@ -64,16 +65,7 @@ export default function PlusPayments() {
         </TabsContent>
 
         <TabsContent value="reports">
-          <Card>
-            <CardHeader>
-              <CardTitle>Reportes de Plus</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Los reportes estarán disponibles próximamente.
-              </p>
-            </CardContent>
-          </Card>
+          <PlusPaymentsReport />
         </TabsContent>
       </Tabs>
     </div>
