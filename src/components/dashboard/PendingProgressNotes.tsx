@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AlertTriangle, Calendar, Clock, User, Plus, Eye } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -32,8 +33,6 @@ interface PendingAppointment {
 }
 
 export default function PendingProgressNotes() {
-  const [pendingAppointments, setPendingAppointments] = useState<PendingAppointment[]>([]);
-  const [loading, setLoading] = useState(false);
   const [progressNoteForm, setProgressNoteForm] = useState<{
     isOpen: boolean;
     appointmentId?: string;
@@ -44,30 +43,26 @@ export default function PendingProgressNotes() {
   });
   const { profile } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (profile?.role === 'doctor') {
-      fetchPendingAppointments();
-    }
-  }, [profile]);
+  const { data: pendingAppointments = [], isLoading: loading } = useQuery({
+    queryKey: ['pending-progress-notes', profile?.id],
+    queryFn: async (): Promise<PendingAppointment[]> => {
+      if (!profile?.id) return [];
 
-  const fetchPendingAppointments = async () => {
-    try {
-      setLoading(true);
-      
       // Get doctor profile
       const { data: doctorData, error: doctorError } = await supabase
         .from('doctors')
         .select('id')
-        .eq('profile_id', profile?.id)
+        .eq('profile_id', profile.id)
         .maybeSingle();
 
       if (doctorError || !doctorData) {
         console.error('Error fetching doctor data:', doctorError);
-        return;
+        return [];
       }
 
-      // Get completed appointments without progress notes
+      // Get completed appointments without progress notes (optimized with joins)
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
         .select(`
@@ -79,7 +74,13 @@ export default function PendingProgressNotes() {
           patient:patients(
             profile:profiles(first_name, last_name)
           ),
-          progress_notes!left(id)
+          progress_notes!left(id),
+          medical_orders!left(
+            id,
+            description,
+            total_sessions,
+            sessions_used
+          )
         `)
         .eq('doctor_id', doctorData.id)
         .eq('status', 'in_progress')
@@ -88,41 +89,16 @@ export default function PendingProgressNotes() {
 
       if (appointmentsError) throw appointmentsError;
 
-      // Get medical orders for these appointments
-      const appointmentIds = appointmentsData?.map(apt => apt.id) || [];
-      let medicalOrdersData: any[] = [];
-
-      if (appointmentIds.length > 0) {
-        const { data: ordersData, error: ordersError } = await supabase
-          .from('medical_orders')
-          .select('id, description, total_sessions, sessions_used, appointment_id')
-          .in('appointment_id', appointmentIds);
-
-        if (ordersError) {
-          console.error('Error fetching medical orders:', ordersError);
-        } else {
-          medicalOrdersData = ordersData || [];
-        }
-      }
-
-      // Combine data
-      const combinedData = appointmentsData?.map(appointment => ({
+      // Transform data to match interface
+      return appointmentsData?.map(appointment => ({
         ...appointment,
-        medical_order: medicalOrdersData.find(order => order.appointment_id === appointment.id)
+        medical_order: appointment.medical_orders?.[0] || undefined
       })) || [];
-
-      setPendingAppointments(combinedData);
-    } catch (error) {
-      console.error('Error fetching pending appointments:', error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los turnos pendientes",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    enabled: !!profile?.id && profile?.role === 'doctor',
+    staleTime: 30 * 1000, // 30 seconds - this data should be fresh
+    gcTime: 2 * 60 * 1000, // 2 minutes cache
+  });
 
   const handleOpenProgressNoteForm = (appointment: PendingAppointment) => {
     setProgressNoteForm({
@@ -138,7 +114,10 @@ export default function PendingProgressNotes() {
   };
 
   const handleProgressNoteSaved = () => {
-    fetchPendingAppointments();
+    // Invalidate queries to refresh data
+    queryClient.invalidateQueries({ queryKey: ['pending-progress-notes'] });
+    queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+    
     handleCloseProgressNoteForm();
     toast({
       title: "Éxito",

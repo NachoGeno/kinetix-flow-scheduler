@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Calendar, FileText, TrendingUp } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardStats {
@@ -11,91 +11,47 @@ interface DashboardStats {
 }
 
 export function DashboardCards() {
-  const [stats, setStats] = useState<DashboardStats>({
-    activePatientsCount: 0,
-    todayAppointmentsCount: 0,
-    pendingOrdersCount: 0,
-    completedSessionsRate: 0,
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        
-        // Fetch active patients
-        const { count: activePatientsCount } = await supabase
-          .from('patients')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_active', true);
-
-        // Fetch today's appointments
-        const { count: todayAppointmentsCount } = await supabase
-          .from('appointments')
-          .select('*', { count: 'exact', head: true })
-          .eq('appointment_date', today)
-          .in('status', ['scheduled', 'confirmed', 'in_progress']);
-
-        // Fetch pending medical orders
-        const { count: pendingOrdersCount } = await supabase
-          .from('medical_orders')
-          .select('*', { count: 'exact', head: true })
-          .eq('completed', false);
-
-        // Calculate completion rate for this month
-        const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-        const { data: monthlyAppointments } = await supabase
-          .from('appointments')
-          .select('status')
-          .gte('appointment_date', firstDayOfMonth)
-          .lte('appointment_date', today);
-
-        const completedCount = monthlyAppointments?.filter(apt => apt.status === 'completed').length || 0;
-        const totalCount = monthlyAppointments?.length || 0;
-        const completedSessionsRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
-        setStats({
-          activePatientsCount: activePatientsCount || 0,
-          todayAppointmentsCount: todayAppointmentsCount || 0,
-          pendingOrdersCount: pendingOrdersCount || 0,
-          completedSessionsRate,
-        });
-      } catch (error) {
+  const { data: stats, isLoading: loading } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: async (): Promise<DashboardStats> => {
+      const { data, error } = await supabase.functions.invoke('dashboard-stats');
+      
+      if (error) {
         console.error('Error fetching dashboard stats:', error);
-      } finally {
-        setLoading(false);
+        throw error;
       }
-    };
-
-    fetchStats();
-  }, []);
+      
+      return data;
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes - dashboard data can be slightly stale
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
+  });
 
   const dashboardCards = [
     {
       title: "Pacientes Activos",
-      value: loading ? "..." : stats.activePatientsCount.toString(),
+      value: loading ? "..." : stats?.activePatientsCount.toString() || "0",
       description: "Total de pacientes en tratamiento",
       icon: Users,
       color: "bg-medical-blue",
     },
     {
       title: "Turnos Hoy",
-      value: loading ? "..." : stats.todayAppointmentsCount.toString(),
+      value: loading ? "..." : stats?.todayAppointmentsCount.toString() || "0",
       description: "Turnos programados para hoy",
       icon: Calendar,
       color: "bg-medical-green",
     },
     {
       title: "Órdenes Pendientes",
-      value: loading ? "..." : stats.pendingOrdersCount.toString(),
+      value: loading ? "..." : stats?.pendingOrdersCount.toString() || "0",
       description: "Órdenes médicas por procesar",
       icon: FileText,
       color: "bg-warning",
     },
     {
       title: "Tasa de Asistencia",
-      value: loading ? "..." : `${stats.completedSessionsRate}%`,
+      value: loading ? "..." : `${stats?.completedSessionsRate || 0}%`,
       description: "Sesiones completadas este mes",
       icon: TrendingUp,
       color: "bg-success",
