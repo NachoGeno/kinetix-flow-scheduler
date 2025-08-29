@@ -634,11 +634,13 @@ export default function AppointmentCalendar() {
                                                 onOpenChange={(open) => setOpenPopovers(prev => ({ ...prev, [appointment.id]: open }))}
                                               >
                                                  <PopoverTrigger asChild>
-                                                   <div className={`inline-flex items-center text-xs cursor-pointer text-white rounded-md px-2 py-1 border ${
-                                                     appointment.status === 'completed' || appointment.status === 'in_progress'
-                                                       ? 'bg-green-500 hover:bg-green-600'
-                                                       : 'bg-blue-500 hover:bg-blue-600'
-                                                   }`}>
+                                                    <div className={`inline-flex items-center text-xs cursor-pointer rounded-md px-2 py-1 ${
+                                                      appointment.status === 'cancelled' 
+                                                        ? 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
+                                                        : appointment.status === 'completed' || appointment.status === 'in_progress'
+                                                        ? 'bg-green-500 hover:bg-green-600 text-white border border-green-400'
+                                                        : 'bg-blue-500 hover:bg-blue-600 text-white border border-blue-400'
+                                                    }`}>
                                                      <CalendarIcon className="h-3 w-3 mr-1" />
                                                      {statusLabels[appointment.status] || appointment.status}
                                                    </div>
