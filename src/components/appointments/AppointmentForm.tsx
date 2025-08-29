@@ -408,7 +408,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         .select('appointment_time')
         .eq('doctor_id', doctorId)
         .eq('appointment_date', format(date, 'yyyy-MM-dd'))
-        .neq('status', 'cancelled');
+        .not('status', 'in', '(cancelled,discharged,completed,no_show)');
 
       if (error) throw error;
 
@@ -441,14 +441,14 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         return;
       }
 
-      // Validar que el paciente no tenga ya una cita a la misma hora y fecha
+      // Validar que el paciente no tenga ya una cita activa a la misma hora y fecha
       const { data: existingAppointment, error: conflictError } = await supabase
         .from('appointments')
         .select('id, appointment_time')
         .eq('patient_id', values.patient_id)
         .eq('appointment_date', format(values.appointment_date, 'yyyy-MM-dd'))
         .eq('appointment_time', values.appointment_time)
-        .neq('status', 'cancelled')
+        .not('status', 'in', '(cancelled,discharged,completed,no_show)')
         .maybeSingle();
 
       if (conflictError) {
