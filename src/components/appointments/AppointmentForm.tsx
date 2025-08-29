@@ -271,17 +271,16 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
       console.log('Doctor encontrado:', doctor);
 
-      // Get existing appointments for this doctor and date
+      // Get existing appointments for this doctor and date, INCLUDING STATUS
       const { data: appointments, error } = await supabase
         .from('appointments')
-        .select('appointment_time')
+        .select('appointment_time, status')
         .eq('doctor_id', doctorId)
-        .eq('appointment_date', format(appointmentDate, 'yyyy-MM-dd'))
-        .neq('status', 'cancelled');
+        .eq('appointment_date', format(appointmentDate, 'yyyy-MM-dd'));
 
       if (error) throw error;
 
-      console.log('Citas existentes:', appointments);
+      console.log('Citas existentes (con status):', appointments);
 
       // Generate all possible time slots
       const slots = [];
@@ -310,21 +309,23 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
       console.log('Slots generados:', slots);
 
-      // Contar citas por slot y filtrar los que tienen menos de 3 pacientes
-      const appointmentCounts = {};
+      // Contar SOLO citas NO canceladas por slot
+      const activeAppointmentCounts = {};
       (appointments || []).forEach(apt => {
-        appointmentCounts[apt.appointment_time] = (appointmentCounts[apt.appointment_time] || 0) + 1;
+        if (apt.status !== 'cancelled') {  // Solo contar las que NO están canceladas
+          activeAppointmentCounts[apt.appointment_time] = (activeAppointmentCounts[apt.appointment_time] || 0) + 1;
+        }
       });
 
-      console.log('Conteo de citas por slot:', appointmentCounts);
+      console.log('Conteo de citas ACTIVAS por slot (sin canceladas):', activeAppointmentCounts);
 
-      // Mostrar solo slots con menos de 3 pacientes programados
+      // Mostrar solo slots con menos de 3 pacientes ACTIVOS programados
       const availableSlots = slots.filter(slot => {
-        const currentCount = appointmentCounts[slot] || 0;
+        const currentCount = activeAppointmentCounts[slot] || 0;
         return currentCount < 3;
       });
 
-      console.log('Slots disponibles (máximo 3 por bloque):', availableSlots);
+      console.log('Slots disponibles (máximo 3 por bloque, excluyendo canceladas):', availableSlots);
 
       setAvailableSlots(availableSlots);
     } catch (error) {
@@ -765,7 +766,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       }
 
       // Crear una sola cita
-      const { error } = await supabase
+      const { error: createError } = await supabase
         .from('appointments')
         .insert({
           patient_id: values.patient_id,
@@ -776,7 +777,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           status: 'scheduled'
         });
 
-      if (error) throw error;
+      if (createError) throw createError;
 
       // Si hay una orden médica, incrementar sessions_used
       if (medicalOrderId) {
