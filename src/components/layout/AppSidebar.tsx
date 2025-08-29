@@ -160,8 +160,12 @@ export function AppSidebar() {
     <Sidebar className="border-r border-sidebar-border">
       <SidebarHeader className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-            <Heart className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center">
+            <img 
+              src="/lovable-uploads/2800aff0-a779-4fb4-9ad8-7d20459df869.png" 
+              alt="Rehabilitare Logo" 
+              className="w-8 h-8 object-contain"
+            />
           </div>
           {open && (
             <div>
