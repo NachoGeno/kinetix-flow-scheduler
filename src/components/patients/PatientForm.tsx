@@ -30,6 +30,8 @@ const patientSchema = z.object({
   insurance_number: z.string().optional(),
 });
 
+import { useObrasSociales } from '@/hooks/useOptimizedData';
+
 interface ObraSocial {
   id: string;
   nombre: string;

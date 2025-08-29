@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Search, Plus, Users, Phone, Mail, Calendar, IdCard, Trash2, Edit } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,11 +7,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useDebounce } from '@/hooks/useDebounce';
+import { usePaginatedPatients } from '@/hooks/usePaginatedPatients';
 import PatientForm from '@/components/patients/PatientForm';
 
 interface Patient {
@@ -33,62 +36,32 @@ interface Patient {
 }
 
 export default function Patients() {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchPatients();
-  }, [profile]);
+  // Debounce search term to avoid excessive API calls
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  
+  const pageSize = 50;
 
-  const fetchPatients = async () => {
-    if (!profile || profile.role === 'patient') return;
+  // Use paginated patients hook
+  const { 
+    data: patientsData, 
+    isLoading,
+    refetch: refetchPatients 
+  } = usePaginatedPatients({
+    searchTerm: debouncedSearchTerm,
+    page: currentPage,
+    limit: pageSize
+  });
 
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('patients')
-        .select(`
-          *,
-          profile_id,
-          profile:profiles(
-            first_name,
-            last_name,
-            dni,
-            email,
-            phone,
-            date_of_birth,
-            avatar_url
-          )
-        `)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los pacientes",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setPatients(data || []);
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los pacientes",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const patients = patientsData?.patients || [];
+  const totalPages = patientsData?.totalPages || 0;
+  const totalCount = patientsData?.totalCount || 0;
 
   const handleDeletePatient = async (patientId: string) => {
     try {
@@ -130,7 +103,7 @@ export default function Patients() {
         description: message,
       });
       
-      fetchPatients(); // Recargar la lista
+      refetchPatients(); // Recargar la lista
     } catch (error) {
       console.error('Error deleting patient:', error);
       toast({
@@ -140,17 +113,6 @@ export default function Patients() {
       });
     }
   };
-
-  const filteredPatients = patients.filter(patient => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      patient.profile?.first_name?.toLowerCase().includes(searchLower) ||
-      patient.profile?.last_name?.toLowerCase().includes(searchLower) ||
-      patient.profile?.email?.toLowerCase().includes(searchLower) ||
-      patient.profile?.dni?.toLowerCase().includes(searchLower) ||
-      patient.medical_record_number?.toLowerCase().includes(searchLower)
-    );
-  });
 
   // Redirect if patient tries to access this page
   if (profile?.role === 'patient') {
@@ -162,7 +124,7 @@ export default function Patients() {
     );
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -179,7 +141,7 @@ export default function Patients() {
         <div>
           <h1 className="text-3xl font-bold">Pacientes</h1>
           <p className="text-muted-foreground">
-            Total: {filteredPatients.length} pacientes
+            {totalCount} pacientes encontrados
           </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -197,7 +159,7 @@ export default function Patients() {
             <PatientForm
               onSuccess={() => {
                 setDialogOpen(false);
-                fetchPatients();
+                refetchPatients();
               }}
               onCancel={() => setDialogOpen(false)}
             />
@@ -218,7 +180,7 @@ export default function Patients() {
               isEditing={true}
               onSuccess={() => {
                 setEditingPatient(null);
-                fetchPatients();
+                refetchPatients();
               }}
               onCancel={() => setEditingPatient(null)}
             />
@@ -239,7 +201,7 @@ export default function Patients() {
 
       {/* Patients Grid */}
       <div className="grid gap-6">
-        {filteredPatients.length === 0 ? (
+        {patients.length === 0 ? (
           <Card>
             <CardContent className="text-center py-8">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -249,7 +211,7 @@ export default function Patients() {
             </CardContent>
           </Card>
         ) : (
-          filteredPatients.map((patient) => (
+          patients.map((patient) => (
             <Card key={patient.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex items-start space-x-4">
@@ -369,6 +331,36 @@ export default function Patients() {
           ))
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationPrevious 
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+            />
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const pageNumber = Math.max(1, currentPage - 2) + i;
+              if (pageNumber > totalPages) return null;
+              return (
+                <PaginationItem key={pageNumber}>
+                  <PaginationLink
+                    onClick={() => setCurrentPage(pageNumber)}
+                    isActive={currentPage === pageNumber}
+                  >
+                    {pageNumber}
+                  </PaginationLink>
+                </PaginationItem>
+              );
+            })}
+            <PaginationNext 
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+            />
+          </PaginationContent>
+        </Pagination>
+      )}
     </div>
   );
 }
