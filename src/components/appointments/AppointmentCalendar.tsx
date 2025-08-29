@@ -263,7 +263,7 @@ export default function AppointmentCalendar() {
   };
 
   const handleTimeSlotClick = (time: string, isFull: boolean) => {
-    if ((profile?.role === 'patient' || profile?.role === 'admin') && !isFull) {
+    if ((profile?.role === 'patient' || profile?.role === 'admin' || profile?.role === 'reception') && !isFull) {
       setSelectedTimeSlot(time);
       setIsNewAppointmentOpen(true);
     }
