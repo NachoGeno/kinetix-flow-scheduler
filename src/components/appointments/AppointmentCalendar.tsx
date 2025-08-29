@@ -222,19 +222,26 @@ export default function AppointmentCalendar() {
 
     while (currentHour < endHour || (currentHour === endHour && currentMinute < endMinute)) {
       const timeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
-      // Excluir turnos cancelados del conteo de slots ocupados
-      const timeAppointments = appointments.filter(apt => 
+      
+      // Todas las citas para este horario (incluyendo canceladas para mostrar en UI)
+      const allTimeAppointments = appointments.filter(apt => 
+        apt.appointment_time === timeString
+      );
+      
+      // Solo citas activas para calcular disponibilidad (excluyendo canceladas)
+      const activeTimeAppointments = appointments.filter(apt => 
         apt.appointment_time === timeString && apt.status !== 'cancelled'
       );
+      
       const maxSlots = 3; // Máximo 3 citas simultáneas
-      const availableSlots = maxSlots - timeAppointments.length;
+      const availableSlots = maxSlots - activeTimeAppointments.length;
       
       slots.push({
         time: timeString,
         display: `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`,
-        appointments: timeAppointments,
+        appointments: allTimeAppointments, // Mostrar todas las citas incluyendo canceladas
         availableSlots,
-        isFull: timeAppointments.length >= maxSlots,
+        isFull: activeTimeAppointments.length >= maxSlots, // Disponibilidad basada solo en citas activas
         maxSlots
       });
 
