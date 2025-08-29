@@ -228,9 +228,9 @@ export default function AppointmentCalendar() {
         apt.appointment_time === timeString
       );
       
-      // Solo citas activas para calcular disponibilidad (excluyendo canceladas)
+      // Solo citas activas para calcular disponibilidad (excluyendo estados finalizados)
       const activeTimeAppointments = appointments.filter(apt => 
-        apt.appointment_time === timeString && apt.status !== 'cancelled'
+        apt.appointment_time === timeString && !['cancelled', 'discharged', 'completed', 'no_show'].includes(apt.status)
       );
       
       const maxSlots = 3; // Máximo 3 citas simultáneas

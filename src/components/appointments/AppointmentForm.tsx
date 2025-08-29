@@ -309,10 +309,10 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
       console.log('Slots generados:', slots);
 
-      // Contar SOLO citas NO canceladas por slot
+      // Contar SOLO citas activas (excluyendo estados finalizados)
       const activeAppointmentCounts = {};
       (appointments || []).forEach(apt => {
-        if (apt.status !== 'cancelled') {  // Solo contar las que NO están canceladas
+        if (!['cancelled', 'discharged', 'completed', 'no_show'].includes(apt.status)) {  // Solo contar las que están activas
           activeAppointmentCounts[apt.appointment_time] = (activeAppointmentCounts[apt.appointment_time] || 0) + 1;
         }
       });
