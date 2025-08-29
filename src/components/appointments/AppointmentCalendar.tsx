@@ -75,6 +75,7 @@ const statusLabels = {
   in_progress: 'Asistido', 
   completed: 'Completado',
   cancelled: 'Cancelado',
+  discharged: 'Dado de Alta',
   rescheduled: 'Reprogramado',
   no_show: 'Ausente',
   no_show_rescheduled: 'Ausente - Reprogramado',
@@ -87,6 +88,7 @@ const statusColors = {
   in_progress: 'bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 border-amber-200',
   completed: 'bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 border-purple-200',
   cancelled: 'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border-red-200',
+  discharged: 'bg-gradient-to-r from-teal-50 to-teal-100 text-teal-700 border-teal-200',
   no_show: 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border-gray-200',
 };
 
@@ -96,6 +98,7 @@ const statusIcons = {
   in_progress: PlayCircle,
   completed: CheckCircle,
   cancelled: XCircle,
+  discharged: CheckCircle,
   rescheduled: CalendarIcon,
   no_show: AlertCircle,
   no_show_rescheduled: AlertCircle,
@@ -628,7 +631,7 @@ export default function AppointmentCalendar() {
                                           <div className="font-medium text-sm text-slate-900 mb-1">
                                             {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
                                           </div>
-                                             {(appointment.status !== 'completed' && appointment.status !== 'no_show' && appointment.status !== 'cancelled') && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
+                                             {(appointment.status !== 'completed' && appointment.status !== 'no_show' && appointment.status !== 'cancelled' && appointment.status !== 'discharged') && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
                                               <Popover 
                                                 open={openPopovers[appointment.id] || false}
                                                 onOpenChange={(open) => setOpenPopovers(prev => ({ ...prev, [appointment.id]: open }))}
