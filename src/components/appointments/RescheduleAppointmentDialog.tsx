@@ -149,11 +149,15 @@ export function RescheduleAppointmentDialog({
       return;
     }
 
+    console.log("Starting reschedule process...");
+    console.log("Original appointment:", appointment);
+    console.log("New data:", data);
+
     setIsSubmitting(true);
 
     try {
       // Create the new rescheduled appointment
-      // The trigger handle_appointment_reschedule will automatically update the original appointment
+      console.log("Creating new appointment...");
       const { data: newAppointment, error: insertError } = await supabase
         .from("appointments")
         .insert({
@@ -176,9 +180,31 @@ export function RescheduleAppointmentDialog({
         throw insertError;
       }
 
+      console.log("New appointment created:", newAppointment);
+
+      // Now manually update the original appointment since the trigger might not be working
+      console.log("Updating original appointment...");
+      const { error: updateError } = await supabase
+        .from("appointments")
+        .update({
+          status: 'rescheduled',
+          rescheduled_to_id: newAppointment.id,
+          rescheduled_at: new Date().toISOString(),
+        })
+        .eq('id', appointment.id);
+
+      if (updateError) {
+        console.error("Error updating original appointment:", updateError);
+        // If updating original fails, delete the new one to maintain consistency
+        await supabase.from("appointments").delete().eq('id', newAppointment.id);
+        throw updateError;
+      }
+
+      console.log("Original appointment updated successfully");
+
       toast({
         title: "¡Éxito!",
-        description: "Turno reprogramado correctamente. El turno original ha sido liberado y se creó un nuevo turno.",
+        description: `Turno reprogramado correctamente para el ${data.appointment_date} a las ${data.appointment_time}. El turno original ha sido liberado.`,
       });
 
       reset();
