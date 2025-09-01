@@ -129,14 +129,15 @@ export default function AppointmentsList() {
   const fetchPatientDischargeData = async (patientId: string, patientName: string) => {
     setIsLoadingDischargeData(true);
     try {
-      // Get active medical order
-      const { data: medicalOrder, error: orderError } = await supabase
+      // Get active medical orders
+      const { data: medicalOrders, error: orderError } = await supabase
         .from('medical_orders')
         .select('id, total_sessions, sessions_used')
         .eq('patient_id', patientId)
         .eq('completed', false)
-        .order('created_at', { ascending: false })
-        .maybeSingle();
+        .order('created_at', { ascending: false });
+
+      const medicalOrder = medicalOrders?.[0]; // Get the most recent active order
 
       if (orderError) {
         console.error('Error fetching medical order:', orderError);
