@@ -20,9 +20,7 @@ export function usePaginatedAppointments(filters: AppointmentFilters) {
     queryFn: async () => {
       if (!profile) throw new Error('No authenticated user');
 
-      const from = (filters.page - 1) * filters.limit;
-      const to = from + filters.limit - 1;
-
+      // Remove pagination from the initial query to search all data
       let query = supabase
         .from('appointments')
         .select(`
@@ -47,7 +45,6 @@ export function usePaginatedAppointments(filters: AppointmentFilters) {
             )
           )
         `, { count: 'exact' })
-        .range(from, to)
         .order('appointment_date', { ascending: false })
         .order('appointment_time', { ascending: false });
 
@@ -87,33 +84,57 @@ export function usePaginatedAppointments(filters: AppointmentFilters) {
         query = query.lte('appointment_date', filters.dateTo);
       }
 
-      // Apply text search at database level before pagination
-      if (filters.searchTerm && filters.searchTerm.trim()) {
-        const searchTerm = filters.searchTerm.trim();
-        query = query.or(`
-          patient.profile.first_name.ilike.%${searchTerm}%,
-          patient.profile.last_name.ilike.%${searchTerm}%,
-          patient.profile.dni.ilike.%${searchTerm}%,
-          doctor.profile.first_name.ilike.%${searchTerm}%,
-          doctor.profile.last_name.ilike.%${searchTerm}%,
-          doctor.specialty.name.ilike.%${searchTerm}%,
-          reason.ilike.%${searchTerm}%,
-          notes.ilike.%${searchTerm}%
-        `);
-      }
-
       const { data, error, count } = await query;
 
       if (error) throw error;
 
+      // Apply text search on frontend - this ensures it works correctly
+      let filteredData = data || [];
+      
+      if (filters.searchTerm && filters.searchTerm.trim()) {
+        const searchLower = filters.searchTerm.toLowerCase().trim();
+        
+        filteredData = filteredData.filter(appointment => {
+          const patientFirstName = appointment.patient?.profile?.first_name?.toLowerCase() || '';
+          const patientLastName = appointment.patient?.profile?.last_name?.toLowerCase() || '';
+          const patientFullName = `${patientFirstName} ${patientLastName}`.trim();
+          const patientDni = appointment.patient?.profile?.dni?.toLowerCase() || '';
+          
+          const doctorFirstName = appointment.doctor?.profile?.first_name?.toLowerCase() || '';
+          const doctorLastName = appointment.doctor?.profile?.last_name?.toLowerCase() || '';
+          const doctorFullName = `${doctorFirstName} ${doctorLastName}`.trim();
+          const doctorSpecialty = appointment.doctor?.specialty?.name?.toLowerCase() || '';
+          
+          const reason = appointment.reason?.toLowerCase() || '';
+          const notes = appointment.notes?.toLowerCase() || '';
+
+          return patientFullName.includes(searchLower) ||
+                 patientFirstName.includes(searchLower) ||
+                 patientLastName.includes(searchLower) ||
+                 patientDni.includes(searchLower) ||
+                 doctorFullName.includes(searchLower) ||
+                 doctorFirstName.includes(searchLower) ||
+                 doctorLastName.includes(searchLower) ||
+                 doctorSpecialty.includes(searchLower) ||
+                 reason.includes(searchLower) ||
+                 notes.includes(searchLower);
+        });
+      }
+
+      // Apply pagination to filtered results
+      const startIndex = (filters.page - 1) * filters.limit;
+      const endIndex = startIndex + filters.limit;
+      const paginatedData = filteredData.slice(startIndex, endIndex);
+
       console.log('Search term:', filters.searchTerm);
-      console.log('Database query results:', data?.length || 0);
-      console.log('Total count from database:', count || 0);
+      console.log('Total appointments from DB:', data?.length || 0);
+      console.log('After search filter:', filteredData.length);
+      console.log('After pagination:', paginatedData.length);
 
       return {
-        appointments: data || [],
-        totalCount: count || 0,
-        totalPages: Math.ceil((count || 0) / filters.limit)
+        appointments: paginatedData,
+        totalCount: filteredData.length,
+        totalPages: Math.ceil(filteredData.length / filters.limit)
       };
     },
     enabled: !!profile,
