@@ -76,6 +76,8 @@ export function RescheduleAppointmentDialog({
 }: RescheduleAppointmentDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [doctors, setDoctors] = useState<any[]>([]);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+  const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
   const { toast } = useToast();
   const { profile } = useAuth();
 
@@ -108,13 +110,17 @@ export function RescheduleAppointmentDialog({
     }
   }, [open, appointment.doctor_id, reset]);
 
-  // Fetch available doctors
+  // Fetch available doctors with work schedule
   React.useEffect(() => {
     const fetchDoctors = async () => {
       const { data, error } = await supabase
         .from('doctors')
         .select(`
           id,
+          work_start_time,
+          work_end_time,
+          appointment_duration,
+          work_days,
           profile:profiles(first_name, last_name),
           specialty:specialties(name)
         `)
@@ -124,13 +130,74 @@ export function RescheduleAppointmentDialog({
         console.error('Error fetching doctors:', error);
       } else {
         setDoctors(data || []);
+        // Set the initial selected doctor
+        const currentDoctor = data?.find(d => d.id === appointment.doctor_id);
+        if (currentDoctor) {
+          setSelectedDoctor(currentDoctor);
+        }
       }
     };
 
     if (open) {
       fetchDoctors();
     }
-  }, [open]);
+  }, [open, appointment.doctor_id]);
+
+  // Generate time slots for the selected doctor and date
+  const generateTimeSlots = (doctor: any, selectedDate: string) => {
+    if (!doctor || !selectedDate) return [];
+
+    const date = new Date(selectedDate);
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayOfWeek = dayNames[date.getDay()];
+    
+    // Check if doctor works on this day
+    if (!doctor.work_days?.includes(dayOfWeek)) {
+      return [];
+    }
+
+    const slots = [];
+    const startTime = doctor.work_start_time || '08:00:00';
+    const endTime = doctor.work_end_time || '17:00:00';
+    const duration = doctor.appointment_duration || 30;
+
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+
+    let currentHour = startHour;
+    let currentMinute = startMinute;
+
+    while (currentHour < endHour || (currentHour === endHour && currentMinute < endMinute)) {
+      const timeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+      slots.push(timeString);
+
+      currentMinute += duration;
+      if (currentMinute >= 60) {
+        currentHour += Math.floor(currentMinute / 60);
+        currentMinute = currentMinute % 60;
+      }
+    }
+
+    return slots;
+  };
+
+  // Update available time slots when doctor or date changes
+  React.useEffect(() => {
+    const doctorId = watch("doctor_id");
+    const selectedDate = watch("appointment_date");
+    
+    if (doctorId && selectedDate) {
+      const doctor = doctors.find(d => d.id === doctorId);
+      if (doctor) {
+        setSelectedDoctor(doctor);
+        const slots = generateTimeSlots(doctor, selectedDate);
+        setAvailableTimeSlots(slots);
+      }
+    } else if (selectedDoctor && selectedDate) {
+      const slots = generateTimeSlots(selectedDoctor, selectedDate);
+      setAvailableTimeSlots(slots);
+    }
+  }, [watch("doctor_id"), watch("appointment_date"), doctors, selectedDoctor]);
 
   const canReschedule = () => {
     return appointment.status === 'scheduled' || 
@@ -329,12 +396,30 @@ export function RescheduleAppointmentDialog({
 
             <div className="space-y-2">
               <Label htmlFor="appointment_time">Nueva Hora</Label>
-              <Input
-                id="appointment_time"
-                type="time"
-                {...register("appointment_time")}
-                className={errors.appointment_time ? "border-destructive" : ""}
-              />
+              <Select 
+                value={watch("appointment_time")} 
+                onValueChange={(value) => setValue("appointment_time", value)}
+              >
+                <SelectTrigger className={errors.appointment_time ? "border-destructive" : ""}>
+                  <SelectValue placeholder="Seleccionar horario disponible" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableTimeSlots.length > 0 ? (
+                    availableTimeSlots.map((time) => (
+                      <SelectItem key={time} value={time}>
+                        {time}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled>
+                      {watch("appointment_date") ? 
+                        (watch("doctor_id") || selectedDoctor ? "No hay horarios disponibles" : "Selecciona un profesional") 
+                        : "Selecciona una fecha primero"
+                      }
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
               {errors.appointment_time && (
                 <p className="text-sm text-destructive">{errors.appointment_time.message}</p>
               )}
