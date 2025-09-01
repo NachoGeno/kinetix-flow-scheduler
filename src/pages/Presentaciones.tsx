@@ -130,191 +130,272 @@ export default function Presentaciones() {
     queryKey: ["presentations", filters],
     queryFn: async () => {
       console.log("🔍 Cargando presentaciones con filtros:", filters);
+      
+      try {
+        // First, build the base query without search to get all records
+        let baseQuery = supabase
+          .from("medical_orders")
+          .select(`
+            id,
+            description,
+            total_sessions,
+            sessions_used,
+            completed,
+            presentation_status,
+            doctor_name,
+            created_at,
+            attachment_url,
+            attachment_name,
+            patient_id,
+            obra_social_art_id
+          `)
+          .not("obra_social_art_id", "is", null)
+          .not("patient_id", "is", null);
 
-      // Build the query with proper filtering at the database level
-      let query = supabase
-        .from("medical_orders")
-        .select(`
-          id,
-          description,
-          total_sessions,
-          sessions_used,
-          completed,
-          presentation_status,
-          doctor_name,
-          created_at,
-          attachment_url,
-          attachment_name,
-          patient:patients!inner(
+        // Apply basic filters
+        if (filters.obra_social_id) {
+          baseQuery = baseQuery.eq("obra_social_art_id", filters.obra_social_id);
+        }
+
+        if (filters.date_from) {
+          baseQuery = baseQuery.gte("created_at", filters.date_from);
+        }
+
+        if (filters.date_to) {
+          baseQuery = baseQuery.lte("created_at", filters.date_to + "T23:59:59");
+        }
+
+        if (filters.professional) {
+          baseQuery = baseQuery.ilike("doctor_name", `%${filters.professional}%`);
+        }
+
+        // Get orders first
+        const { data: baseOrders, error: baseError } = await baseQuery.order("created_at", { ascending: false });
+
+        if (baseError) {
+          console.error("❌ Error fetching base orders:", baseError);
+          throw baseError;
+        }
+
+        console.log(`📋 Found ${baseOrders?.length || 0} base orders`);
+
+        if (!baseOrders || baseOrders.length === 0) {
+          console.log("❌ No se encontraron órdenes médicas con obra social");
+          return [];
+        }
+
+        // Get patient and obra social data separately for better control
+        const patientIds = [...new Set(baseOrders.map(o => o.patient_id))];
+        const obraSocialIds = [...new Set(baseOrders.map(o => o.obra_social_art_id))];
+
+        // Fetch patients with profiles
+        const { data: patients, error: patientsError } = await supabase
+          .from("patients")
+          .select(`
             id,
             profile:profiles(first_name, last_name, dni)
-          ),
-          obra_social:obras_sociales_art!inner(
-            id,
-            nombre,
-            tipo
-          )
-        `)
-        .not("obra_social_art_id", "is", null)
-        .not("patient_id", "is", null);
+          `)
+          .in("id", patientIds);
 
-      // Apply database-level filters for better performance
-      if (filters.obra_social_id) {
-        query = query.eq("obra_social_art_id", filters.obra_social_id);
-      }
+        if (patientsError) {
+          console.error("❌ Error fetching patients:", patientsError);
+          throw patientsError;
+        }
 
-      if (filters.date_from) {
-        query = query.gte("created_at", filters.date_from);
-      }
+        // Fetch obras sociales
+        const { data: obrasSociales, error: obrasSocialesError } = await supabase
+          .from("obras_sociales_art")
+          .select("id, nombre, tipo")
+          .in("id", obraSocialIds);
 
-      if (filters.date_to) {
-        query = query.lte("created_at", filters.date_to + "T23:59:59");
-      }
+        if (obrasSocialesError) {
+          console.error("❌ Error fetching obras sociales:", obrasSocialesError);
+          throw obrasSocialesError;
+        }
 
-      // Apply search filter at the database level using ilike for better performance
-      if (filters.search_term) {
-        const searchTerm = `%${filters.search_term.toLowerCase()}%`;
-        query = query.or(`
-          patients.profile.first_name.ilike.${searchTerm},
-          patients.profile.last_name.ilike.${searchTerm},
-          patients.profile.dni.ilike.${searchTerm},
-          description.ilike.${searchTerm}
-        `);
-      }
+        // Create lookup maps for better performance
+        const patientsMap = new Map(patients?.map(p => [p.id, p]) || []);
+        const obrasSocialesMap = new Map(obrasSociales?.map(os => [os.id, os]) || []);
 
-      // Apply professional filter at the database level
-      if (filters.professional) {
-        query = query.ilike("doctor_name", `%${filters.professional}%`);
-      }
+        // Combine data and apply search filter
+        const orders = baseOrders
+          .map(order => {
+            const patient = patientsMap.get(order.patient_id);
+            const obraSocial = obrasSocialesMap.get(order.obra_social_art_id);
+            
+            if (!patient || !obraSocial) {
+              console.warn(`❌ Missing data for order ${order.id}`);
+              return null;
+            }
 
-      const { data: orders, error } = await query.order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("❌ Error fetching orders:", error);
-        throw error;
-      }
-
-      console.log(`📋 Found ${orders?.length || 0} orders after database filtering`);
-
-      // Process each order to check presentation readiness and get documents
-      const processedOrders: PresentationOrder[] = await Promise.all(
-        (orders || []).map(async (order) => {
-          console.log(`🔍 Processing order: ${order.id} for ${order.patient.profile.first_name} ${order.patient.profile.last_name}`);
-
-          // Check if all sessions are completed using our database function
-          const { data: sessionCheck, error: sessionError } = await supabase
-            .rpc('check_presentation_ready', { order_id: order.id });
-
-          if (sessionError) {
-            console.error("Error checking sessions:", sessionError);
-          }
-
-          const sessions_completed = sessionCheck || false;
-          console.log(`📊 Sessions completed for order ${order.id}: ${sessions_completed}`);
-
-          // Get presentation documents
-          const { data: documents, error: docsError } = await supabase
-            .from("presentation_documents")
-            .select(`
-              id,
-              document_type,
-              file_url,
-              file_name,
-              uploaded_at,
-              uploaded_by,
-              uploader:profiles!presentation_documents_uploaded_by_fkey(first_name, last_name)
-            `)
-            .eq("medical_order_id", order.id);
-
-          if (docsError) {
-            console.error("Error fetching documents:", docsError);
-          }
-
-          // Organize documents by type
-          const documentsByType = {
-            medical_order: null as DocumentInfo | null,
-            clinical_evolution: null as DocumentInfo | null,
-            attendance_record: null as DocumentInfo | null,
-            social_work_authorization: null as DocumentInfo | null,
-          };
-
-          // Medical order document (from the order itself)
-          if (order.attachment_url) {
-            documentsByType.medical_order = {
-              id: 'medical_order',
-              file_url: order.attachment_url,
-              file_name: order.attachment_name || 'Orden médica',
-              uploaded_by: 'system',
-              uploaded_at: order.created_at,
-              uploader_name: 'Sistema'
+            return {
+              ...order,
+              patient,
+              obra_social: obraSocial
             };
-          }
+          })
+          .filter(Boolean);
 
-          // Other documents from presentation_documents table
-          documents?.forEach((doc: any) => {
-            if (doc.document_type === 'clinical_evolution') {
-              documentsByType.clinical_evolution = {
-                id: doc.id,
-                file_url: doc.file_url,
-                file_name: doc.file_name,
-                uploaded_by: doc.uploaded_by,
-                uploaded_at: doc.uploaded_at,
-                uploader_name: `${doc.uploader?.first_name || ''} ${doc.uploader?.last_name || ''}`.trim()
-              };
-            } else if (doc.document_type === 'attendance_record') {
-              documentsByType.attendance_record = {
-                id: doc.id,
-                file_url: doc.file_url,
-                file_name: doc.file_name,
-                uploaded_by: doc.uploaded_by,
-                uploaded_at: doc.uploaded_at,
-                uploader_name: `${doc.uploader?.first_name || ''} ${doc.uploader?.last_name || ''}`.trim()
-              };
-            } else if (doc.document_type === 'social_work_authorization') {
-              documentsByType.social_work_authorization = {
-                id: doc.id,
-                file_url: doc.file_url,
-                file_name: doc.file_name,
-                uploaded_by: doc.uploaded_by,
-                uploaded_at: doc.uploaded_at,
-                uploader_name: `${doc.uploader?.first_name || ''} ${doc.uploader?.last_name || ''}`.trim()
+        // Apply search filter manually with better logging
+        let filteredOrders = orders;
+        if (filters.search_term) {
+          const searchTerm = filters.search_term.toLowerCase();
+          console.log(`🔍 Aplicando filtro de búsqueda: "${searchTerm}"`);
+          
+          filteredOrders = orders.filter(order => {
+            if (!order) return false;
+            
+            const firstName = order.patient?.profile?.first_name?.toLowerCase() || '';
+            const lastName = order.patient?.profile?.last_name?.toLowerCase() || '';
+            const dni = order.patient?.profile?.dni?.toLowerCase() || '';
+            const description = order.description?.toLowerCase() || '';
+            
+            const matches = 
+              firstName.includes(searchTerm) ||
+              lastName.includes(searchTerm) ||
+              dni.includes(searchTerm) ||
+              description.includes(searchTerm);
+            
+            if (matches) {
+              console.log(`✅ Match found: ${firstName} ${lastName}, DNI: ${dni}`);
+            }
+            
+            return matches;
+          });
+          
+          console.log(`📋 Después del filtro de búsqueda: ${filteredOrders.length} órdenes`);
+        }
+
+        if (filteredOrders.length === 0 && filters.search_term) {
+          console.log(`❌ No se encontraron resultados para "${filters.search_term}"`);
+        }
+
+        console.log(`📋 Found ${filteredOrders.length} orders after all filtering`);
+
+        // Process each order to check presentation readiness and get documents
+        const processedOrders: PresentationOrder[] = await Promise.all(
+          (filteredOrders || []).map(async (order) => {
+            console.log(`🔍 Processing order: ${order.id} for ${order.patient.profile.first_name} ${order.patient.profile.last_name}`);
+
+            // Check if all sessions are completed using our database function
+            const { data: sessionCheck, error: sessionError } = await supabase
+              .rpc('check_presentation_ready', { order_id: order.id });
+
+            if (sessionError) {
+              console.error("Error checking sessions:", sessionError);
+            }
+
+            const sessions_completed = sessionCheck || false;
+            console.log(`📊 Sessions completed for order ${order.id}: ${sessions_completed}`);
+
+            // Get presentation documents
+            const { data: documents, error: docsError } = await supabase
+              .from("presentation_documents")
+              .select(`
+                id,
+                document_type,
+                file_url,
+                file_name,
+                uploaded_at,
+                uploaded_by,
+                uploader:profiles!presentation_documents_uploaded_by_fkey(first_name, last_name)
+              `)
+              .eq("medical_order_id", order.id);
+
+            if (docsError) {
+              console.error("Error fetching documents:", docsError);
+            }
+
+            // Organize documents by type
+            const documentsByType = {
+              medical_order: null as DocumentInfo | null,
+              clinical_evolution: null as DocumentInfo | null,
+              attendance_record: null as DocumentInfo | null,
+              social_work_authorization: null as DocumentInfo | null,
+            };
+
+            // Medical order document (from the order itself)
+            if (order.attachment_url) {
+              documentsByType.medical_order = {
+                id: 'medical_order',
+                file_url: order.attachment_url,
+                file_name: order.attachment_name || 'Orden médica',
+                uploaded_by: 'system',
+                uploaded_at: order.created_at,
+                uploader_name: 'Sistema'
               };
             }
+
+            // Other documents from presentation_documents table
+            documents?.forEach((doc: any) => {
+              if (doc.document_type === 'clinical_evolution') {
+                documentsByType.clinical_evolution = {
+                  id: doc.id,
+                  file_url: doc.file_url,
+                  file_name: doc.file_name,
+                  uploaded_by: doc.uploaded_by,
+                  uploaded_at: doc.uploaded_at,
+                  uploader_name: `${doc.uploader?.first_name || ''} ${doc.uploader?.last_name || ''}`.trim()
+                };
+              } else if (doc.document_type === 'attendance_record') {
+                documentsByType.attendance_record = {
+                  id: doc.id,
+                  file_url: doc.file_url,
+                  file_name: doc.file_name,
+                  uploaded_by: doc.uploaded_by,
+                  uploaded_at: doc.uploaded_at,
+                  uploader_name: `${doc.uploader?.first_name || ''} ${doc.uploader?.last_name || ''}`.trim()
+                };
+              } else if (doc.document_type === 'social_work_authorization') {
+                documentsByType.social_work_authorization = {
+                  id: doc.id,
+                  file_url: doc.file_url,
+                  file_name: doc.file_name,
+                  uploaded_by: doc.uploaded_by,
+                  uploaded_at: doc.uploaded_at,
+                  uploader_name: `${doc.uploader?.first_name || ''} ${doc.uploader?.last_name || ''}`.trim()
+                };
+              }
+            });
+
+            return {
+              ...order,
+              documents: documentsByType,
+              sessions_completed
+            };
+          })
+        );
+
+        // Apply status filter (this needs to be done after processing)
+        let finalOrders = processedOrders;
+        if (filters.status !== 'all') {
+          finalOrders = processedOrders.filter(order => {
+            const docs = order.documents;
+            const hasAllDocs = docs.medical_order && docs.clinical_evolution && docs.attendance_record && docs.social_work_authorization;
+            const sessionsReady = order.sessions_completed;
+            
+            switch (filters.status) {
+              case 'ready_to_present':
+                return hasAllDocs && sessionsReady && order.presentation_status !== 'pdf_generated';
+              case 'in_preparation':
+                return !sessionsReady;
+              case 'pdf_generated':
+                return order.presentation_status === 'pdf_generated';
+              case 'submitted':
+                return order.presentation_status === 'submitted';
+              default:
+                return true;
+            }
           });
+        }
 
-          return {
-            ...order,
-            documents: documentsByType,
-            sessions_completed
-          };
-        })
-      );
+        console.log(`✅ Final filtered orders: ${finalOrders.length}`);
+        return finalOrders;
 
-      // Apply status filter (this needs to be done after processing)
-      let filteredOrders = processedOrders;
-      if (filters.status !== 'all') {
-        filteredOrders = processedOrders.filter(order => {
-          const docs = order.documents;
-          const hasAllDocs = docs.medical_order && docs.clinical_evolution && docs.attendance_record && docs.social_work_authorization;
-          const sessionsReady = order.sessions_completed;
-          
-          switch (filters.status) {
-            case 'ready_to_present':
-              return hasAllDocs && sessionsReady && order.presentation_status !== 'pdf_generated';
-            case 'in_preparation':
-              return !sessionsReady;
-            case 'pdf_generated':
-              return order.presentation_status === 'pdf_generated';
-            case 'submitted':
-              return order.presentation_status === 'submitted';
-            default:
-              return true;
-          }
-        });
+      } catch (error) {
+        console.error("❌ Error in presentations query:", error);
+        throw error;
       }
-
-      console.log(`✅ Final filtered orders: ${filteredOrders.length}`);
-      return filteredOrders;
     },
     enabled: true
   });
