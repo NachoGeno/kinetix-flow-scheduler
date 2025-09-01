@@ -125,13 +125,13 @@ export default function Presentaciones() {
     }
   });
 
-  // Fetch presentations data
+  // Fetch presentations data - OPTIMIZED VERSION
   const { data: presentations, refetch } = useQuery({
     queryKey: ["presentations", filters],
     queryFn: async () => {
       console.log("🔍 Cargando presentaciones con filtros:", filters);
 
-      // Base query for medical orders ready for presentation
+      // Build the query with proper filtering at the database level
       let query = supabase
         .from("medical_orders")
         .select(`
@@ -155,10 +155,10 @@ export default function Presentaciones() {
             tipo
           )
         `)
-        .not("obra_social_art_id", "is", null) // Must have obra social
-        .not("patient_id", "is", null); // Must have patient
+        .not("obra_social_art_id", "is", null)
+        .not("patient_id", "is", null);
 
-      // Apply filters
+      // Apply database-level filters for better performance
       if (filters.obra_social_id) {
         query = query.eq("obra_social_art_id", filters.obra_social_id);
       }
@@ -171,6 +171,22 @@ export default function Presentaciones() {
         query = query.lte("created_at", filters.date_to + "T23:59:59");
       }
 
+      // Apply search filter at the database level using ilike for better performance
+      if (filters.search_term) {
+        const searchTerm = `%${filters.search_term.toLowerCase()}%`;
+        query = query.or(`
+          patients.profile.first_name.ilike.${searchTerm},
+          patients.profile.last_name.ilike.${searchTerm},
+          patients.profile.dni.ilike.${searchTerm},
+          description.ilike.${searchTerm}
+        `);
+      }
+
+      // Apply professional filter at the database level
+      if (filters.professional) {
+        query = query.ilike("doctor_name", `%${filters.professional}%`);
+      }
+
       const { data: orders, error } = await query.order("created_at", { ascending: false });
 
       if (error) {
@@ -178,7 +194,7 @@ export default function Presentaciones() {
         throw error;
       }
 
-      console.log(`📋 Found ${orders?.length || 0} orders`);
+      console.log(`📋 Found ${orders?.length || 0} orders after database filtering`);
 
       // Process each order to check presentation readiness and get documents
       const processedOrders: PresentationOrder[] = await Promise.all(
@@ -274,46 +290,28 @@ export default function Presentaciones() {
         })
       );
 
-      // Filter by search term
+      // Apply status filter (this needs to be done after processing)
       let filteredOrders = processedOrders;
-      if (filters.search_term) {
-        const searchLower = filters.search_term.toLowerCase();
-        filteredOrders = processedOrders.filter(order =>
-          order.patient.profile.first_name.toLowerCase().includes(searchLower) ||
-          order.patient.profile.last_name.toLowerCase().includes(searchLower) ||
-          order.patient.profile.dni?.toLowerCase().includes(searchLower) ||
-          order.description.toLowerCase().includes(searchLower)
-        );
+      if (filters.status !== 'all') {
+        filteredOrders = processedOrders.filter(order => {
+          const docs = order.documents;
+          const hasAllDocs = docs.medical_order && docs.clinical_evolution && docs.attendance_record && docs.social_work_authorization;
+          const sessionsReady = order.sessions_completed;
+          
+          switch (filters.status) {
+            case 'ready_to_present':
+              return hasAllDocs && sessionsReady && order.presentation_status !== 'pdf_generated';
+            case 'in_preparation':
+              return !sessionsReady;
+            case 'pdf_generated':
+              return order.presentation_status === 'pdf_generated';
+            case 'submitted':
+              return order.presentation_status === 'submitted';
+            default:
+              return true;
+          }
+        });
       }
-
-      // Filter by professional
-      if (filters.professional) {
-        filteredOrders = filteredOrders.filter(order =>
-          order.doctor_name?.toLowerCase().includes(filters.professional.toLowerCase())
-        );
-      }
-
-       // Filter by status
-       if (filters.status !== 'all') {
-         filteredOrders = filteredOrders.filter(order => {
-           const docs = order.documents;
-           const hasAllDocs = docs.medical_order && docs.clinical_evolution && docs.attendance_record && docs.social_work_authorization;
-           const sessionsReady = order.sessions_completed;
-           
-           switch (filters.status) {
-             case 'ready_to_present':
-               return hasAllDocs && sessionsReady && order.presentation_status !== 'pdf_generated';
-             case 'in_preparation':
-               return !sessionsReady;
-             case 'pdf_generated':
-               return order.presentation_status === 'pdf_generated';
-             case 'submitted':
-               return order.presentation_status === 'submitted';
-             default:
-               return true;
-           }
-         });
-       }
 
       console.log(`✅ Final filtered orders: ${filteredOrders.length}`);
       return filteredOrders;
@@ -1288,7 +1286,7 @@ export default function Presentaciones() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Nombre o DNI..."
+                  placeholder="Nombre, apellido o DNI..."
                   value={filters.search_term}
                   onChange={(e) => setFilters(prev => ({ ...prev, search_term: e.target.value }))}
                   className="pl-10"
