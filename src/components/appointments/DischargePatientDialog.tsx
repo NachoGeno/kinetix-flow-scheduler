@@ -1,6 +1,8 @@
+
 import { useState } from 'react';
 import { UserCheck, AlertTriangle, Calendar, CheckCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -161,7 +163,7 @@ export default function DischargePatientDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserCheck className="h-5 w-5" />
@@ -172,127 +174,129 @@ export default function DischargePatientDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Información del paciente */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Información del Paciente</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <Label className="text-sm font-medium">Paciente</Label>
-                <p className="text-lg font-semibold">{patientInfo.name}</p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Sesiones Completadas</Label>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-sm">
-                      {patientInfo.usedSessions} / {patientInfo.totalSessions}
-                    </Badge>
-                  </div>
-                </div>
-                
-                <div>
-                  <Label className="text-sm font-medium">Sesiones Restantes</Label>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-sm">
-                      {remainingSessions} sesiones
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Citas afectadas */}
-          {patientInfo.futureAppointments.length > 0 && (
+        <ScrollArea className="max-h-[70vh] pr-4">
+          <div className="space-y-6">
+            {/* Información del paciente */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Citas que se Cancelarán ({patientInfo.futureAppointments.length})
-                </CardTitle>
+                <CardTitle className="text-lg">Información del Paciente</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2 max-h-32 overflow-y-auto">
-                  {patientInfo.futureAppointments.map((appointment) => (
-                    <div key={appointment.id} className="flex justify-between items-center p-2 border rounded-lg">
-                      <div>
-                        <p className="font-medium">
-                          {format(new Date(appointment.appointment_date), 'dd MMM yyyy', { locale: es })}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {appointment.appointment_time} - {appointment.doctor_name}
-                        </p>
-                      </div>
-                      <Badge variant="destructive" className="text-xs">
-                        Se cancelará
+              <CardContent className="space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">Paciente</Label>
+                  <p className="text-lg font-semibold">{patientInfo.name}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Sesiones Completadas</Label>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-sm">
+                        {patientInfo.usedSessions} / {patientInfo.totalSessions}
                       </Badge>
                     </div>
-                  ))}
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm font-medium">Sesiones Restantes</Label>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-sm">
+                        {remainingSessions} sesiones
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          )}
 
-          {/* Advertencia */}
-          <div className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-yellow-800">
-                Advertencia: Esta acción no se puede deshacer
-              </p>
-              <p className="text-sm text-yellow-700">
-                • Se cancelarán {patientInfo.futureAppointments.length} citas futuras
-                <br />
-                • La orden médica se marcará como completada con {patientInfo.usedSessions} de {patientInfo.totalSessions} sesiones
-                <br />
-                • Los turnos cancelados estarán disponibles para otros pacientes
-              </p>
+            {/* Citas afectadas */}
+            {patientInfo.futureAppointments.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Citas que se Cancelarán ({patientInfo.futureAppointments.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {patientInfo.futureAppointments.map((appointment) => (
+                      <div key={appointment.id} className="flex justify-between items-center p-2 border rounded-lg">
+                        <div>
+                          <p className="font-medium">
+                            {format(new Date(appointment.appointment_date), 'dd MMM yyyy', { locale: es })}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {appointment.appointment_time} - {appointment.doctor_name}
+                          </p>
+                        </div>
+                        <Badge variant="destructive" className="text-xs">
+                          Se cancelará
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Advertencia */}
+            <div className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-yellow-800">
+                  Advertencia: Esta acción no se puede deshacer
+                </p>
+                <p className="text-sm text-yellow-700">
+                  • Se cancelarán {patientInfo.futureAppointments.length} citas futuras
+                  <br />
+                  • La orden médica se marcará como completada con {patientInfo.usedSessions} de {patientInfo.totalSessions} sesiones
+                  <br />
+                  • Los turnos cancelados estarán disponibles para otros pacientes
+                </p>
+              </div>
+            </div>
+
+            {/* Motivo del alta */}
+            <div className="space-y-2">
+              <Label htmlFor="reason" className="text-sm font-medium">
+                Motivo del Alta Temprana *
+              </Label>
+              <Textarea
+                id="reason"
+                placeholder="Explique el motivo del alta temprana (ej: mejoría clínica, abandono del tratamiento, derivación, etc.)"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
             </div>
           </div>
+        </ScrollArea>
 
-          {/* Motivo del alta */}
-          <div className="space-y-2">
-            <Label htmlFor="reason" className="text-sm font-medium">
-              Motivo del Alta Temprana *
-            </Label>
-            <Textarea
-              id="reason"
-              placeholder="Explique el motivo del alta temprana (ej: mejoría clínica, abandono del tratamiento, derivación, etc.)"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={4}
-              className="resize-none"
-            />
-          </div>
-
-          {/* Botones */}
-          <div className="flex justify-end space-x-3">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isProcessing}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleDischarge}
-              disabled={isProcessing || !reason.trim()}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              {isProcessing ? (
-                <>Procesando...</>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Confirmar Alta Temprana
-                </>
-              )}
-            </Button>
-          </div>
+        {/* Botones */}
+        <div className="flex justify-end space-x-3 pt-4 border-t">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isProcessing}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleDischarge}
+            disabled={isProcessing || !reason.trim()}
+            className="bg-destructive hover:bg-destructive/90"
+          >
+            {isProcessing ? (
+              <>Procesando...</>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Confirmar Alta Temprana
+              </>
+            )}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
