@@ -527,45 +527,93 @@ export default function AppointmentsList() {
                       >
                         {statusLabels[appointment.status as keyof typeof statusLabels]}
                       </Badge>
-                      <div className="flex items-center gap-1">
-                        {/* Action buttons */}
-                        {(profile?.role === 'doctor' || profile?.role === 'admin') && 
-                         appointment.status === 'scheduled' && (
-                          <>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
-                                  onClick={() => handleMarkAttendance(appointment.id, 'in_progress')}
-                                >
-                                  <UserCheck className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Marcar como asistido</p>
-                              </TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700"
-                                  onClick={() => handleNoShow(appointment)}
-                                >
-                                  <UserX className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Marcar como ausente</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </>
-                        )}
-                        
-                        {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                       <div className="flex items-center gap-1">
+                         {/* Action buttons */}
+                         {(profile?.role === 'doctor' || profile?.role === 'admin') && 
+                          appointment.status === 'scheduled' && (
+                           <>
+                             <Tooltip>
+                               <TooltipTrigger asChild>
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+                                   onClick={() => handleMarkAttendance(appointment.id, 'in_progress')}
+                                 >
+                                   <UserCheck className="h-4 w-4" />
+                                 </Button>
+                               </TooltipTrigger>
+                               <TooltipContent>
+                                 <p>Marcar como asistido</p>
+                               </TooltipContent>
+                             </Tooltip>
+                             <Tooltip>
+                               <TooltipTrigger asChild>
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700"
+                                   onClick={() => handleNoShow(appointment)}
+                                 >
+                                   <UserX className="h-4 w-4" />
+                                 </Button>
+                               </TooltipTrigger>
+                               <TooltipContent>
+                                 <p>Marcar como ausente</p>
+                               </TooltipContent>
+                             </Tooltip>
+                           </>
+                         )}
+
+                         {/* Reschedule button */}
+                         {(profile?.role === 'doctor' || profile?.role === 'admin') && 
+                          appointment.status !== 'cancelled' && 
+                          appointment.status !== 'completed' && 
+                          appointment.status !== 'discharged' && (
+                           <Tooltip>
+                             <TooltipTrigger asChild>
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+                                 onClick={() => handleReschedule(appointment)}
+                               >
+                                 <RotateCcw className="h-4 w-4" />
+                               </Button>
+                             </TooltipTrigger>
+                             <TooltipContent>
+                               <p>Reprogramar cita</p>
+                             </TooltipContent>
+                           </Tooltip>
+                         )}
+
+                         {/* Early discharge button */}
+                         {(profile?.role === 'doctor' || profile?.role === 'admin') && 
+                          (appointment.status === 'in_progress' || appointment.status === 'completed') && (
+                           <Tooltip>
+                             <TooltipTrigger asChild>
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 className="h-8 w-8 p-0 text-cyan-600 hover:text-cyan-700"
+                                 onClick={() => {
+                                   setPatientToDischarge({
+                                     patientId: appointment.patient_id,
+                                     patientName: `${appointment.patient.profile.first_name} ${appointment.patient.profile.last_name}`
+                                   });
+                                   setShowDischargeDialog(true);
+                                 }}
+                               >
+                                 <LogOut className="h-4 w-4" />
+                               </Button>
+                             </TooltipTrigger>
+                             <TooltipContent>
+                               <p>Alta temprana</p>
+                             </TooltipContent>
+                           </Tooltip>
+                         )}
+                         
+                         {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
                           <AlertDialog>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -722,6 +770,29 @@ export default function AppointmentsList() {
               }}
             />
           </>
+        )}
+
+        {patientToDischarge && (
+          <DischargePatientDialog
+            open={showDischargeDialog}
+            onOpenChange={(open) => {
+              setShowDischargeDialog(open);
+              if (!open) setPatientToDischarge(null);
+            }}
+            patientInfo={{
+              id: patientToDischarge.patientId,
+              name: patientToDischarge.patientName,
+              totalSessions: 0, // This will be fetched by the dialog component
+              usedSessions: 0, // This will be fetched by the dialog component
+              futureAppointments: [], // This will be fetched by the dialog component
+              medicalOrderId: '', // This will be fetched by the dialog component
+            }}
+            onSuccess={() => {
+              refetchAppointments();
+              setShowDischargeDialog(false);
+              setPatientToDischarge(null);
+            }}
+          />
         )}
       </div>
     </TooltipProvider>
