@@ -403,7 +403,7 @@ export function RescheduleAppointmentDialog({
                 <SelectTrigger className={errors.appointment_time ? "border-destructive" : ""}>
                   <SelectValue placeholder="Seleccionar horario disponible" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border shadow-md z-50">
                   {availableTimeSlots.length > 0 ? (
                     availableTimeSlots.map((time) => (
                       <SelectItem key={time} value={time}>
@@ -411,12 +411,14 @@ export function RescheduleAppointmentDialog({
                       </SelectItem>
                     ))
                   ) : (
-                    <SelectItem value="" disabled>
-                      {watch("appointment_date") ? 
-                        (watch("doctor_id") || selectedDoctor ? "No hay horarios disponibles" : "Selecciona un profesional") 
-                        : "Selecciona una fecha primero"
+                    <div className="p-2 text-sm text-muted-foreground">
+                      {!watch("appointment_date") 
+                        ? "Selecciona una fecha primero"
+                        : (!watch("doctor_id") && !selectedDoctor)
+                          ? "Selecciona un profesional"
+                          : "No hay horarios disponibles para este día"
                       }
-                    </SelectItem>
+                    </div>
                   )}
                 </SelectContent>
               </Select>
