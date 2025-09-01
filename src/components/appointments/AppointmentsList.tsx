@@ -104,13 +104,108 @@ export default function AppointmentsList() {
   const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDischargeDialog, setShowDischargeDialog] = useState(false);
-  const [patientToDischarge, setPatientToDischarge] = useState<{ patientId: string; patientName: string } | null>(null);
+  const [patientToDischarge, setPatientToDischarge] = useState<{ 
+    patientId: string; 
+    patientName: string;
+    totalSessions: number;
+    usedSessions: number;
+    futureAppointments: Array<{
+      id: string;
+      appointment_date: string;
+      appointment_time: string;
+      doctor_name: string;
+    }>;
+    medicalOrderId: string;
+  } | null>(null);
+  const [isLoadingDischargeData, setIsLoadingDischargeData] = useState(false);
   const [showResetNoShowDialog, setShowResetNoShowDialog] = useState(false);
   const [patientToReset, setPatientToReset] = useState<{ patientId: string; patientName: string } | null>(null);
   
   const { profile } = useAuth();
   const { toast } = useToast();
   const { createOrUpdateMedicalHistoryEntry } = useUnifiedMedicalHistory();
+
+  // Function to fetch patient discharge data
+  const fetchPatientDischargeData = async (patientId: string, patientName: string) => {
+    setIsLoadingDischargeData(true);
+    try {
+      // Get active medical order
+      const { data: medicalOrder, error: orderError } = await supabase
+        .from('medical_orders')
+        .select('id, total_sessions, sessions_used')
+        .eq('patient_id', patientId)
+        .eq('completed', false)
+        .order('created_at', { ascending: false })
+        .maybeSingle();
+
+      if (orderError) {
+        console.error('Error fetching medical order:', orderError);
+        toast({
+          title: "Error",
+          description: 'Error al cargar información del paciente',
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!medicalOrder) {
+        toast({
+          title: "Error", 
+          description: 'No se encontró orden médica activa para este paciente',
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get future appointments
+      const { data: futureAppointments, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select(`
+          id,
+          appointment_date,
+          appointment_time,
+          doctor:doctors(
+            profile:profiles(first_name, last_name)
+          )
+        `)
+        .eq('patient_id', patientId)
+        .in('status', ['scheduled', 'confirmed', 'in_progress'])
+        .gte('appointment_date', new Date().toISOString().split('T')[0])
+        .order('appointment_date');
+
+      if (appointmentsError) {
+        console.error('Error fetching future appointments:', appointmentsError);
+      }
+
+      const formattedFutureAppointments = (futureAppointments || []).map((apt: any) => ({
+        id: apt.id,
+        appointment_date: apt.appointment_date,
+        appointment_time: apt.appointment_time,
+        doctor_name: apt.doctor?.profile ? 
+          `${apt.doctor.profile.first_name} ${apt.doctor.profile.last_name}` : 
+          'Doctor no asignado'
+      }));
+
+      setPatientToDischarge({
+        patientId,
+        patientName,
+        totalSessions: medicalOrder.total_sessions,
+        usedSessions: medicalOrder.sessions_used,
+        futureAppointments: formattedFutureAppointments,
+        medicalOrderId: medicalOrder.id
+      });
+      setShowDischargeDialog(true);
+    } catch (error) {
+      console.error('Error fetching patient discharge data:', error);
+      toast({
+        title: "Error",
+        description: 'Error al cargar datos del paciente',
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingDischargeData(false);
+    }
+  };
 
   // Debounce search term to avoid excessive API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -596,13 +691,11 @@ export default function AppointmentsList() {
                                  variant="outline"
                                  size="sm"
                                  className="h-8 w-8 p-0 text-cyan-600 hover:text-cyan-700"
-                                 onClick={() => {
-                                   setPatientToDischarge({
-                                     patientId: appointment.patient_id,
-                                     patientName: `${appointment.patient.profile.first_name} ${appointment.patient.profile.last_name}`
-                                   });
-                                   setShowDischargeDialog(true);
-                                 }}
+                                  onClick={() => fetchPatientDischargeData(
+                                    appointment.patient_id,
+                                    `${appointment.patient.profile.first_name} ${appointment.patient.profile.last_name}`
+                                  )}
+                                  disabled={isLoadingDischargeData}
                                >
                                  <LogOut className="h-4 w-4" />
                                </Button>
@@ -782,10 +875,10 @@ export default function AppointmentsList() {
             patientInfo={{
               id: patientToDischarge.patientId,
               name: patientToDischarge.patientName,
-              totalSessions: 0, // This will be fetched by the dialog component
-              usedSessions: 0, // This will be fetched by the dialog component
-              futureAppointments: [], // This will be fetched by the dialog component
-              medicalOrderId: '', // This will be fetched by the dialog component
+              totalSessions: patientToDischarge.totalSessions,
+              usedSessions: patientToDischarge.usedSessions,
+              futureAppointments: patientToDischarge.futureAppointments,
+              medicalOrderId: patientToDischarge.medicalOrderId,
             }}
             onSuccess={() => {
               refetchAppointments();
