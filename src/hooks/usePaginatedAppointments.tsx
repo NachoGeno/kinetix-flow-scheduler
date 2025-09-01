@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
@@ -20,121 +19,39 @@ export function usePaginatedAppointments(filters: AppointmentFilters) {
     queryFn: async () => {
       if (!profile) throw new Error('No authenticated user');
 
-      // Remove pagination from the initial query to search all data
-      let query = supabase
-        .from('appointments')
-        .select(`
-          *,
-          patient:patients!inner(
-            id,
-            profile:profiles(
-              first_name,
-              last_name,
-              dni
-            )
-          ),
-          doctor:doctors!inner(
-            id,
-            profile:profiles(
-              first_name,
-              last_name
-            ),
-            specialty:specialties(
-              name,
-              color
-            )
-          )
-        `, { count: 'exact' })
-        .order('appointment_date', { ascending: false })
-        .order('appointment_time', { ascending: false });
+      const offset = (filters.page - 1) * filters.limit;
 
-      // Apply role-based filters
-      if (profile.role === 'patient') {
-        const { data: patientData } = await supabase
-          .from('patients')
-          .select('id')
-          .eq('profile_id', profile.id)
-          .single();
-        
-        if (patientData) {
-          query = query.eq('patient_id', patientData.id);
-        }
-      } else if (profile.role === 'doctor') {
-        const { data: doctorData } = await supabase
-          .from('doctors')
-          .select('id')
-          .eq('profile_id', profile.id)
-          .single();
-        
-        if (doctorData) {
-          query = query.eq('doctor_id', doctorData.id);
-        }
+      // Use the new database function for efficient searching
+      const { data, error } = await supabase.rpc('search_appointments_paginated', {
+        search_term: filters.searchTerm?.trim() || null,
+        status_filter: filters.status && filters.status !== 'all' ? filters.status : null,
+        date_from: filters.dateFrom || null,
+        date_to: filters.dateTo || null,
+        user_role: profile.role,
+        user_profile_id: profile.id,
+        limit_count: filters.limit,
+        offset_count: offset
+      });
+
+      if (error) {
+        console.error('Database function error:', error);
+        throw error;
       }
-
-      // Apply filters
-      if (filters.status && filters.status !== 'all') {
-        query = query.eq('status', filters.status as any);
-      }
-
-      if (filters.dateFrom) {
-        query = query.gte('appointment_date', filters.dateFrom);
-      }
-
-      if (filters.dateTo) {
-        query = query.lte('appointment_date', filters.dateTo);
-      }
-
-      const { data, error, count } = await query;
-
-      if (error) throw error;
-
-      // Apply text search on frontend - this ensures it works correctly
-      let filteredData = data || [];
-      
-      if (filters.searchTerm && filters.searchTerm.trim()) {
-        const searchLower = filters.searchTerm.toLowerCase().trim();
-        
-        filteredData = filteredData.filter(appointment => {
-          const patientFirstName = appointment.patient?.profile?.first_name?.toLowerCase() || '';
-          const patientLastName = appointment.patient?.profile?.last_name?.toLowerCase() || '';
-          const patientFullName = `${patientFirstName} ${patientLastName}`.trim();
-          const patientDni = appointment.patient?.profile?.dni?.toLowerCase() || '';
-          
-          const doctorFirstName = appointment.doctor?.profile?.first_name?.toLowerCase() || '';
-          const doctorLastName = appointment.doctor?.profile?.last_name?.toLowerCase() || '';
-          const doctorFullName = `${doctorFirstName} ${doctorLastName}`.trim();
-          const doctorSpecialty = appointment.doctor?.specialty?.name?.toLowerCase() || '';
-          
-          const reason = appointment.reason?.toLowerCase() || '';
-          const notes = appointment.notes?.toLowerCase() || '';
-
-          return patientFullName.includes(searchLower) ||
-                 patientFirstName.includes(searchLower) ||
-                 patientLastName.includes(searchLower) ||
-                 patientDni.includes(searchLower) ||
-                 doctorFullName.includes(searchLower) ||
-                 doctorFirstName.includes(searchLower) ||
-                 doctorLastName.includes(searchLower) ||
-                 doctorSpecialty.includes(searchLower) ||
-                 reason.includes(searchLower) ||
-                 notes.includes(searchLower);
-        });
-      }
-
-      // Apply pagination to filtered results
-      const startIndex = (filters.page - 1) * filters.limit;
-      const endIndex = startIndex + filters.limit;
-      const paginatedData = filteredData.slice(startIndex, endIndex);
 
       console.log('Search term:', filters.searchTerm);
-      console.log('Total appointments from DB:', data?.length || 0);
-      console.log('After search filter:', filteredData.length);
-      console.log('After pagination:', paginatedData.length);
+      console.log('Function results:', data?.length || 0);
+
+      // Transform the JSONB data back to the expected format
+      const appointments = data?.map((row: any) => row.appointment_data) || [];
+      const totalCount = data?.[0]?.total_count || 0;
+
+      console.log('Appointments count:', appointments.length);
+      console.log('Total count:', totalCount);
 
       return {
-        appointments: paginatedData,
-        totalCount: filteredData.length,
-        totalPages: Math.ceil(filteredData.length / filters.limit)
+        appointments,
+        totalCount,
+        totalPages: Math.ceil(totalCount / filters.limit)
       };
     },
     enabled: !!profile,

@@ -1392,6 +1392,22 @@ export type Database = {
         Args: { user_id: string }
         Returns: boolean
       }
+      search_appointments_paginated: {
+        Args: {
+          date_from?: string
+          date_to?: string
+          limit_count?: number
+          offset_count?: number
+          search_term?: string
+          status_filter?: string
+          user_profile_id?: string
+          user_role?: string
+        }
+        Returns: {
+          appointment_data: Json
+          total_count: number
+        }[]
+      }
     }
     Enums: {
       appointment_status:
