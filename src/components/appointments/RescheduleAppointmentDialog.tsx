@@ -216,29 +216,42 @@ export function RescheduleAppointmentDialog({
       return;
     }
 
-    console.log("Starting reschedule process...");
+    console.log("=== RESCHEDULE DEBUG ===");
     console.log("Original appointment:", appointment);
-    console.log("New data:", data);
+    console.log("Form data received:", data);
+    console.log("Selected date input value:", data.appointment_date);
+    console.log("Selected time input value:", data.appointment_time);
+    console.log("Selected doctor ID:", data.doctor_id || appointment.doctor_id);
+
+    // Verify the date is being processed correctly
+    const selectedDate = new Date(data.appointment_date + 'T00:00:00');
+    console.log("Parsed selected date:", selectedDate);
+    console.log("Selected date ISO string:", selectedDate.toISOString());
+    console.log("Selected date local date string:", selectedDate.toLocaleDateString());
 
     setIsSubmitting(true);
 
     try {
       // Create the new rescheduled appointment
       console.log("Creating new appointment...");
+      const appointmentData = {
+        appointment_date: data.appointment_date,
+        appointment_time: data.appointment_time,
+        patient_id: appointment.patient_id,
+        doctor_id: data.doctor_id || appointment.doctor_id,
+        reason: appointment.reason,
+        status: 'scheduled' as const,
+        rescheduled_from_id: appointment.id,
+        rescheduled_by: profile.id,
+        reschedule_reason: data.reschedule_reason,
+        duration_minutes: appointment.duration_minutes || 30,
+      };
+      
+      console.log("Appointment data being sent to DB:", appointmentData);
+      
       const { data: newAppointment, error: insertError } = await supabase
         .from("appointments")
-        .insert({
-          appointment_date: data.appointment_date,
-          appointment_time: data.appointment_time,
-          patient_id: appointment.patient_id,
-          doctor_id: data.doctor_id || appointment.doctor_id,
-          reason: appointment.reason,
-          status: 'scheduled',
-          rescheduled_from_id: appointment.id,
-          rescheduled_by: profile.id,
-          reschedule_reason: data.reschedule_reason,
-          duration_minutes: appointment.duration_minutes || 30,
-        })
+        .insert(appointmentData)
         .select()
         .single();
 
@@ -247,7 +260,7 @@ export function RescheduleAppointmentDialog({
         throw insertError;
       }
 
-      console.log("New appointment created:", newAppointment);
+      console.log("New appointment created successfully:", newAppointment);
 
       // Now manually update the original appointment since the trigger might not be working
       console.log("Updating original appointment...");
@@ -268,6 +281,7 @@ export function RescheduleAppointmentDialog({
       }
 
       console.log("Original appointment updated successfully");
+      console.log("=== RESCHEDULE SUCCESS ===");
 
       toast({
         title: "¡Éxito!",
@@ -278,6 +292,7 @@ export function RescheduleAppointmentDialog({
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
+      console.error("=== RESCHEDULE ERROR ===");
       console.error("Error rescheduling appointment:", error);
       toast({
         title: "Error",
