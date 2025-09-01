@@ -40,6 +40,7 @@ interface Appointment {
   reason: string;
   patient_id: string;
   doctor_id: string;
+  duration_minutes?: number;
   patient: {
     id: string;
     profile: {
@@ -139,9 +140,8 @@ export function RescheduleAppointmentDialog({
     setIsSubmitting(true);
 
     try {
-      // Start a transaction to ensure both operations succeed
-      
-      // 1. First, create the new rescheduled appointment
+      // Create the new rescheduled appointment
+      // The trigger handle_appointment_reschedule will automatically update the original appointment
       const { data: newAppointment, error: insertError } = await supabase
         .from("appointments")
         .insert({
@@ -154,28 +154,14 @@ export function RescheduleAppointmentDialog({
           rescheduled_from_id: appointment.id,
           rescheduled_by: profile.id,
           reschedule_reason: data.reschedule_reason,
+          duration_minutes: appointment.duration_minutes || 30,
         })
         .select()
         .single();
 
-      if (insertError) throw insertError;
-
-      // 2. Then update the original appointment to mark it as rescheduled
-      const { error: updateError } = await supabase
-        .from("appointments")
-        .update({
-          status: 'rescheduled',
-          rescheduled_to_id: newAppointment.id,
-          rescheduled_at: new Date().toISOString(),
-          rescheduled_by: profile.id,
-          reschedule_reason: data.reschedule_reason
-        })
-        .eq('id', appointment.id);
-
-      if (updateError) {
-        // If updating the original appointment fails, we should delete the new one to maintain consistency
-        await supabase.from("appointments").delete().eq('id', newAppointment.id);
-        throw updateError;
+      if (insertError) {
+        console.error("Error creating rescheduled appointment:", insertError);
+        throw insertError;
       }
 
       toast({
@@ -190,13 +176,14 @@ export function RescheduleAppointmentDialog({
       console.error("Error rescheduling appointment:", error);
       toast({
         title: "Error",
-        description: error.message || "Error al reprogramar el turno",
+        description: error.message || "Error al reprogramar el turno. Verifica los permisos o contacta al administrador.",
         variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
+
 
   const getStatusColor = (status: string) => {
     const colors = {
