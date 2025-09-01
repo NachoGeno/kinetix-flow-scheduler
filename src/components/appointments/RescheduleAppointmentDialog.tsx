@@ -89,12 +89,24 @@ export function RescheduleAppointmentDialog({
   } = useForm<RescheduleFormValues>({
     resolver: zodResolver(rescheduleSchema),
     defaultValues: {
-      appointment_date: appointment.appointment_date,
-      appointment_time: appointment.appointment_time,
+      appointment_date: "",
+      appointment_time: "",
       doctor_id: appointment.doctor_id,
       reschedule_reason: "",
     },
   });
+
+  // Reset form when dialog opens
+  React.useEffect(() => {
+    if (open) {
+      reset({
+        appointment_date: "",
+        appointment_time: "",
+        doctor_id: appointment.doctor_id,
+        reschedule_reason: "",
+      });
+    }
+  }, [open, appointment.doctor_id, reset]);
 
   // Fetch available doctors
   React.useEffect(() => {
