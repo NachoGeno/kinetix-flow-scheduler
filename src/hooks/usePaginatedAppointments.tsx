@@ -87,51 +87,33 @@ export function usePaginatedAppointments(filters: AppointmentFilters) {
         query = query.lte('appointment_date', filters.dateTo);
       }
 
+      // Apply text search at database level before pagination
+      if (filters.searchTerm && filters.searchTerm.trim()) {
+        const searchTerm = filters.searchTerm.trim();
+        query = query.or(`
+          patient.profile.first_name.ilike.%${searchTerm}%,
+          patient.profile.last_name.ilike.%${searchTerm}%,
+          patient.profile.dni.ilike.%${searchTerm}%,
+          doctor.profile.first_name.ilike.%${searchTerm}%,
+          doctor.profile.last_name.ilike.%${searchTerm}%,
+          doctor.specialty.name.ilike.%${searchTerm}%,
+          reason.ilike.%${searchTerm}%,
+          notes.ilike.%${searchTerm}%
+        `);
+      }
+
       const { data, error, count } = await query;
 
       if (error) throw error;
 
-      // Apply text search on frontend since we need to search across related tables
-      let filteredData = data || [];
-      
-      if (filters.searchTerm && filters.searchTerm.trim()) {
-        const searchLower = filters.searchTerm.toLowerCase().trim();
-        
-        filteredData = filteredData.filter(appointment => {
-          const patientFirstName = appointment.patient?.profile?.first_name?.toLowerCase() || '';
-          const patientLastName = appointment.patient?.profile?.last_name?.toLowerCase() || '';
-          const patientFullName = `${patientFirstName} ${patientLastName}`.trim();
-          const patientDni = appointment.patient?.profile?.dni?.toLowerCase() || '';
-          
-          const doctorFirstName = appointment.doctor?.profile?.first_name?.toLowerCase() || '';
-          const doctorLastName = appointment.doctor?.profile?.last_name?.toLowerCase() || '';
-          const doctorFullName = `${doctorFirstName} ${doctorLastName}`.trim();
-          const doctorSpecialty = appointment.doctor?.specialty?.name?.toLowerCase() || '';
-          
-          const reason = appointment.reason?.toLowerCase() || '';
-          const notes = appointment.notes?.toLowerCase() || '';
-
-          return patientFullName.includes(searchLower) ||
-                 patientFirstName.includes(searchLower) ||
-                 patientLastName.includes(searchLower) ||
-                 patientDni.includes(searchLower) ||
-                 doctorFullName.includes(searchLower) ||
-                 doctorFirstName.includes(searchLower) ||
-                 doctorLastName.includes(searchLower) ||
-                 doctorSpecialty.includes(searchLower) ||
-                 reason.includes(searchLower) ||
-                 notes.includes(searchLower);
-        });
-      }
-
       console.log('Search term:', filters.searchTerm);
-      console.log('Total appointments before filter:', data?.length || 0);
-      console.log('Appointments after search filter:', filteredData.length);
+      console.log('Database query results:', data?.length || 0);
+      console.log('Total count from database:', count || 0);
 
       return {
-        appointments: filteredData,
-        totalCount: filteredData.length,
-        totalPages: Math.ceil(filteredData.length / filters.limit)
+        appointments: data || [],
+        totalCount: count || 0,
+        totalPages: Math.ceil((count || 0) / filters.limit)
       };
     },
     enabled: !!profile,
