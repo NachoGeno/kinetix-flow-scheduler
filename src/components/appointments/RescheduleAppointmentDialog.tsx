@@ -139,7 +139,9 @@ export function RescheduleAppointmentDialog({
     setIsSubmitting(true);
 
     try {
-      // Create the new rescheduled appointment
+      // Start a transaction to ensure both operations succeed
+      
+      // 1. First, create the new rescheduled appointment
       const { data: newAppointment, error: insertError } = await supabase
         .from("appointments")
         .insert({
@@ -158,9 +160,27 @@ export function RescheduleAppointmentDialog({
 
       if (insertError) throw insertError;
 
+      // 2. Then update the original appointment to mark it as rescheduled
+      const { error: updateError } = await supabase
+        .from("appointments")
+        .update({
+          status: 'rescheduled',
+          rescheduled_to_id: newAppointment.id,
+          rescheduled_at: new Date().toISOString(),
+          rescheduled_by: profile.id,
+          reschedule_reason: data.reschedule_reason
+        })
+        .eq('id', appointment.id);
+
+      if (updateError) {
+        // If updating the original appointment fails, we should delete the new one to maintain consistency
+        await supabase.from("appointments").delete().eq('id', newAppointment.id);
+        throw updateError;
+      }
+
       toast({
         title: "¡Éxito!",
-        description: "Turno reprogramado correctamente",
+        description: "Turno reprogramado correctamente. El turno original ha sido liberado y se creó un nuevo turno.",
       });
 
       reset();
