@@ -659,7 +659,7 @@ export default function AppointmentsList() {
                     <div className="flex items-center space-x-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm">
-                        {format(new Date(appointment.appointment_date), 'PPP', { locale: es })}
+                        {format(new Date(appointment.appointment_date + 'T00:00:00'), 'PPP', { locale: es })}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">
