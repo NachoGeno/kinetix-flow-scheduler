@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, FileText, User, Calendar, Clock, CalendarPlus, Download, Eye } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, FileText, User, Calendar, Clock, CalendarPlus, Download, Eye, CalendarIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,11 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import MedicalOrderForm from '@/components/appointments/MedicalOrderForm';
 import AppointmentForm from '@/components/appointments/AppointmentForm';
 import MultiSessionAppointmentForm from '@/components/appointments/MultiSessionAppointmentForm';
@@ -74,6 +77,8 @@ export default function Orders() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState<Date>(new Date());
+  const [showAllDates, setShowAllDates] = useState(false);
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [isEditOrderOpen, setIsEditOrderOpen] = useState(false);
   const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
@@ -85,7 +90,7 @@ export default function Orders() {
 
   useEffect(() => {
     fetchOrders();
-  }, [profile]);
+  }, [profile, dateFilter, showAllDates]);
 
   const fetchOrders = async () => {
     if (!profile) return;
@@ -106,6 +111,12 @@ export default function Orders() {
           )
         `)
         .order('created_at', { ascending: false });
+
+      // Add date filter - by default show only today's orders
+      if (!showAllDates) {
+        const filterDate = format(dateFilter, 'yyyy-MM-dd');
+        query = query.eq('order_date', filterDate);
+      }
 
       // Filter based on user role
       if (profile.role === 'doctor') {
@@ -370,7 +381,7 @@ export default function Orders() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col lg:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -380,29 +391,68 @@ export default function Orders() {
             className="pl-10"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Estado" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los estados</SelectItem>
-            <SelectItem value="pending">Pendientes</SelectItem>
-            <SelectItem value="completed">Completadas</SelectItem>
-            <SelectItem value="pending_document">Pendientes de documento</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los tipos</SelectItem>
-            <SelectItem value="laboratory">Laboratorio</SelectItem>
-            <SelectItem value="imaging">Imagenología</SelectItem>
-            <SelectItem value="prescription">Prescripción</SelectItem>
-            <SelectItem value="referral">Derivación</SelectItem>
-          </SelectContent>
-        </Select>
+        
+        <div className="flex flex-col sm:flex-row gap-4">
+          {/* Date Filter */}
+          <div className="flex gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-48 justify-start text-left font-normal",
+                    !dateFilter && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateFilter ? format(dateFilter, "PPP", { locale: es }) : <span>Seleccionar fecha</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={dateFilter}
+                  onSelect={(date) => date && setDateFilter(date)}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            
+            <Button
+              variant={showAllDates ? "default" : "outline"}
+              onClick={() => setShowAllDates(!showAllDates)}
+              className="whitespace-nowrap"
+            >
+              {showAllDates ? "Solo fecha seleccionada" : "Todas las fechas"}
+            </Button>
+          </div>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los estados</SelectItem>
+              <SelectItem value="pending">Pendientes</SelectItem>
+              <SelectItem value="completed">Completadas</SelectItem>
+              <SelectItem value="pending_document">Pendientes de documento</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los tipos</SelectItem>
+              <SelectItem value="laboratory">Laboratorio</SelectItem>
+              <SelectItem value="imaging">Imagenología</SelectItem>
+              <SelectItem value="prescription">Prescripción</SelectItem>
+              <SelectItem value="referral">Derivación</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Orders List */}
