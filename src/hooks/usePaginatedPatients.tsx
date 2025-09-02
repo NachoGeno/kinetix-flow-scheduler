@@ -11,40 +11,24 @@ export function usePaginatedPatients(filters: PatientFilters) {
   return useQuery({
     queryKey: ['patients', 'paginated', filters],
     queryFn: async () => {
-      const from = (filters.page - 1) * filters.limit;
-      const to = from + filters.limit - 1;
-
-      let query = supabase
-        .from('patients')
-        .select(`
-          *,
-          profile:profiles(
-            first_name,
-            last_name,
-            dni,
-            email,
-            phone,
-            date_of_birth,
-            avatar_url
-          )
-        `, { count: 'exact' })
-        .eq('is_active', true)
-        .range(from, to)
-        .order('created_at', { ascending: false });
-
-      // Apply search filter on the server side
-      if (filters.searchTerm) {
-        query = query.or(`profile.first_name.ilike.%${filters.searchTerm}%,profile.last_name.ilike.%${filters.searchTerm}%,profile.email.ilike.%${filters.searchTerm}%,profile.dni.ilike.%${filters.searchTerm}%,medical_record_number.ilike.%${filters.searchTerm}%`);
-      }
-
-      const { data, error, count } = await query;
+      // Use the new PostgreSQL search function for better performance
+      const { data, error } = await supabase.rpc('search_patients_paginated', {
+        search_term: filters.searchTerm || null,
+        page_number: filters.page,
+        page_size: filters.limit
+      });
 
       if (error) throw error;
 
+      // Extract patients and count from the function result
+      const patients = data?.map((row: any) => row.patient_data) || [];
+      const totalCount = data?.[0]?.total_count || 0;
+      const totalPages = Math.ceil(totalCount / filters.limit);
+
       return {
-        patients: data || [],
-        totalCount: count || 0,
-        totalPages: Math.ceil((count || 0) / filters.limit)
+        patients,
+        totalCount,
+        totalPages
       };
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

@@ -1408,6 +1408,13 @@ export type Database = {
           total_count: number
         }[]
       }
+      search_patients_paginated: {
+        Args: { page_number?: number; page_size?: number; search_term?: string }
+        Returns: {
+          patient_data: Json
+          total_count: number
+        }[]
+      }
     }
     Enums: {
       appointment_status:

@@ -43,8 +43,8 @@ export default function Patients() {
   const { profile } = useAuth();
   const { toast } = useToast();
 
-  // Debounce search term to avoid excessive API calls
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  // Debounce search term to avoid excessive API calls - increased delay for better UX
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
   
   const pageSize = 50;
 
