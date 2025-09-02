@@ -30,7 +30,8 @@ import {
   FileDown,
   AlertCircle,
   Edit2,
-  Trash2
+  Trash2,
+  ExternalLink
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -1940,43 +1941,54 @@ export default function Presentaciones() {
               </Button>
             </div>
           </DialogHeader>
-          <div className="flex-1 min-h-0 border rounded-lg overflow-hidden">
-            {viewingDocument && (
-              <div className="w-full h-full">
-                {viewingDocument.type === 'pdf' ? (
-                  <div className="w-full h-full relative">
-                    <iframe
-                      src={viewingDocument.url}
-                      className="w-full h-full border-0"
-                      title={viewingDocument.name}
-                      style={{ minHeight: '500px' }}
-                      onLoad={() => console.log("📄 PDF loaded successfully")}
-                      onError={(e) => {
-                        console.error("❌ Error loading PDF in iframe:", e);
-                        toast.error("Error al cargar el PDF");
-                      }}
-                    />
-                  </div>
-                ) : viewingDocument.type === 'image' ? (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                    <img
-                      src={viewingDocument.url}
-                      alt={viewingDocument.name}
-                      className="max-w-full max-h-full object-contain"
-                      onLoad={() => console.log("🖼️ Image loaded successfully")}
-                      onError={() => {
-                        console.error("❌ Error loading image");
-                        toast.error("Error al cargar la imagen");
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                    <div className="text-center">
-                      <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                      <p className="text-gray-600 mb-4">
-                        No se puede previsualizar este tipo de archivo
-                      </p>
+           <div className="flex-1 min-h-0 border rounded-lg overflow-hidden">
+             {viewingDocument && (
+               <div className="w-full h-full">
+                 {viewingDocument.type === 'pdf' ? (
+                   <div className="w-full h-full relative">
+                     <object
+                       data={`${viewingDocument.url}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
+                       type="application/pdf"
+                       className="w-full h-full"
+                       style={{ minHeight: '500px' }}
+                       onLoad={() => console.log("📄 PDF loaded successfully")}
+                     >
+                       <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 p-8">
+                         <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                         <p className="text-gray-600 mb-4 text-center">
+                           No se puede previsualizar el PDF en este navegador
+                         </p>
+                         <Button
+                           variant="outline"
+                           onClick={() => window.open(viewingDocument.url, '_blank')}
+                           className="gap-2"
+                         >
+                           <ExternalLink className="h-4 w-4" />
+                           Abrir en nueva pestaña
+                         </Button>
+                       </div>
+                     </object>
+                   </div>
+                 ) : viewingDocument.type === 'image' ? (
+                   <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                     <img
+                       src={viewingDocument.url}
+                       alt={viewingDocument.name}
+                       className="max-w-full max-h-full object-contain"
+                       onLoad={() => console.log("🖼️ Image loaded successfully")}
+                       onError={() => {
+                         console.error("❌ Error loading image");
+                         toast.error("Error al cargar la imagen");
+                       }}
+                     />
+                   </div>
+                 ) : (
+                   <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                     <div className="text-center">
+                       <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                       <p className="text-gray-600 mb-4">
+                         No se puede previsualizar este tipo de archivo
+                       </p>
                       <p className="text-sm text-gray-500 mb-4">
                         Tipo: {viewingDocument.name.split('.').pop()?.toUpperCase()}
                       </p>
