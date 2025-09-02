@@ -34,13 +34,7 @@ export function usePaginatedPatients(filters: PatientFilters) {
 
       // Apply search filter on the server side
       if (filters.searchTerm) {
-        query = query.or(`
-          profile.first_name.ilike.%${filters.searchTerm}%,
-          profile.last_name.ilike.%${filters.searchTerm}%,
-          profile.email.ilike.%${filters.searchTerm}%,
-          profile.dni.ilike.%${filters.searchTerm}%,
-          medical_record_number.ilike.%${filters.searchTerm}%
-        `);
+        query = query.or(`profile.first_name.ilike.%${filters.searchTerm}%,profile.last_name.ilike.%${filters.searchTerm}%,profile.email.ilike.%${filters.searchTerm}%,profile.dni.ilike.%${filters.searchTerm}%,medical_record_number.ilike.%${filters.searchTerm}%`);
       }
 
       const { data, error, count } = await query;
