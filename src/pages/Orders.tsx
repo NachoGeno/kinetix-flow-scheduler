@@ -27,6 +27,7 @@ interface MedicalOrder {
   completed: boolean;
   completed_at: string | null;
   created_at: string;
+  order_date: string;
   art_provider: string | null;
   art_authorization_number: string | null;
   attachment_url: string | null;
@@ -474,18 +475,22 @@ export default function Orders() {
                       className="mb-3"
                     />
                   )}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <strong>Médico:</strong> Dr. {order.doctor?.profile?.first_name} {order.doctor?.profile?.last_name}
-                      <br />
-                      <span className="text-muted-foreground">{order.doctor?.specialty?.name}</span>
-                    </div>
-                    <div>
-                      <strong>Fecha de creación:</strong>
-                      <br />
-                      {format(new Date(order.created_at), 'PPP', { locale: es })}
-                    </div>
-                  </div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                     <div>
+                       <strong>Médico:</strong> Dr. {order.doctor?.profile?.first_name} {order.doctor?.profile?.last_name}
+                       <br />
+                       <span className="text-muted-foreground">{order.doctor?.specialty?.name}</span>
+                     </div>
+                     <div>
+                       <strong>Fecha de la orden:</strong>
+                       <br />
+                       {format(new Date(order.order_date), 'PPP', { locale: es })}
+                     </div>
+                   </div>
+
+                   <div className="text-sm text-muted-foreground">
+                     <strong>Fecha de creación en sistema:</strong> {format(new Date(order.created_at), 'PPP', { locale: es })}
+                   </div>
 
                   {order.instructions && (
                     <div>

@@ -7,6 +7,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,6 +22,7 @@ const formSchema = z.object({
   description: z.string().min(1, 'Describe la indicación médica'),
   instructions: z.string().optional(),
   sessions_count: z.number().min(1, 'Debe tener al menos 1 sesión').max(50, 'Máximo 50 sesiones'),
+  order_date: z.date({ required_error: 'Selecciona la fecha de la orden' }),
   obra_social_art_id: z.string().optional(),
   art_provider: z.string().optional(),
   art_authorization_number: z.string().optional(),
@@ -77,6 +84,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
       description: editOrder?.description || '',
       instructions: editOrder?.instructions || '',
       sessions_count: editOrder?.total_sessions || 1,
+      order_date: editOrder?.order_date ? new Date(editOrder.order_date) : new Date(),
       obra_social_art_id: editOrder?.obra_social_art_id || '',
       art_provider: editOrder?.art_provider || '',
       art_authorization_number: editOrder?.art_authorization_number || '',
@@ -206,6 +214,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
         order_type: 'prescription' as const,
         urgent: false,
         completed: editOrder ? editOrder.completed : false,
+        order_date: values.order_date.toISOString().split('T')[0],
         obra_social_art_id: values.obra_social_art_id || null,
         art_provider: values.art_provider || null,
         art_authorization_number: values.art_authorization_number || null,
@@ -395,6 +404,49 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
                   onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="order_date"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Fecha de la Orden</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full pl-3 text-left font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                    >
+                      {field.value ? (
+                        format(field.value, "PPP", { locale: es })
+                      ) : (
+                        <span>Selecciona la fecha de la orden</span>
+                      )}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                    disabled={(date) =>
+                      date > new Date() || date < new Date("1900-01-01")
+                    }
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
               <FormMessage />
             </FormItem>
           )}

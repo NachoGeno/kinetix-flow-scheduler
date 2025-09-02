@@ -554,6 +554,7 @@ export type Database = {
           id: string
           instructions: string | null
           obra_social_art_id: string | null
+          order_date: string
           order_type: Database["public"]["Enums"]["order_type"]
           patient_id: string
           presentation_status: string | null
@@ -580,6 +581,7 @@ export type Database = {
           id?: string
           instructions?: string | null
           obra_social_art_id?: string | null
+          order_date?: string
           order_type: Database["public"]["Enums"]["order_type"]
           patient_id: string
           presentation_status?: string | null
@@ -606,6 +608,7 @@ export type Database = {
           id?: string
           instructions?: string | null
           obra_social_art_id?: string | null
+          order_date?: string
           order_type?: Database["public"]["Enums"]["order_type"]
           patient_id?: string
           presentation_status?: string | null
