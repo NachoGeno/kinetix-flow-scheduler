@@ -13,6 +13,7 @@ import Doctors from "./pages/Doctors";
 import Orders from "./pages/Orders";
 import ObrasSociales from "./pages/ObrasSociales";
 import Presentaciones from "./pages/Presentaciones";
+import Billing from "./pages/Billing";
 import PlusPayments from "./pages/PlusPayments";
 import CashManagement from "./pages/CashManagement";
 import MedicalRecords from "./pages/MedicalRecords";
@@ -79,6 +80,11 @@ const App = () => (
             <Route path="/presentaciones" element={
               <ProtectedRoute>
                 <Presentaciones />
+              </ProtectedRoute>
+            } />
+            <Route path="/billing" element={
+              <ProtectedRoute>
+                <Billing />
               </ProtectedRoute>
             } />
             <Route path="/plus-payments" element={

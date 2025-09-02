@@ -121,6 +121,108 @@ export type Database = {
           },
         ]
       }
+      billing_export_templates: {
+        Row: {
+          column_config: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          obra_social_art_id: string
+          template_name: string
+          updated_at: string
+        }
+        Insert: {
+          column_config?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          obra_social_art_id: string
+          template_name: string
+          updated_at?: string
+        }
+        Update: {
+          column_config?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          obra_social_art_id?: string
+          template_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      billing_invoice_items: {
+        Row: {
+          billing_invoice_id: string
+          created_at: string
+          id: string
+          medical_order_id: string
+        }
+        Insert: {
+          billing_invoice_id: string
+          created_at?: string
+          id?: string
+          medical_order_id: string
+        }
+        Update: {
+          billing_invoice_id?: string
+          created_at?: string
+          id?: string
+          medical_order_id?: string
+        }
+        Relationships: []
+      }
+      billing_invoices: {
+        Row: {
+          created_at: string
+          created_by: string
+          file_name: string | null
+          file_url: string | null
+          id: string
+          invoice_number: string
+          obra_social_art_id: string
+          period_end: string
+          period_start: string
+          sent_at: string
+          status: string
+          total_amount: number | null
+          total_presentations: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          invoice_number: string
+          obra_social_art_id: string
+          period_end: string
+          period_start: string
+          sent_at?: string
+          status?: string
+          total_amount?: number | null
+          total_presentations?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          invoice_number?: string
+          obra_social_art_id?: string
+          period_end?: string
+          period_start?: string
+          sent_at?: string
+          status?: string
+          total_amount?: number | null
+          total_presentations?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cash_reconciliation: {
         Row: {
           calculated_balance: number
@@ -551,6 +653,7 @@ export type Database = {
           doctor_name: string | null
           document_status: string
           early_discharge: boolean | null
+          enviado_a_os: boolean | null
           id: string
           instructions: string | null
           obra_social_art_id: string | null
@@ -578,6 +681,7 @@ export type Database = {
           doctor_name?: string | null
           document_status?: string
           early_discharge?: boolean | null
+          enviado_a_os?: boolean | null
           id?: string
           instructions?: string | null
           obra_social_art_id?: string | null
@@ -605,6 +709,7 @@ export type Database = {
           doctor_name?: string | null
           document_status?: string
           early_discharge?: boolean | null
+          enviado_a_os?: boolean | null
           id?: string
           instructions?: string | null
           obra_social_art_id?: string | null

@@ -81,6 +81,13 @@ const navigationItems = [
     roles: ['admin', 'doctor']
   },
   {
+    title: "Facturación",
+    url: "/billing",
+    icon: FileText,
+    description: "Facturación por obra social y ART",
+    roles: ['admin', 'reception']
+  },
+  {
     title: "Plus",
     url: "/plus-payments",
     icon: DollarSign,
