@@ -226,11 +226,71 @@ export function ExportTemplateManager() {
                     <p className="text-sm text-muted-foreground">
                       Configure qué campos incluir y en qué orden aparecerán en el Excel
                     </p>
-                    {/* TODO: Add dynamic column configuration component */}
-                    <div className="p-4 border rounded-md">
-                      <p className="text-sm text-muted-foreground">
-                        Configurador de columnas - próximamente disponible
-                      </p>
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border rounded-md bg-muted/30">
+                        {AVAILABLE_FIELDS.map((field, index) => {
+                          const isSelected = form.watch("columnConfig").some(col => col.field === field.value);
+                          return (
+                            <div key={field.value} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={field.value}
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  const current = form.getValues("columnConfig") || [];
+                                  if (e.target.checked) {
+                                    form.setValue("columnConfig", [
+                                      ...current,
+                                      {
+                                        field: field.value,
+                                        label: field.label,
+                                        order: current.length
+                                      }
+                                    ]);
+                                  } else {
+                                    form.setValue("columnConfig", 
+                                      current.filter(col => col.field !== field.value)
+                                    );
+                                  }
+                                }}
+                                className="rounded"
+                              />
+                              <label 
+                                htmlFor={field.value}
+                                className="text-sm cursor-pointer flex-1"
+                              >
+                                {field.label}
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      {form.watch("columnConfig").length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-sm font-medium mb-2">Columnas seleccionadas ({form.watch("columnConfig").length}):</p>
+                          <div className="space-y-1">
+                            {form.watch("columnConfig").map((col, index) => (
+                              <div key={col.field} className="flex items-center justify-between p-2 bg-background border rounded text-sm">
+                                <span>{col.label}</span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const current = form.getValues("columnConfig");
+                                    form.setValue("columnConfig", 
+                                      current.filter(c => c.field !== col.field)
+                                    );
+                                  }}
+                                >
+                                  ×
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
