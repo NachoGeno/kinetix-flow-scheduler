@@ -24,7 +24,10 @@ interface BillingInvoiceData {
 
 export function useBilling() {
   const [obrasSociales, setObrasSociales] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -171,20 +174,86 @@ export function useBilling() {
 
   const generateExcelFile = async (invoiceId: string) => {
     try {
-      // TODO: Implement Excel generation logic
-      // This would involve:
-      // 1. Getting the export template for the obra social
-      // 2. Generating Excel file with configured columns
-      // 3. Uploading to Supabase storage
-      // 4. Updating invoice record with file URL
+      setIsGenerating(true);
       
-      console.log("Generating Excel file for invoice:", invoiceId);
+      // Get invoice details separately to avoid complex joins
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('billing_invoices')
+        .select(`
+          *,
+          obras_sociales_art!inner(nombre)
+        `)
+        .eq('id', invoiceId)
+        .single();
+
+      if (invoiceError) throw invoiceError;
+
+      // Get invoice items separately
+      const { data: invoiceItems, error: itemsError } = await supabase
+        .from('billing_invoice_items')
+        .select(`
+          medical_order_id,
+          medical_orders!inner(
+            id,
+            patient_id,
+            order_date,
+            total_sessions,
+            sessions_used,
+            completed_at,
+            order_type,
+            doctor_name,
+            patients!inner(
+              profile_id,
+              profiles!inner(first_name, last_name, dni)
+            )
+          )
+        `)
+        .eq('billing_invoice_id', invoiceId);
+
+      if (itemsError) throw itemsError;
+
+      // Get export template for this obra social
+      const { data: template } = await supabase
+        .from('billing_export_templates')
+        .select('column_config')
+        .eq('obra_social_art_id', invoice.obra_social_art_id)
+        .eq('is_active', true)
+        .single();
+
+      // Transform data for Excel generation
+      const presentations = invoiceItems.map((item: any) => ({
+        order_id: item.medical_orders.id,
+        patient_name: `${item.medical_orders.patients.profiles.first_name} ${item.medical_orders.patients.profiles.last_name}`,
+        patient_dni: item.medical_orders.patients.profiles.dni,
+        order_date: item.medical_orders.order_date,
+        total_sessions: item.medical_orders.total_sessions,
+        sessions_used: item.medical_orders.sessions_used,
+        completed_at: item.medical_orders.completed_at,
+        order_type: item.medical_orders.order_type,
+        doctor_name: item.medical_orders.doctor_name
+      }));
+
+      // Call edge function to generate Excel
+      const { data: result, error: functionError } = await supabase.functions.invoke('generate-billing-excel', {
+        body: {
+          invoiceId,
+          obraSocialId: invoice.obra_social_art_id,
+          presentations,
+          columnConfig: template?.column_config || []
+        }
+      });
+
+      if (functionError) throw functionError;
+      if (!result.success) throw new Error(result.error);
+
+      console.log('Excel generated successfully:', result.filename);
+      return result;
       
-      // Placeholder return
-      return { fileUrl: "", fileName: "" };
     } catch (error) {
-      console.error("Error generating Excel file:", error);
+      console.error('Error generating Excel:', error);
       throw error;
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -234,10 +303,37 @@ export function useBilling() {
 
   const downloadInvoiceFile = async (invoiceId: string, fileName: string) => {
     try {
-      // TODO: Implement file download logic from Supabase storage
-      console.log("Downloading file for invoice:", invoiceId, fileName);
+      // Get the file path from the invoice
+      const { data: invoice, error } = await supabase
+        .from('billing_invoices')
+        .select('file_url')
+        .eq('id', invoiceId)
+        .single();
+
+      if (error) throw error;
+      if (!invoice.file_url) throw new Error('No file available for download');
+
+      // Download from Supabase Storage
+      const { data, error: downloadError } = await supabase.storage
+        .from('billing-files')
+        .download(invoice.file_url);
+
+      if (downloadError) throw downloadError;
+
+      // Create download link
+      const url = window.URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      console.log('File downloaded successfully:', fileName);
     } catch (error) {
-      console.error("Error downloading invoice file:", error);
+      console.error('Error downloading file:', error);
       throw error;
     }
   };
@@ -332,7 +428,10 @@ export function useBilling() {
 
   return {
     obrasSociales,
+    invoices,
+    templates,
     loading,
+    isGenerating,
     getCompletedPresentations,
     createBillingInvoice,
     generateExcelFile,

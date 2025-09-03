@@ -28,11 +28,13 @@ type FormData = z.infer<typeof formSchema>;
 export function BillingForm() {
   const [selectedPresentations, setSelectedPresentations] = useState<string[]>([]);
   const [availablePresentations, setAvailablePresentations] = useState<any[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
   
   const { toast } = useToast();
   const { 
     obrasSociales, 
+    loading,
+    isGenerating,
     getCompletedPresentations, 
     createBillingInvoice,
     generateExcelFile 
@@ -91,48 +93,70 @@ export function BillingForm() {
     }
   };
 
-  const onSubmit = async (data: FormData) => {
+  const generatePreview = async (data: FormData) => {
     if (selectedPresentations.length === 0) {
       toast({
-        title: "Error",
-        description: "Debe seleccionar al menos una presentación",
+        title: "Seleccione presentaciones",
+        description: "Debe seleccionar al menos una presentación para previsualizar",
         variant: "destructive",
       });
       return;
     }
 
-    setIsGenerating(true);
+    const selectedData = availablePresentations.filter(p => 
+      selectedPresentations.includes(p.id)
+    );
+
+    setPreviewData({
+      obraSocialId: data.obraSocialId,
+      invoiceNumber: data.invoiceNumber,
+      periodStart: data.periodStart,
+      periodEnd: data.periodEnd,
+      presentations: selectedData,
+    });
+  };
+
+  const onSubmit = async (data: FormData) => {
+    if (selectedPresentations.length === 0) {
+      toast({
+        title: "Seleccione presentaciones",
+        description: "Debe seleccionar al menos una presentación para facturar",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      // Create billing invoice record
+      // Create billing invoice
       const invoice = await createBillingInvoice({
         obraSocialId: data.obraSocialId,
-        invoiceNumber: data.invoiceNumber,
         periodStart: data.periodStart,
         periodEnd: data.periodEnd,
+        invoiceNumber: data.invoiceNumber,
         selectedPresentations,
       });
 
       // Generate Excel file
-      const excelFile = await generateExcelFile(invoice.id);
-      
+      await generateExcelFile(invoice.id);
+
       toast({
-        title: "Facturación completada",
-        description: `Factura ${data.invoiceNumber} generada exitosamente`,
+        title: "Factura creada exitosamente",
+        description: `Se ha creado la factura N° ${data.invoiceNumber} y generado el archivo Excel`,
       });
 
       // Reset form
       form.reset();
       setSelectedPresentations([]);
       setAvailablePresentations([]);
+      setPreviewData(null);
       
     } catch (error) {
+      console.error('Error creating invoice:', error);
       toast({
-        title: "Error",
-        description: "Error al generar la facturación",
+        title: "Error al crear factura",
+        description: "Hubo un problema al procesar la facturación",
         variant: "destructive",
       });
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -311,20 +335,23 @@ export function BillingForm() {
                     {selectedPresentations.length} de {availablePresentations.length} seleccionadas
                   </span>
                   
-                  <Button
-                    type="submit"
-                    disabled={selectedPresentations.length === 0 || isGenerating}
-                    className="min-w-[200px]"
-                  >
-                    {isGenerating ? (
-                      "Generando..."
-                    ) : (
-                      <>
-                        <Download className="mr-2 h-4 w-4" />
-                        Generar Facturación
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      onClick={() => generatePreview(form.getValues())}
+                      disabled={loading || selectedPresentations.length === 0}
+                    >
+                      Vista Previa
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={isGenerating || selectedPresentations.length === 0}
+                      className="min-w-[200px]"
+                    >
+                      {isGenerating ? "Generando..." : "Crear Factura y Generar Excel"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -334,6 +361,28 @@ export function BillingForm() {
                 <p className="text-muted-foreground">
                   No se encontraron presentaciones completadas para el período seleccionado
                 </p>
+              </div>
+            )}
+
+            {previewData && (
+              <div className="mt-6 p-4 border rounded-lg bg-muted/30">
+                <h3 className="font-semibold mb-3">Vista Previa de la Facturación</h3>
+                <div className="space-y-2 text-sm">
+                  <p><strong>Factura N°:</strong> {previewData.invoiceNumber}</p>
+                  <p><strong>Período:</strong> {format(previewData.periodStart, "dd/MM/yyyy")} - {format(previewData.periodEnd, "dd/MM/yyyy")}</p>
+                  <p><strong>Presentaciones:</strong> {previewData.presentations.length}</p>
+                  <div className="mt-4">
+                    <p className="font-medium mb-2">Presentaciones incluidas:</p>
+                    <div className="max-h-40 overflow-y-auto space-y-1">
+                      {previewData.presentations.map((p: any) => (
+                        <div key={p.id} className="flex justify-between text-xs p-2 bg-background rounded">
+                          <span>{p.patient_name}</span>
+                          <span>{p.sessions_completed}/{p.total_sessions} sesiones</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </form>

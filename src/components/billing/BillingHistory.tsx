@@ -184,15 +184,15 @@ export function BillingHistory() {
                           <Eye className="h-4 w-4" />
                         </Button>
                         
-                        {invoice.file_url && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDownload(invoice.id, invoice.file_name)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownload(invoice.id, invoice.file_name)}
+                          disabled={!invoice.file_name}
+                          title={invoice.file_name ? "Descargar Excel" : "Excel no disponible"}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.recent-activity]
 verify_jwt = false
+
+[functions.generate-billing-excel]
+verify_jwt = false
