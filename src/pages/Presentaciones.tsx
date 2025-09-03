@@ -90,11 +90,23 @@ interface FilterState {
 
 export default function Presentaciones() {
   const { profile } = useAuth();
+  
+  // Establecer fechas por defecto: últimos 3 meses
+  const getDefaultDates = () => {
+    const today = new Date();
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(today.getMonth() - 3);
+    
+    return {
+      date_from: threeMonthsAgo.toISOString().split('T')[0],
+      date_to: today.toISOString().split('T')[0]
+    };
+  };
+  
   const [filters, setFilters] = useState<FilterState>({
     obra_social_id: '',
     professional: '',
-    date_from: '',
-    date_to: '',
+    ...getDefaultDates(),
     status: 'all',
     search_term: ''
   });
@@ -158,6 +170,7 @@ export default function Presentaciones() {
           baseQuery = baseQuery.eq("obra_social_art_id", filters.obra_social_id);
         }
 
+        // Los filtros de fecha son obligatorios para optimizar la carga
         if (filters.date_from) {
           baseQuery = baseQuery.gte("created_at", filters.date_from);
         }
@@ -1379,21 +1392,28 @@ export default function Presentaciones() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Fecha desde</Label>
+              <Label>Fecha desde *</Label>
               <Input
                 type="date"
                 value={filters.date_from}
                 onChange={(e) => setFilters(prev => ({ ...prev, date_from: e.target.value }))}
+                required
               />
             </div>
             <div className="space-y-2">
-              <Label>Fecha hasta</Label>
+              <Label>Fecha hasta *</Label>
               <Input
                 type="date"
                 value={filters.date_to}
                 onChange={(e) => setFilters(prev => ({ ...prev, date_to: e.target.value }))}
+                required
               />
             </div>
+          </div>
+          
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-blue-50 p-3 rounded-lg">
+            <Calendar className="h-4 w-4" />
+            <span>Las fechas están configuradas por defecto a los últimos 3 meses para optimizar el rendimiento de carga.</span>
           </div>
         </CardContent>
       </Card>
