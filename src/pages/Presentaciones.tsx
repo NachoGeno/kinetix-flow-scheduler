@@ -91,14 +91,14 @@ interface FilterState {
 export default function Presentaciones() {
   const { profile } = useAuth();
   
-  // Establecer fechas por defecto: últimos 3 meses
+  // Establecer fechas por defecto: última semana
   const getDefaultDates = () => {
     const today = new Date();
-    const threeMonthsAgo = new Date();
-    threeMonthsAgo.setMonth(today.getMonth() - 3);
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(today.getDate() - 7);
     
     return {
-      date_from: threeMonthsAgo.toISOString().split('T')[0],
+      date_from: oneWeekAgo.toISOString().split('T')[0],
       date_to: today.toISOString().split('T')[0]
     };
   };
@@ -1409,11 +1409,6 @@ export default function Presentaciones() {
                 required
               />
             </div>
-          </div>
-          
-          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-blue-50 p-3 rounded-lg">
-            <Calendar className="h-4 w-4" />
-            <span>Las fechas están configuradas por defecto a los últimos 3 meses para optimizar el rendimiento de carga.</span>
           </div>
         </CardContent>
       </Card>
