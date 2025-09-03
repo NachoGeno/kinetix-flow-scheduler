@@ -1333,6 +1333,7 @@ export type Database = {
       fix_medical_orders_data_integrity: {
         Args: Record<PropertyKey, never>
         Returns: {
+          action_taken: string
           new_completed: boolean
           new_sessions_used: number
           old_completed: boolean
