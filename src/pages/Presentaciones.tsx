@@ -171,13 +171,15 @@ export default function Presentaciones() {
         }
 
         // Los filtros de fecha son obligatorios para optimizar la carga
-        if (filters.date_from) {
-          baseQuery = baseQuery.gte("created_at", filters.date_from);
-        }
+        // Siempre aplicar filtros de fecha (usar valores por defecto si no hay)
+        const dateFrom = filters.date_from || getDefaultDates().date_from;
+        const dateTo = filters.date_to || getDefaultDates().date_to;
+        
+        baseQuery = baseQuery
+          .gte("created_at", dateFrom)
+          .lte("created_at", dateTo + "T23:59:59");
 
-        if (filters.date_to) {
-          baseQuery = baseQuery.lte("created_at", filters.date_to + "T23:59:59");
-        }
+        console.log(`📅 Aplicando filtros de fecha: ${dateFrom} a ${dateTo}`);
 
         if (filters.professional) {
           baseQuery = baseQuery.ilike("doctor_name", `%${filters.professional}%`);
