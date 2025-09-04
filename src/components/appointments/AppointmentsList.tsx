@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX, RotateCcw, ArrowRight, Info, Edit, CalendarIcon, X, LogOut } from 'lucide-react';
+import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX, RotateCcw, ArrowRight, Info, Edit, CalendarIcon, X, LogOut, Undo2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,8 +27,10 @@ import ResetNoShowDialog from './ResetNoShowDialog';
 import { RescheduleAppointmentDialog } from './RescheduleAppointmentDialog';
 import EditAppointmentDialog from './EditAppointmentDialog';
 import DischargePatientDialog from './DischargePatientDialog';
+import UndoAppointmentDialog from './UndoAppointmentDialog';
 import { usePatientNoShowsMultiple } from '@/hooks/usePatientNoShows';
 import { usePatientNoShowResets } from '@/hooks/usePatientNoShowResets';
+import { useCanUndoAppointment } from '@/hooks/useAppointmentHistory';
 
 interface Appointment {
   id: string;
@@ -120,6 +122,7 @@ export default function AppointmentsList() {
   const [isLoadingDischargeData, setIsLoadingDischargeData] = useState(false);
   const [showResetNoShowDialog, setShowResetNoShowDialog] = useState(false);
   const [patientToReset, setPatientToReset] = useState<{ patientId: string; patientName: string } | null>(null);
+  const [undoAppointment, setUndoAppointment] = useState<Appointment | null>(null);
   
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -743,11 +746,14 @@ export default function AppointmentsList() {
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
-                        )}
+                          )}
+
+                          {/* Undo Button */}
+                          <UndoButton appointment={appointment} onUndo={setUndoAppointment} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardHeader>
+                  </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex items-center space-x-2">
@@ -888,7 +894,48 @@ export default function AppointmentsList() {
             }}
           />
         )}
+
+        {undoAppointment && (
+          <UndoAppointmentDialog
+            isOpen={true}
+            onClose={() => setUndoAppointment(null)}
+            appointment={undoAppointment}
+            onSuccess={() => {
+              refetchAppointments();
+              setUndoAppointment(null);
+            }}
+          />
+        )}
       </div>
     </TooltipProvider>
+  );
+}
+
+// Separate component for the undo button to manage its own state and logic
+function UndoButton({ appointment, onUndo }: { 
+  appointment: Appointment; 
+  onUndo: (appointment: Appointment) => void; 
+}) {
+  const { profile } = useAuth();
+  const canUndo = useCanUndoAppointment(appointment.id);
+  
+  // Only show for admin/reception and for certain statuses within 24 hours
+  const shouldShowUndo = (profile?.role === 'admin' || profile?.role === 'reception') && 
+    canUndo && 
+    ['completed', 'no_show', 'no_show_session_lost', 'cancelled'].includes(appointment.status);
+  
+  if (!shouldShowUndo) return null;
+  
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      onClick={() => onUndo(appointment)}
+      className="text-muted-foreground hover:text-foreground"
+      title="Deshacer acción (disponible por 24 horas)"
+    >
+      <Undo2 className="h-3 w-3 mr-1" />
+      Deshacer
+    </Button>
   );
 }

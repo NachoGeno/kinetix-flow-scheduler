@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_status_history: {
+        Row: {
+          action_type: string
+          appointment_id: string
+          changed_at: string
+          changed_by: string
+          id: string
+          new_status: Database["public"]["Enums"]["appointment_status"]
+          old_status: Database["public"]["Enums"]["appointment_status"] | null
+          reason: string | null
+          revert_reason: string | null
+          reverted_at: string | null
+          reverted_by: string | null
+        }
+        Insert: {
+          action_type?: string
+          appointment_id: string
+          changed_at?: string
+          changed_by: string
+          id?: string
+          new_status: Database["public"]["Enums"]["appointment_status"]
+          old_status?: Database["public"]["Enums"]["appointment_status"] | null
+          reason?: string | null
+          revert_reason?: string | null
+          reverted_at?: string | null
+          reverted_by?: string | null
+        }
+        Update: {
+          action_type?: string
+          appointment_id?: string
+          changed_at?: string
+          changed_by?: string
+          id?: string
+          new_status?: Database["public"]["Enums"]["appointment_status"]
+          old_status?: Database["public"]["Enums"]["appointment_status"] | null
+          reason?: string | null
+          revert_reason?: string | null
+          reverted_at?: string | null
+          reverted_by?: string | null
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           appointment_date: string
@@ -1499,6 +1541,10 @@ export type Database = {
       }
       is_admin: {
         Args: { user_id: string }
+        Returns: boolean
+      }
+      revert_appointment_status: {
+        Args: { appointment_uuid: string; revert_reason_text: string }
         Returns: boolean
       }
       search_appointments_paginated: {
