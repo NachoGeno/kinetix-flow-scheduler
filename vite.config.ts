@@ -7,11 +7,11 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "0.0.0.0", // importante para Railway
-    port: parseInt(process.env.PORT) || 8080 // usa el puerto asignado por Railway o 8080 localmente
+    port: parseInt(process.env.PORT || "8080") // usa el puerto asignado por Railway o 8080 localmente
   },
   preview: {
     host: "0.0.0.0", // también para `vite preview`
-    port: parseInt(process.env.PORT) || 8080
+    port: parseInt(process.env.PORT || "8080")
   },
   plugins: [
     react(),
