@@ -7,9 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "start": "echo '▶ Iniciando preview en puerto: $PORT' && ls dist && vite preview --port $PORT --host 0.0.0.0",
+    "start": "vite preview --port ${PORT:-8080} --host 0.0.0.0",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "vite build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
