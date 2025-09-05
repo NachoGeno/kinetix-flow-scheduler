@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "start": "vite preview --port $PORT --host 0.0.0.0",
+    "start": "echo '▶ Iniciando preview en puerto: $PORT' && ls dist && vite preview --port $PORT --host 0.0.0.0",
     "lint": "eslint .",
     "preview": "vite preview"
   },
