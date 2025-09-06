@@ -1,52 +1,24 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
 
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: true,
-    port: 5173, // para desarrollo local
-  },
-  preview: {
-    host: "0.0.0.0", // para producción en Railway
-    port: 4173
-  },
-  plugins: [
-    react(),
-    mode === 'development' && componentTagger(),
-  ].filter(Boolean),
+export default defineConfig({
+  plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, 'src'),
     },
+  },
+  server: {
+    host: true,
+    port: 5173, // Solo para entorno local, Railway usa su propio $PORT
   },
   build: {
-    outDir: "dist",
+    outDir: 'dist',
     sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          'react-router': ['react-router-dom'],
-          'ui-radix': [
-            '@radix-ui/react-select',
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-popover'
-          ],
-          'ui-forms': [
-            'react-hook-form',
-            '@hookform/resolvers',
-            'zod'
-          ],
-          supabase: ['@supabase/supabase-js'],
-          'react-query': ['@tanstack/react-query'],
-          'date-utils': ['date-fns', 'react-day-picker'],
-          charts: ['recharts'],
-          pdf: ['jspdf', 'pdf-lib'],
-        },
-      },
-    },
   },
-}));
+  preview: {
+    port: process.env.PORT ? parseInt(process.env.PORT) : 8080,
+    host: '0.0.0.0',
+  },
+})
