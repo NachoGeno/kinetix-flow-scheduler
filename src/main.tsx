@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { OrganizationProvider } from "@/hooks/useOrganization";
+import { OrganizationContextProvider } from "@/hooks/useOrganizationContext";
 import App from './App.tsx'
 import './index.css'
 import { queryClient } from './lib/queryClient'
@@ -18,7 +19,9 @@ createRoot(document.getElementById("root")!).render(
         <TooltipProvider>
           <AuthProvider>
             <OrganizationProvider>
-              <App />
+              <OrganizationContextProvider>
+                <App />
+              </OrganizationContextProvider>
             </OrganizationProvider>
           </AuthProvider>
         </TooltipProvider>
