@@ -43,10 +43,10 @@ serve(async (req) => {
       throw new Error("Missing RESEND_API_KEY secret");
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") as string;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? '';
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? '';
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
       global: {
         headers: { Authorization: req.headers.get("Authorization") || "" },
       },

@@ -13,7 +13,6 @@ interface DashboardStats {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -27,35 +26,28 @@ Deno.serve(async (req) => {
     const today = new Date().toISOString().split('T')[0];
     const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
-    console.log('Fetching dashboard stats for date:', today);
-
-    // Execute all queries in parallel for better performance
     const [
       { count: activePatientsCount },
       { count: todayAppointmentsCount },
       { count: pendingOrdersCount },
       { data: monthlyAppointments }
     ] = await Promise.all([
-      // Active patients count
       supabaseClient
         .from('patients')
         .select('*', { count: 'exact', head: true })
         .eq('is_active', true),
       
-      // Today's appointments count
       supabaseClient
         .from('appointments')
         .select('*', { count: 'exact', head: true })
         .eq('appointment_date', today)
         .in('status', ['scheduled', 'confirmed', 'in_progress']),
       
-      // Pending medical orders count
       supabaseClient
         .from('medical_orders')
         .select('*', { count: 'exact', head: true })
         .eq('completed', false),
       
-      // Monthly appointments for completion rate
       supabaseClient
         .from('appointments')
         .select('status')
@@ -63,7 +55,6 @@ Deno.serve(async (req) => {
         .lte('appointment_date', today)
     ]);
 
-    // Calculate completion rate
     const completedCount = monthlyAppointments?.filter(apt => apt.status === 'completed').length || 0;
     const totalCount = monthlyAppointments?.length || 0;
     const completedSessionsRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -74,8 +65,6 @@ Deno.serve(async (req) => {
       pendingOrdersCount: pendingOrdersCount || 0,
       completedSessionsRate,
     };
-
-    console.log('Dashboard stats calculated:', stats);
 
     return new Response(JSON.stringify(stats), {
       headers: { 

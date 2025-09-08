@@ -21,7 +21,7 @@ const expenseSchema = z.object({
   description: z.string().min(1, 'La descripción es requerida'),
   expense_category_id: z.string().min(1, 'La categoría es requerida'),
   transaction_date: z.date({
-    required_error: 'La fecha es requerida',
+    message: 'La fecha es requerida',
   }),
   observations: z.string().optional(),
 });

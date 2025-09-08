@@ -18,8 +18,8 @@ import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   obraSocialId: z.string().min(1, "Debe seleccionar una obra social"),
-  periodStart: z.date({ required_error: "Fecha de inicio requerida" }),
-  periodEnd: z.date({ required_error: "Fecha de fin requerida" }),
+  periodStart: z.date({ message: "Fecha de inicio requerida" }),
+  periodEnd: z.date({ message: "Fecha de fin requerida" }),
   invoiceNumber: z.string().min(1, "Número de factura requerido"),
 });
 

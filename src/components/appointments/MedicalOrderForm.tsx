@@ -22,7 +22,7 @@ const formSchema = z.object({
   description: z.string().min(1, 'Describe la indicación médica'),
   instructions: z.string().optional(),
   sessions_count: z.number().min(1, 'Debe tener al menos 1 sesión').max(50, 'Máximo 50 sesiones'),
-  order_date: z.date({ required_error: 'Selecciona la fecha de la orden' }),
+  order_date: z.date({ message: 'Selecciona la fecha de la orden' }),
   obra_social_art_id: z.string().optional(),
   art_provider: z.string().optional(),
   art_authorization_number: z.string().optional(),

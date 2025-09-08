@@ -19,7 +19,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const shiftReconciliationSchema = z.object({
   reconciliation_date: z.date({
-    required_error: 'La fecha es requerida',
+    message: 'La fecha es requerida',
   }),
   shift_type: z.enum(['morning', 'afternoon', 'full_day']),
   opening_balance: z.number().min(0, 'El saldo inicial debe ser mayor o igual a 0'),
