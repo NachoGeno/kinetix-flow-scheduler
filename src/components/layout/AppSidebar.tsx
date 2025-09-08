@@ -134,8 +134,6 @@ const adminItems = [
 ];
 
 export function AppSidebar() {
-  const { open, state } = useSidebar();
-  const collapsed = state === "collapsed";
   const location = useLocation();
   const currentPath = location.pathname;
   const { profile } = useAuth();
@@ -169,7 +167,7 @@ export function AppSidebar() {
       className="border-r border-sidebar-border"
       collapsible="icon"
     >
-      <SidebarHeader className={collapsed ? "p-2" : "p-6"}>
+      <SidebarHeader className="p-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
             <img 
@@ -178,16 +176,14 @@ export function AppSidebar() {
               className="w-8 h-8 object-contain"
             />
           </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <h2 className="font-semibold text-lg text-sidebar-foreground truncate">
-                Rehabilitare
-              </h2>
-              <p className="text-sm text-sidebar-foreground/70 truncate">
-                Centro de Kinesiología
-              </p>
-            </div>
-          )}
+          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+            <h2 className="font-semibold text-lg text-sidebar-foreground truncate">
+              Rehabilitare
+            </h2>
+            <p className="text-sm text-sidebar-foreground/70 truncate">
+              Centro de Kinesiología
+            </p>
+          </div>
         </div>
       </SidebarHeader>
 
@@ -207,9 +203,7 @@ export function AppSidebar() {
                       title={item.description}
                     >
                       <item.icon className="w-5 h-5 flex-shrink-0" />
-                      {!collapsed && (
-                        <span className="font-medium truncate">{item.title}</span>
-                      )}
+                      <span className="font-medium truncate group-data-[collapsible=icon]:hidden">{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -234,9 +228,7 @@ export function AppSidebar() {
                       title={item.description}
                     >
                        <item.icon className="w-5 h-5 flex-shrink-0" />
-                       {!collapsed && (
-                         <span className="font-medium truncate">{item.title}</span>
-                       )}
+                       <span className="font-medium truncate group-data-[collapsible=icon]:hidden">{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
