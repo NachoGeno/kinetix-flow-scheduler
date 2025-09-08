@@ -19,7 +19,7 @@ interface UserProfile {
   first_name: string;
   last_name: string;
   email: string;
-  role: 'admin' | 'doctor' | 'patient' | 'reception';
+  role: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin';
   phone: string | null;
   created_at: string;
   avatar_url: string | null;
@@ -31,7 +31,7 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [newRole, setNewRole] = useState<'admin' | 'doctor' | 'patient' | 'reception'>('patient');
+  const [newRole, setNewRole] = useState<'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin'>('patient');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function UserManagement() {
     }
   };
 
-  const updateUserRole = async (userId: string, newRole: 'admin' | 'doctor' | 'patient' | 'reception') => {
+  const updateUserRole = async (userId: string, newRole: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin') => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -252,7 +252,7 @@ export default function UserManagement() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="role">Rol</Label>
-                            <Select value={newRole} onValueChange={(value: 'admin' | 'doctor' | 'patient' | 'reception') => setNewRole(value)}>
+                            <Select value={newRole} onValueChange={(value: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin') => setNewRole(value)}>
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
@@ -261,6 +261,7 @@ export default function UserManagement() {
                                 <SelectItem value="doctor">Doctor</SelectItem>
                                 <SelectItem value="patient">Paciente</SelectItem>
                                 <SelectItem value="reception">Recepción</SelectItem>
+                                <SelectItem value="super_admin">Super Admin</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
