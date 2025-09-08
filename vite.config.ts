@@ -29,6 +29,10 @@ export default defineConfig({
       output: {
         manualChunks: undefined,
       },
+      external: [],
     },
+  },
+  optimizeDeps: {
+    force: true,
   },
 })
