@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "serve dist -l $PORT",
-    "preview": "vite preview",
+    "start": "serve dist -s -n -L -p $PORT",
+    "preview": "vite preview --host 0.0.0.0 --port $PORT",
     "postinstall": "vite build"
   },
   "dependencies": {
