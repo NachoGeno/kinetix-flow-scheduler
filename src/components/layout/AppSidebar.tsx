@@ -134,9 +134,14 @@ const adminItems = [
 ];
 
 export function AppSidebar() {
+  console.log("AppSidebar component rendering");
+  
   const location = useLocation();
   const currentPath = location.pathname;
   const { profile } = useAuth();
+  
+  console.log("Profile:", profile);
+  console.log("Current path:", currentPath);
 
   const filteredNavigationItems = navigationItems.filter(item => {
     if (!item.roles || !profile?.role) return true;
