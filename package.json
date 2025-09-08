@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "npx http-server dist -p $PORT --host 0.0.0.0 --cors"
+    "start": "node server.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -47,7 +47,8 @@
     "serve": "^14.2.0",
     "tailwindcss": "^3.4.17",
     "vite": "^5.4.19",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "express": "^4.18.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
