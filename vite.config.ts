@@ -15,7 +15,7 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    port: process.env.NODE_ENV === 'development' ? 8080 : parseInt(process.env.PORT || '4173'),
+    port: 8080,
   },
   preview: {
     host: '0.0.0.0',
