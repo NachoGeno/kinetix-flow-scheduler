@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "install": "echo 'No-op install script for Nixpacks'",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
