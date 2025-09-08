@@ -11,4 +11,4 @@ cmds = ["rm -rf node_modules package-lock.json yarn.lock", "yarn install --ignor
 cmds = ["yarn run build"]
 
 [start]
-cmd = "yarn preview"
+cmd = "yarn start"
