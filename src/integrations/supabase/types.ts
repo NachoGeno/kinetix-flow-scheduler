@@ -67,7 +67,7 @@ export type Database = {
           id: string
           no_show_reason: string | null
           notes: string | null
-          organization_id: string | null
+          organization_id: string
           pardon_reason: string | null
           pardoned_at: string | null
           pardoned_by: string | null
@@ -93,7 +93,7 @@ export type Database = {
           id?: string
           no_show_reason?: string | null
           notes?: string | null
-          organization_id?: string | null
+          organization_id: string
           pardon_reason?: string | null
           pardoned_at?: string | null
           pardoned_by?: string | null
@@ -119,7 +119,7 @@ export type Database = {
           id?: string
           no_show_reason?: string | null
           notes?: string | null
-          organization_id?: string | null
+          organization_id?: string
           pardon_reason?: string | null
           pardoned_at?: string | null
           pardoned_by?: string | null
@@ -356,7 +356,7 @@ export type Database = {
           id: string
           medical_order_id: string | null
           observations: string | null
-          organization_id: string | null
+          organization_id: string
           patient_id: string | null
           plus_payment_id: string | null
           transaction_date: string
@@ -372,7 +372,7 @@ export type Database = {
           id?: string
           medical_order_id?: string | null
           observations?: string | null
-          organization_id?: string | null
+          organization_id: string
           patient_id?: string | null
           plus_payment_id?: string | null
           transaction_date?: string
@@ -388,7 +388,7 @@ export type Database = {
           id?: string
           medical_order_id?: string | null
           observations?: string | null
-          organization_id?: string | null
+          organization_id?: string
           patient_id?: string | null
           plus_payment_id?: string | null
           transaction_date?: string
@@ -489,7 +489,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           license_number: string
-          organization_id: string | null
+          organization_id: string
           profile_id: string
           schedule_notes: string | null
           specialty_id: string
@@ -508,7 +508,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           license_number: string
-          organization_id?: string | null
+          organization_id: string
           profile_id: string
           schedule_notes?: string | null
           specialty_id: string
@@ -527,7 +527,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           license_number?: string
-          organization_id?: string | null
+          organization_id?: string
           profile_id?: string
           schedule_notes?: string | null
           specialty_id?: string
@@ -636,7 +636,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
-          organization_id: string | null
+          organization_id: string
           updated_at: string
         }
         Insert: {
@@ -645,7 +645,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
-          organization_id?: string | null
+          organization_id: string
           updated_at?: string
         }
         Update: {
@@ -654,7 +654,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
-          organization_id?: string | null
+          organization_id?: string
           updated_at?: string
         }
         Relationships: [
@@ -742,7 +742,7 @@ export type Database = {
           obra_social_art_id: string | null
           order_date: string
           order_type: Database["public"]["Enums"]["order_type"]
-          organization_id: string | null
+          organization_id: string
           patient_id: string
           presentation_status: string | null
           results: string | null
@@ -771,7 +771,7 @@ export type Database = {
           obra_social_art_id?: string | null
           order_date?: string
           order_type: Database["public"]["Enums"]["order_type"]
-          organization_id?: string | null
+          organization_id: string
           patient_id: string
           presentation_status?: string | null
           results?: string | null
@@ -800,7 +800,7 @@ export type Database = {
           obra_social_art_id?: string | null
           order_date?: string
           order_type?: Database["public"]["Enums"]["order_type"]
-          organization_id?: string | null
+          organization_id?: string
           patient_id?: string
           presentation_status?: string | null
           results?: string | null
@@ -856,7 +856,7 @@ export type Database = {
           diagnosis: string | null
           follow_up_notes: string | null
           id: string
-          organization_id: string | null
+          organization_id: string
           patient_id: string
           physical_examination: string | null
           prescription: string | null
@@ -873,7 +873,7 @@ export type Database = {
           diagnosis?: string | null
           follow_up_notes?: string | null
           id?: string
-          organization_id?: string | null
+          organization_id: string
           patient_id: string
           physical_examination?: string | null
           prescription?: string | null
@@ -890,7 +890,7 @@ export type Database = {
           diagnosis?: string | null
           follow_up_notes?: string | null
           id?: string
-          organization_id?: string | null
+          organization_id?: string
           patient_id?: string
           physical_examination?: string | null
           prescription?: string | null
@@ -938,7 +938,7 @@ export type Database = {
           created_at: string
           fecha: string
           id: string
-          organization_id: string | null
+          organization_id: string
           turno: Database["public"]["Enums"]["shift_type"]
           updated_at: string
           urgente: boolean | null
@@ -950,7 +950,7 @@ export type Database = {
           created_at?: string
           fecha?: string
           id?: string
-          organization_id?: string | null
+          organization_id: string
           turno?: Database["public"]["Enums"]["shift_type"]
           updated_at?: string
           urgente?: boolean | null
@@ -962,7 +962,7 @@ export type Database = {
           created_at?: string
           fecha?: string
           id?: string
-          organization_id?: string | null
+          organization_id?: string
           turno?: Database["public"]["Enums"]["shift_type"]
           updated_at?: string
           urgente?: boolean | null
@@ -987,7 +987,7 @@ export type Database = {
           id: string
           is_active: boolean
           nombre: string
-          organization_id: string | null
+          organization_id: string
           responsable_contacto: string | null
           telefono: string | null
           tipo: Database["public"]["Enums"]["insurance_type"]
@@ -1002,7 +1002,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           nombre: string
-          organization_id?: string | null
+          organization_id: string
           responsable_contacto?: string | null
           telefono?: string | null
           tipo: Database["public"]["Enums"]["insurance_type"]
@@ -1017,7 +1017,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           nombre?: string
-          organization_id?: string | null
+          organization_id?: string
           responsable_contacto?: string | null
           telefono?: string | null
           tipo?: Database["public"]["Enums"]["insurance_type"]
@@ -1129,7 +1129,7 @@ export type Database = {
           is_active: boolean | null
           medical_record_number: string | null
           obra_social_art_id: string | null
-          organization_id: string | null
+          organization_id: string
           profile_id: string
           updated_at: string
         }
@@ -1144,7 +1144,7 @@ export type Database = {
           is_active?: boolean | null
           medical_record_number?: string | null
           obra_social_art_id?: string | null
-          organization_id?: string | null
+          organization_id: string
           profile_id: string
           updated_at?: string
         }
@@ -1159,7 +1159,7 @@ export type Database = {
           is_active?: boolean | null
           medical_record_number?: string | null
           obra_social_art_id?: string | null
-          organization_id?: string | null
+          organization_id?: string
           profile_id?: string
           updated_at?: string
         }
@@ -1195,7 +1195,7 @@ export type Database = {
           id: string
           medical_order_id: string
           observations: string | null
-          organization_id: string | null
+          organization_id: string
           patient_id: string
           payment_date: string
           payment_method: Database["public"]["Enums"]["payment_method"]
@@ -1209,7 +1209,7 @@ export type Database = {
           id?: string
           medical_order_id: string
           observations?: string | null
-          organization_id?: string | null
+          organization_id: string
           patient_id: string
           payment_date?: string
           payment_method: Database["public"]["Enums"]["payment_method"]
@@ -1223,7 +1223,7 @@ export type Database = {
           id?: string
           medical_order_id?: string
           observations?: string | null
-          organization_id?: string | null
+          organization_id?: string
           patient_id?: string
           payment_date?: string
           payment_method?: Database["public"]["Enums"]["payment_method"]
@@ -1307,7 +1307,7 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
-          organization_id: string | null
+          organization_id: string
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
@@ -1325,7 +1325,7 @@ export type Database = {
           first_name: string
           id?: string
           last_name: string
-          organization_id?: string | null
+          organization_id: string
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
@@ -1343,7 +1343,7 @@ export type Database = {
           first_name?: string
           id?: string
           last_name?: string
-          organization_id?: string | null
+          organization_id?: string
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
@@ -1433,7 +1433,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
-          organization_id: string | null
+          organization_id: string
           updated_at: string
         }
         Insert: {
@@ -1442,7 +1442,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
-          organization_id?: string | null
+          organization_id: string
           updated_at?: string
         }
         Update: {
@@ -1451,7 +1451,7 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
-          organization_id?: string | null
+          organization_id?: string
           updated_at?: string
         }
         Relationships: [
@@ -1469,7 +1469,7 @@ export type Database = {
           created_at: string
           id: string
           medical_order_id: string
-          organization_id: string | null
+          organization_id: string
           patient_id: string
           template_data: Json | null
           updated_at: string
@@ -1478,7 +1478,7 @@ export type Database = {
           created_at?: string
           id?: string
           medical_order_id: string
-          organization_id?: string | null
+          organization_id: string
           patient_id: string
           template_data?: Json | null
           updated_at?: string
@@ -1487,7 +1487,7 @@ export type Database = {
           created_at?: string
           id?: string
           medical_order_id?: string
-          organization_id?: string | null
+          organization_id?: string
           patient_id?: string
           template_data?: Json | null
           updated_at?: string
