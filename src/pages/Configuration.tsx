@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import UserManagement from '@/components/admin/UserManagement';
 import RoleManagement from '@/components/admin/RoleManagement';
 import EmailSettingsForm from '@/components/email/EmailSettingsForm';
-import { Shield, Users, Settings as SettingsIcon } from 'lucide-react';
+import { Shield, Users, Settings as SettingsIcon, Building2 } from 'lucide-react';
 
 export default function Configuration() {
   const { profile } = useAuth();
 
-  // Verificar que el usuario sea administrador
-  if (!profile || profile.role !== 'admin') {
+  // Verificar que el usuario sea administrador o super_admin
+  if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Card className="w-full max-w-md">
@@ -70,6 +71,29 @@ export default function Configuration() {
           <EmailSettingsForm />
         </TabsContent>
       </Tabs>
+
+      {/* Panel SaaS para Super Admin */}
+      {profile?.role === 'super_admin' && (
+        <Card className="mt-8 border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-900">
+              <Building2 className="h-5 w-5" />
+              Panel Super Admin - Sistema SaaS
+            </CardTitle>
+            <CardDescription className="text-blue-700">
+              Accede al panel de administración global para gestionar todas las organizaciones del sistema multiempresa.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
+              <a href="/saas-admin">
+                <Building2 className="mr-2 h-4 w-4" />
+                Ir al Panel SaaS
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
