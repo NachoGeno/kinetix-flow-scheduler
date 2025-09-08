@@ -35,7 +35,11 @@ export interface PlusPaymentReport {
   observations: string;
 }
 
+import { useOrganizationContext } from "./useOrganizationContext";
+
 export function usePlusPayments() {
+  const { currentOrgId } = useOrganizationContext();
+  
   const createPlusPayment = useCallback(async (payment: PlusPayment) => {
     try {
       console.log('Creating plus payment:', payment);
@@ -55,7 +59,10 @@ export function usePlusPayments() {
 
       const { data, error } = await supabase
         .from('plus_payments')
-        .insert(payment)
+        .insert({
+          ...payment,
+          organization_id: currentOrgId,
+        })
         .select()
         .single();
 

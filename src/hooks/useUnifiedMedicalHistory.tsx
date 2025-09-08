@@ -2,7 +2,11 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+import { useOrganizationContext } from "./useOrganizationContext";
+
 export function useUnifiedMedicalHistory() {
+  const { currentOrgId } = useOrganizationContext();
+  
   const createOrUpdateMedicalHistoryEntry = useCallback(async (
     appointmentId: string,
     medicalOrderId: string | null,
@@ -48,7 +52,8 @@ export function useUnifiedMedicalHistory() {
           .insert({
             medical_order_id: medicalOrderId,
             patient_id: medicalOrder.patient_id,
-            template_data: {}
+            template_data: {},
+            organization_id: currentOrgId,
           })
           .select('id')
           .single();

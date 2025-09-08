@@ -66,9 +66,12 @@ export interface CashReconciliation {
   observations?: string;
 }
 
+import { useOrganizationContext } from "@/hooks/useOrganizationContext";
+
 export function useCashTransactions() {
   const [loading, setLoading] = useState(false);
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
+  const { currentOrgId } = useOrganizationContext();
 
   // Fetch expense categories
   const fetchExpenseCategories = async () => {
@@ -119,6 +122,7 @@ export function useCashTransactions() {
           expense_category_id: transaction.expense_category_id,
           created_by: profile.id,
           observations: transaction.observations,
+          organization_id: currentOrgId,
         })
         .select(`
           *,

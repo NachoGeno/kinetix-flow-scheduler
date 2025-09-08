@@ -40,6 +40,8 @@ interface ObraSocial {
 
 type PatientFormData = z.infer<typeof patientSchema>;
 
+import { useOrganizationContext } from "@/hooks/useOrganizationContext";
+
 interface PatientFormProps {
   onSuccess: () => void;
   onCancel: () => void;
@@ -65,6 +67,7 @@ export default function PatientForm({ onSuccess, onCancel, patient, isEditing = 
   const [obrasSociales, setObrasSociales] = useState<ObraSocial[]>([]);
   const { toast } = useToast();
   const { profile } = useAuth();
+  const { currentOrgId } = useOrganizationContext();
 
   const form = useForm<PatientFormData>({
     resolver: zodResolver(patientSchema),
@@ -231,7 +234,8 @@ export default function PatientForm({ onSuccess, onCancel, patient, isEditing = 
             dni: data.dni,
             phone: data.phone,
             date_of_birth: data.date_of_birth || null,
-            role: 'patient'
+             role: 'patient',
+             organization_id: currentOrgId,
           })
           .select()
           .single();
@@ -269,6 +273,7 @@ export default function PatientForm({ onSuccess, onCancel, patient, isEditing = 
             profile_id: profileData.id,
             obra_social_art_id: data.obra_social_art_id || null,
             insurance_number: data.insurance_number || null,
+            organization_id: currentOrgId,
           });
 
         if (patientError) {

@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
@@ -72,6 +73,8 @@ interface Doctor {
   };
 }
 
+import { useOrganizationContext } from "@/hooks/useOrganizationContext";
+
 interface ProfessionalFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -93,6 +96,8 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData }: Profession
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [workDays, setWorkDays] = useState<string[]>(['monday', 'tuesday', 'wednesday', 'thursday', 'friday']);
   const { toast } = useToast();
+  const { profile } = useAuth();
+  const { currentOrgId } = useOrganizationContext();
 
   const form = useForm<ProfessionalFormData>({
     resolver: zodResolver(professionalFormSchema),
@@ -253,6 +258,7 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData }: Profession
             phone: data.phone,
             dni: data.dni,
             role: 'doctor' as const,
+            organization_id: currentOrgId,
           })
           .select()
           .single();
@@ -283,6 +289,7 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData }: Profession
             work_end_time: data.work_end_time,
             appointment_duration: data.appointment_duration,
             is_active: true,
+            organization_id: currentOrgId,
           });
 
         if (doctorError) {

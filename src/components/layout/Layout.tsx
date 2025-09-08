@@ -8,7 +8,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <SidebarProvider defaultOpen={true} collapsedWidth={56}>
+    <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen flex w-full bg-gradient-subtle">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
