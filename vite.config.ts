@@ -12,8 +12,13 @@ export default defineConfig({
   build: {
     outDir: "dist"
   },
+  server: {
+    host: "::",
+    port: 8080,
+  },
   preview: {
     host: "0.0.0.0",
-    port: parseInt(process.env.PORT) || 4173,
+    port: parseInt(process.env.PORT || "4173"),
+    allowedHosts: true,
   },
 });

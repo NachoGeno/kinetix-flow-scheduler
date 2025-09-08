@@ -1,11 +1,11 @@
-[phases.setup]
-nixPkgs = ["nodejs_22", "bun"]
+[variables]
+PORT = "4173"
 
-[phases.install]
-cmds = ["npm ci"]
+[phases.setup]
+nixPkgs = ["nodejs_22"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["npm ci", "npm run build"]
 
 [start]
-cmd = "serve dist -s -n -L -p $PORT"
+cmd = "npm run preview -- --host 0.0.0.0 --port ${PORT:-4173}"
