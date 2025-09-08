@@ -950,6 +950,60 @@ export type Database = {
         }
         Relationships: []
       }
+      organizations: {
+        Row: {
+          address: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          max_patients: number | null
+          max_users: number | null
+          name: string
+          plan_type: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          subdomain: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          max_patients?: number | null
+          max_users?: number | null
+          name: string
+          plan_type?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          subdomain?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          max_patients?: number | null
+          max_users?: number | null
+          name?: string
+          plan_type?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          subdomain?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       patient_noshow_resets: {
         Row: {
           appointments_affected: number
@@ -1149,6 +1203,7 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
+          organization_id: string | null
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
@@ -1166,6 +1221,7 @@ export type Database = {
           first_name: string
           id?: string
           last_name: string
+          organization_id?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
@@ -1183,12 +1239,21 @@ export type Database = {
           first_name?: string
           id?: string
           last_name?: string
+          organization_id?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       progress_notes: {
         Row: {
@@ -1420,6 +1485,10 @@ export type Database = {
           total_appointments: number
         }[]
       }
+      get_current_user_organization_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_current_user_profile_id: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -1540,6 +1609,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       is_admin: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
+      is_super_admin: {
         Args: { user_id: string }
         Returns: boolean
       }
