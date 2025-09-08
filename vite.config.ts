@@ -11,7 +11,7 @@ export default defineConfig({
   },
   server: {
     host: true,
-    port: 5173, // Solo para entorno local, Railway usa su propio $PORT
+    port: 8080,
   },
   build: {
     outDir: 'dist',

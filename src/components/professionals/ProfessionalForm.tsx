@@ -31,7 +31,7 @@ const professionalFormSchema = z.object({
   consultation_fee: z.number().min(0, 'La tarifa no puede ser negativa'),
   bio: z.string().optional(),
   hire_date: z.date({
-    required_error: 'La fecha de alta es requerida',
+    message: 'La fecha de alta es requerida',
   }),
   work_days: z.array(z.string()).min(1, 'Debe seleccionar al menos un día de trabajo'),
   work_start_time: z.string().min(1, 'La hora de inicio es requerida'),

@@ -19,7 +19,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const reconciliationSchema = z.object({
   reconciliation_date: z.date({
-    required_error: 'La fecha es requerida',
+    message: 'La fecha es requerida',
   }),
   opening_balance: z.number().min(0, 'El saldo inicial debe ser mayor o igual a 0'),
   physical_count: z.number().min(0, 'El conteo físico debe ser mayor o igual a 0'),

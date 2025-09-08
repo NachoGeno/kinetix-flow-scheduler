@@ -31,7 +31,7 @@ const formSchema = z.object({
   medical_order_id: z.string().optional(),
   doctor_id: z.string().min(1, 'Selecciona un doctor'),
   appointment_date: z.date({
-    required_error: 'Selecciona una fecha',
+    message: 'Selecciona una fecha',
   }),
   appointment_time: z.string().min(1, 'Selecciona una hora'),
   reason: z.string().min(1, 'Describe el motivo de la consulta'),

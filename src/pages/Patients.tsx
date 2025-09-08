@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Users, Phone, Mail, Calendar, IdCard, Trash2, Edit } from 'lucide-react';
+import { Search, Plus, Users, Phone, Mail, Calendar, CreditCard, Trash2, Edit } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -240,7 +240,7 @@ export default function Patients() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {patient.profile?.dni && (
                     <div className="flex items-center space-x-2">
-                      <IdCard className="h-4 w-4 text-muted-foreground" />
+                      <CreditCard className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm">DNI: {patient.profile.dni}</span>
                     </div>
                   )}
