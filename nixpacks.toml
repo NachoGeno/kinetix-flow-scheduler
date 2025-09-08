@@ -1,7 +1,7 @@
 [variables]
 
 [phases.setup]
-nixPkgs = ["nodejs_22", "yarn"]
+nixPkgs = ["nodejs-20_x", "yarn"]
 
 [phases.install]
 cmds = ["rm -rf node_modules package-lock.json yarn.lock", "yarn install --ignore-optional", "yarn add @rollup/rollup-linux-x64-gnu --dev --ignore-optional"]

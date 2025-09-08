@@ -19,17 +19,11 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false,
     rollupOptions: {
       output: {
         manualChunks: undefined,
       },
     },
   },
-  optimizeDeps: {
-    exclude: ['@rollup/rollup-linux-x64-gnu']
-  },
-  define: {
-    global: 'globalThis',
-  }
 })
