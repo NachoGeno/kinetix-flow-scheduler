@@ -1,5 +1,4 @@
 [variables]
-PORT = "4173"
 
 [phases.setup]
 nixPkgs = ["nodejs_22", "yarn"]
@@ -11,4 +10,4 @@ cmds = ["rm -rf node_modules package-lock.json yarn.lock", "yarn install --ignor
 cmds = ["yarn run build"]
 
 [start]
-cmd = "yarn start"
+cmd = "npm run start"
