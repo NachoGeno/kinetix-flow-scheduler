@@ -134,14 +134,9 @@ const adminItems = [
 ];
 
 export function AppSidebar() {
-  console.log("AppSidebar component rendering");
-  
   const location = useLocation();
   const currentPath = location.pathname;
   const { profile } = useAuth();
-  
-  console.log("Profile:", profile);
-  console.log("Current path:", currentPath);
 
   const filteredNavigationItems = navigationItems.filter(item => {
     if (!item.roles || !profile?.role) return true;
@@ -149,7 +144,7 @@ export function AppSidebar() {
   });
 
   const filteredAdminItems = adminItems.filter(() => {
-    return profile?.role === 'admin';
+    return profile?.role === 'admin' || profile?.role === 'super_admin';
   });
 
   const isActive = (path: string) => {
@@ -168,11 +163,8 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar 
-      className="border-r border-sidebar-border"
-      collapsible="icon"
-    >
-      <SidebarHeader className="p-6">
+    <div className="flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar">
+      <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
             <img 
@@ -181,7 +173,7 @@ export function AppSidebar() {
               className="w-8 h-8 object-contain"
             />
           </div>
-          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+          <div className="min-w-0">
             <h2 className="font-semibold text-lg text-sidebar-foreground truncate">
               Rehabilitare
             </h2>
@@ -190,59 +182,55 @@ export function AppSidebar() {
             </p>
           </div>
         </div>
-      </SidebarHeader>
+      </div>
 
-      <SidebarContent className="px-4 py-4">
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium mb-2">
-            Principal
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-1">
+      <div className="flex-1 overflow-auto p-4">
+        <div className="space-y-6">
+          <div>
+            <div className="text-sidebar-foreground/70 font-medium mb-2 px-2">
+              Principal
+            </div>
+            <div className="space-y-1">
               {filteredNavigationItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      className={getNavClassName(item.url)}
-                      title={item.description}
-                    >
-                      <item.icon className="w-5 h-5 flex-shrink-0" />
-                      <span className="font-medium truncate group-data-[collapsible=icon]:hidden">{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <NavLink
+                  key={item.title}
+                  to={item.url}
+                  className={getNavClassName(item.url)}
+                  title={item.description}
+                >
+                  <div className="flex items-center gap-3 p-2 rounded-md">
+                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                    <span className="font-medium truncate">{item.title}</span>
+                  </div>
+                </NavLink>
               ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+            </div>
+          </div>
 
-        {filteredAdminItems.length > 0 && (
-          <SidebarGroup className="mt-6">
-            <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium mb-2">
-              Administración
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className="space-y-1">
+          {filteredAdminItems.length > 0 && (
+            <div>
+              <div className="text-sidebar-foreground/70 font-medium mb-2 px-2">
+                Administración
+              </div>
+              <div className="space-y-1">
                 {filteredAdminItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      className={getNavClassName(item.url)}
-                      title={item.description}
-                    >
-                       <item.icon className="w-5 h-5 flex-shrink-0" />
-                       <span className="font-medium truncate group-data-[collapsible=icon]:hidden">{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-      </SidebarContent>
-    </Sidebar>
+                  <NavLink
+                    key={item.title}
+                    to={item.url}
+                    className={getNavClassName(item.url)}
+                    title={item.description}
+                  >
+                    <div className="flex items-center gap-3 p-2 rounded-md">
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      <span className="font-medium truncate">{item.title}</span>
+                    </div>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
