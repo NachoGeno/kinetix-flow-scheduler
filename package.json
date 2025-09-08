@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "npx serve -s dist --host 0.0.0.0 --port ${PORT:-3000}"
+    "start": "npx http-server dist -p $PORT -a 0.0.0.0 --cors"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
