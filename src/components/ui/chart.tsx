@@ -126,6 +126,20 @@ const ChartTooltipContent = React.forwardRef<
       color,
       nameKey,
       labelKey,
+    }: {
+      active?: boolean
+      payload?: any[]
+      className?: string
+      indicator?: "dot" | "line" | "dashed"
+      hideLabel?: boolean
+      hideIndicator?: boolean
+      label?: string
+      labelFormatter?: (label: any, payload: any[]) => React.ReactNode
+      labelClassName?: string
+      formatter?: (value: any, name: string, item: any, index: number) => React.ReactNode
+      color?: string
+      nameKey?: string
+      labelKey?: string
     },
     ref
   ) => {
@@ -197,7 +211,7 @@ const ChartTooltipContent = React.forwardRef<
                 )}
               >
                 {formatter && item?.value !== undefined && item.name ? (
-                  formatter(item.value, item.name, item, index, item.payload)
+                  formatter(item.value, item.name, item, index)
                 ) : (
                   <>
                     {itemConfig?.icon ? (
@@ -258,11 +272,12 @@ const ChartLegend = RechartsPrimitive.Legend
 
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> &
-    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
-      hideIcon?: boolean
-      nameKey?: string
-    }
+  React.ComponentProps<"div"> & {
+    payload?: any[]
+    verticalAlign?: "top" | "bottom"
+    hideIcon?: boolean
+    nameKey?: string
+  }
 >(
   (
     { className, hideIcon = false, payload, verticalAlign = "bottom", nameKey },
@@ -270,7 +285,7 @@ const ChartLegendContent = React.forwardRef<
   ) => {
     const { config } = useChart()
 
-    if (!payload?.length) {
+    if (!payload || !payload.length) {
       return null
     }
 
@@ -283,13 +298,13 @@ const ChartLegendContent = React.forwardRef<
           className
         )}
       >
-        {payload.map((item) => {
+        {payload.map((item, index) => {
           const key = `${nameKey || item.dataKey || "value"}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
 
           return (
             <div
-              key={item.value}
+              key={index}
               className={cn(
                 "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
               )}
