@@ -1,6 +1,8 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 import path from "path";
+
+const port = parseInt(process.env.PORT || '4173')
 
 export default defineConfig({
   plugins: [react()],
@@ -9,16 +11,27 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  build: {
-    outDir: "dist"
-  },
   server: {
-    host: "::",
-    port: 8080,
+    host: '0.0.0.0',
+    port: port,
   },
   preview: {
-    host: "0.0.0.0",
-    port: parseInt(process.env.PORT || "4173"),
-    allowedHosts: true,
+    host: '0.0.0.0',
+    port: port,
   },
-});
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
+  },
+  optimizeDeps: {
+    exclude: ['@rollup/rollup-linux-x64-gnu']
+  },
+  define: {
+    global: 'globalThis',
+  }
+})
