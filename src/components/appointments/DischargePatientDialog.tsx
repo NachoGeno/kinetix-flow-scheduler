@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -43,6 +44,7 @@ export default function DischargePatientDialog({
   const [isProcessing, setIsProcessing] = useState(false);
   const [reason, setReason] = useState('');
   const { toast } = useToast();
+  const { currentOrgId } = useOrganizationContext();
 
   const handleDischarge = async () => {
     if (!patientInfo || !reason.trim()) {
@@ -131,7 +133,8 @@ export default function DischargePatientDialog({
           .insert({
             medical_order_id: patientInfo.medicalOrderId,
             patient_id: patientInfo.id,
-            template_data: dischargeInfo
+            template_data: dischargeInfo,
+            organization_id: currentOrgId
           });
 
         if (historyError) throw historyError;

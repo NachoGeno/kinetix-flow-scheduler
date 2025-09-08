@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 import PatientForm from '@/components/patients/PatientForm';
 import MedicalOrderForm from './MedicalOrderForm';
 import PendingDocumentAlert from './PendingDocumentAlert';
@@ -105,6 +106,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   const [recurringAppointments, setRecurringAppointments] = useState<RecurringAppointment[]>([]);
   const { profile } = useAuth();
   const { toast } = useToast();
+  const { currentOrgId } = useOrganizationContext();
 
   const weekDays = [
     { key: 'monday', label: 'Lun', value: 1 },
@@ -633,6 +635,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         reason: values.reason,
         status: 'scheduled' as const,
         notes: `Sesión ${apt.sessionNumber} de ${recurringAppointments.length} (recurrente)`,
+        organization_id: currentOrgId,
       }));
 
       const { error } = await supabase
@@ -774,7 +777,8 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           appointment_date: format(values.appointment_date, 'yyyy-MM-dd'),
           appointment_time: values.appointment_time,
           reason: values.reason,
-          status: 'scheduled'
+          status: 'scheduled',
+          organization_id: currentOrgId
         });
 
       if (createError) throw createError;

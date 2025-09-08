@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 
 const rescheduleSchema = z.object({
   appointment_date: z.string().min(1, "La fecha es requerida"),
@@ -80,6 +81,7 @@ export function RescheduleAppointmentDialog({
   const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
   const { toast } = useToast();
   const { profile } = useAuth();
+  const { currentOrgId } = useOrganizationContext();
 
   const {
     register,
@@ -245,6 +247,7 @@ export function RescheduleAppointmentDialog({
         rescheduled_by: profile.id,
         reschedule_reason: data.reschedule_reason,
         duration_minutes: appointment.duration_minutes || 30,
+        organization_id: currentOrgId,
       };
       
       console.log("Appointment data being sent to DB:", appointmentData);

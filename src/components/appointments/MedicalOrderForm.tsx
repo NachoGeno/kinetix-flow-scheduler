@@ -15,6 +15,7 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 
 const formSchema = z.object({
   patient_id: z.string().min(1, 'Selecciona un paciente'),
@@ -75,6 +76,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedPatientData, setSelectedPatientData] = useState<Patient | null>(null);
   const { toast } = useToast();
+  const { currentOrgId } = useOrganizationContext();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -220,6 +222,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
         art_authorization_number: values.art_authorization_number || null,
         total_sessions: values.sessions_count,
         sessions_used: editOrder ? editOrder.sessions_used : 0,
+        organization_id: currentOrgId,
       };
 
       let data, error;

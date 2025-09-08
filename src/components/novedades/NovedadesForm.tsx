@@ -22,6 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 
 const novedadSchema = z.object({
   contenido: z.string().min(10, "El contenido debe tener al menos 10 caracteres"),
@@ -43,6 +44,7 @@ export function NovedadesForm({ open, onOpenChange, onSuccess }: NovedadesFormPr
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { profile, user, session } = useAuth();
+  const { currentOrgId } = useOrganizationContext();
 
   // No mostrar el formulario si no hay usuario autenticado
   if (!user || !session || !profile) {
@@ -106,6 +108,7 @@ export function NovedadesForm({ open, onOpenChange, onSuccess }: NovedadesFormPr
           categoria: data.categoria,
           urgente: data.urgente,
           autor_id: profile.id,
+          organization_id: currentOrgId,
         })
         .select();
 

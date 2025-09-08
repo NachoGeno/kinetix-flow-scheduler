@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 
 const formSchema = z.object({
   nombre: z.string().min(1, "El nombre es obligatorio"),
@@ -57,6 +58,7 @@ export function ObrasSocialesForm({
 }: ObrasSocialesFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const isEditing = !!obraSocial;
+  const { currentOrgId } = useOrganizationContext();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -84,6 +86,7 @@ export function ObrasSocialesForm({
         telefono: values.telefono || null,
         responsable_contacto: values.responsable_contacto || null,
         condicion_iva: values.condicion_iva || null,
+        organization_id: currentOrgId,
       };
 
       if (isEditing) {

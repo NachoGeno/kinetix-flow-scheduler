@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 import PendingDocumentAlert from './PendingDocumentAlert';
 
 const formSchema = z.object({
@@ -90,6 +91,7 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
   const [loading, setLoading] = useState(false);
   const { profile } = useAuth();
   const { toast } = useToast();
+  const { currentOrgId } = useOrganizationContext();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -338,6 +340,7 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
         reason: values.reason,
         status: 'scheduled' as const,
         notes: `Sesión ${session.sessionNumber} de ${values.sessions_count}`,
+        organization_id: currentOrgId,
       }));
 
       const { error } = await supabase
