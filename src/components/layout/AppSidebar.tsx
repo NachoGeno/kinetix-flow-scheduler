@@ -134,7 +134,7 @@ const adminItems = [
 ];
 
 export function AppSidebar() {
-  const { open } = useSidebar();
+  const { open, collapsed } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
   const { profile } = useAuth();
@@ -164,22 +164,25 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-sidebar-border">
-      <SidebarHeader className="p-6 border-b border-sidebar-border">
+    <Sidebar 
+      className="border-r border-sidebar-border"
+      collapsible="icon"
+    >
+      <SidebarHeader className={collapsed ? "p-2" : "p-6"}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
             <img 
               src="/lovable-uploads/2800aff0-a779-4fb4-9ad8-7d20459df869.png" 
               alt="Rehabilitare Logo" 
               className="w-8 h-8 object-contain"
             />
           </div>
-          {open && (
-            <div>
-              <h2 className="font-semibold text-lg text-sidebar-foreground">
+          {!collapsed && (
+            <div className="min-w-0">
+              <h2 className="font-semibold text-lg text-sidebar-foreground truncate">
                 Rehabilitare
               </h2>
-              <p className="text-sm text-sidebar-foreground/70">
+              <p className="text-sm text-sidebar-foreground/70 truncate">
                 Centro de Kinesiología
               </p>
             </div>
@@ -202,9 +205,9 @@ export function AppSidebar() {
                       className={getNavClassName(item.url)}
                       title={item.description}
                     >
-                      <item.icon className="w-5 h-5" />
-                      {open && (
-                        <span className="font-medium">{item.title}</span>
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      {!collapsed && (
+                        <span className="font-medium truncate">{item.title}</span>
                       )}
                     </NavLink>
                   </SidebarMenuButton>
@@ -229,10 +232,10 @@ export function AppSidebar() {
                       className={getNavClassName(item.url)}
                       title={item.description}
                     >
-                      <item.icon className="w-5 h-5" />
-                      {open && (
-                        <span className="font-medium">{item.title}</span>
-                      )}
+                       <item.icon className="w-5 h-5 flex-shrink-0" />
+                       {!collapsed && (
+                         <span className="font-medium truncate">{item.title}</span>
+                       )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
