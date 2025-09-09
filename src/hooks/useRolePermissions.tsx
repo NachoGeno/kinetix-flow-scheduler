@@ -27,17 +27,18 @@ export const useRolePermissions = (): RolePermissions => {
       dashboard: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin'],
       appointments: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin'],
       patients: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin'],
-      doctors: ['admin', 'patient', 'secretaria', 'reception', 'super_admin'],
+      doctors: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin'],
       orders: ['admin', 'doctor', 'secretaria', 'reception', 'super_admin'],
       'obras-sociales': ['admin', 'doctor', 'secretaria', 'reception', 'super_admin'],
       presentaciones: ['admin', 'doctor', 'secretaria', 'reception', 'super_admin'],
       billing: ['admin', 'super_admin'], // Solo administradores
       'plus-payments': ['admin', 'reception', 'secretaria', 'super_admin'],
       'cash-management': ['admin', 'reception', 'secretaria', 'super_admin'],
-      'medical-records': ['admin', 'doctor', 'patient', 'super_admin'],
+      'medical-records': ['admin', 'doctor', 'patient', 'secretaria', 'super_admin'], // Agregado secretaria
       novedades: ['admin', 'doctor', 'reception', 'secretaria', 'super_admin'],
       reports: ['admin', 'super_admin'], // Solo administradores
-      configuracion: ['admin', 'super_admin'],
+      configuration: ['admin', 'super_admin'], // Solo administradores
+      configuracion: ['admin', 'super_admin'], // Solo administradores
       'saas-admin': ['super_admin']
     };
 

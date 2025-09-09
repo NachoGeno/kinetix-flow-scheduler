@@ -93,7 +93,7 @@ const navigationItems = [
     url: "/medical-records",
     icon: ClipboardList,
     description: "Historiales clínicos",
-    roles: ['admin', 'doctor', 'patient']
+    roles: ['admin', 'doctor', 'patient', 'secretaria']
   },
   {
     title: "Novedades",
