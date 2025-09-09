@@ -1575,7 +1575,9 @@ export type Database = {
           org_secondary_color?: string
           org_subdomain: string
         }
-        Returns: Json
+        Returns: {
+          organization_id: string
+        }[]
       }
       fix_medical_orders_data_integrity: {
         Args: Record<PropertyKey, never>

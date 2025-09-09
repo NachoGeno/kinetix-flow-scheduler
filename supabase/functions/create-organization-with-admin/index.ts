@@ -74,7 +74,26 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Step 1: Create organization using the database function
+    // Step 1: Check if admin email already exists
+    const { data: existingUser, error: userCheckError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (userCheckError) {
+      console.error('Error checking existing users:', userCheckError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to validate admin email' }),
+        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    const emailExists = existingUser.users.some(user => user.email === admin_email);
+    if (emailExists) {
+      return new Response(
+        JSON.stringify({ error: `Email ${admin_email} is already in use` }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    // Step 2: Create organization using the database function
     const { data: orgResult, error: orgError } = await supabaseAdmin.rpc('create_organization_with_validation', {
       org_name: name,
       org_subdomain: subdomain,
@@ -96,10 +115,17 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const organizationId = orgResult.organization_id;
+    const organizationId = orgResult[0]?.organization_id;
+    if (!organizationId) {
+      return new Response(
+        JSON.stringify({ error: 'Failed to get organization ID from database' }),
+        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+    
     console.log('Organization created:', organizationId);
 
-    // Step 2: Create admin user using Supabase Admin API
+    // Step 3: Create admin user using Supabase Admin API
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: admin_email,
       password: admin_password,
@@ -127,21 +153,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Admin user created:', authUser.user.id);
 
-    // Step 3: Create profile for admin user
+    // Step 4: Wait a moment for the trigger to create the profile
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Step 5: Update the profile that was automatically created by the trigger
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .insert({
-        user_id: authUser.user.id,
+      .update({
         first_name: admin_first_name,
         last_name: admin_last_name,
         email: admin_email,
         phone: admin_phone,
         role: 'admin',
         organization_id: organizationId
-      });
+      })
+      .eq('user_id', authUser.user.id);
 
     if (profileError) {
-      console.error('Error creating admin profile:', profileError);
+      console.error('Error updating admin profile:', profileError);
       
       // Cleanup: Delete user and organization
       await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
@@ -151,12 +180,12 @@ const handler = async (req: Request): Promise<Response> => {
         .eq('id', organizationId);
 
       return new Response(
-        JSON.stringify({ error: `Admin profile creation failed: ${profileError.message}` }),
+        JSON.stringify({ error: `Admin profile update failed: ${profileError.message}` }),
         { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
 
-    console.log('Admin profile created successfully');
+    console.log('Admin profile updated successfully');
 
     // Return success response
     return new Response(
