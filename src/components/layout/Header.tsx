@@ -24,11 +24,11 @@ export function Header() {
 
   const getCategoryColor = (categoria: string) => {
     switch (categoria) {
-      case "tecnica": return "text-blue-600";
-      case "administrativa": return "text-gray-600";
-      case "medica": return "text-green-600";
-      case "urgente": return "text-red-600";
-      default: return "text-gray-600";
+      case "tecnica": return "text-primary";
+      case "administrativa": return "text-muted-foreground";
+      case "medica": return "text-success";
+      case "urgente": return "text-destructive";
+      default: return "text-muted-foreground";
     }
   };
 
@@ -41,7 +41,7 @@ export function Header() {
     }
   };
   return (
-    <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-6">
+    <header className="h-16 border-b border-border bg-card backdrop-blur-sm flex items-center justify-between px-6">
       <div className="flex items-center gap-4">
         <h1 className="text-lg font-semibold text-foreground">
           Rehabilitare - Centro de Kinesiología
@@ -52,7 +52,7 @@ export function Header() {
         {/* Notificaciones de Novedades */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative">
+            <Button variant="ghost" size="icon" className="relative text-foreground hover:bg-accent">
               <Bell className="w-5 h-5" />
               {novedadesHoy.length > 0 && (
                 <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 bg-destructive text-destructive-foreground text-xs">
@@ -61,12 +61,12 @@ export function Header() {
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
-            <DropdownMenuLabel className="flex items-center gap-2">
+          <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto bg-popover border-border">
+            <DropdownMenuLabel className="flex items-center gap-2 text-popover-foreground">
               <MessageCircle className="w-4 h-4" />
               Novedades de Hoy
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="bg-border" />
             
             {novedadesHoy.length === 0 ? (
               <div className="p-4 text-center text-muted-foreground">
@@ -78,7 +78,7 @@ export function Header() {
                 {novedadesHoy.slice(0, 5).map((novedad) => (
                   <DropdownMenuItem 
                     key={novedad.id} 
-                    className="flex-col items-start p-3 cursor-pointer hover:bg-accent"
+                    className="flex-col items-start p-3 cursor-pointer hover:bg-accent text-popover-foreground focus:bg-accent"
                     onClick={() => navigate("/novedades")}
                   >
                     <div className="flex items-center justify-between w-full mb-1">
@@ -88,7 +88,7 @@ export function Header() {
                         </span>
                         <span className="text-xs">{getShiftIcon(novedad.turno)}</span>
                         {novedad.urgente && (
-                          <Badge className="bg-red-600 text-white text-xs px-1">¡URGENTE!</Badge>
+                          <Badge className="bg-destructive text-destructive-foreground text-xs px-1">¡URGENTE!</Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -108,7 +108,7 @@ export function Header() {
                 ))}
                 
                 {novedadesHoy.length > 5 && (
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="bg-border" />
                 )}
                 
                 <DropdownMenuItem 
@@ -126,15 +126,15 @@ export function Header() {
         {/* Perfil de usuario */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2 px-3">
+            <Button variant="ghost" className="flex items-center gap-2 px-3 text-foreground hover:bg-accent">
               <Avatar className="w-8 h-8">
                 <AvatarImage src={profile?.avatar_url} />
-                <AvatarFallback>
+                <AvatarFallback className="bg-primary text-primary-foreground">
                   {profile?.first_name?.[0]}{profile?.last_name?.[0]}
                 </AvatarFallback>
               </Avatar>
               <div className="text-left">
-                <div className="text-sm font-medium">
+                <div className="text-sm font-medium text-foreground">
                   {profile?.first_name} {profile?.last_name}
                 </div>
                 <div className="text-xs text-muted-foreground capitalize">
@@ -144,19 +144,19 @@ export function Header() {
               </div>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
+          <DropdownMenuContent align="end" className="w-56 bg-popover border-border">
+            <DropdownMenuLabel className="text-popover-foreground">Mi Cuenta</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-border" />
+            <DropdownMenuItem className="text-popover-foreground hover:bg-accent focus:bg-accent">
               <User className="mr-2 h-4 w-4" />
               Perfil
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem className="text-popover-foreground hover:bg-accent focus:bg-accent">
               <Bell className="mr-2 h-4 w-4" />
               Notificaciones
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive" onClick={signOut}>
+            <DropdownMenuSeparator className="bg-border" />
+            <DropdownMenuItem className="text-destructive focus:bg-destructive focus:text-destructive-foreground" onClick={signOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Cerrar Sesión
             </DropdownMenuItem>
