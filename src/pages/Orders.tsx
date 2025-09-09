@@ -142,10 +142,20 @@ export default function Orders() {
         return;
       }
 
-      setOrders((data || []).map(order => ({
-        ...order,
-        document_status: (order.document_status as 'pendiente' | 'completa') || 'pendiente'
-      })));
+      setOrders((data || []).map(order => {
+        // Debug logging to understand the data structure
+        console.log('Processing order:', order.id, {
+          hasPatient: !!order.patient,
+          patientId: order.patient?.id,
+          patientProfile: order.patient?.profile,
+          hasDoctor: !!order.doctor
+        });
+        
+        return {
+          ...order,
+          document_status: (order.document_status as 'pendiente' | 'completa') || 'pendiente'
+        };
+      }));
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast({
@@ -273,6 +283,17 @@ export default function Orders() {
   };
 
   const handleScheduleAppointment = (order: MedicalOrder) => {
+    // Check if patient data is available before proceeding
+    if (!order.patient?.id) {
+      toast({
+        title: "Error",
+        description: "No se puede programar cita: datos del paciente no disponibles",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    console.log('Scheduling appointment for order:', order.id, 'patient:', order.patient.id);
     setSelectedOrder(order);
     // Si la orden tiene múltiples sesiones, usar el formulario de múltiples sesiones
     if (order.sessions_count && order.sessions_count > 1) {
@@ -328,6 +349,9 @@ export default function Orders() {
   };
 
   const filteredOrders = orders.filter(order => {
+    // Add safety checks for filtering
+    console.log('Filtering order:', order.id, 'has patient:', !!order.patient);
+    
     const matchesSearch = order.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (order.patient?.profile?.first_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                          (order.patient?.profile?.last_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -597,13 +621,15 @@ export default function Orders() {
                   )}
 
                   <div className="flex justify-end gap-2 pt-2">
-                    <Button
-                      size="sm"
+                    <Button 
+                      size="sm" 
                       variant="outline"
+                      disabled={!order.patient?.id}
                       onClick={() => handleScheduleAppointment(order)}
+                      className={!order.patient?.id ? "opacity-50 cursor-not-allowed" : ""}
                     >
                       <CalendarPlus className="h-4 w-4 mr-2" />
-                      Programar Citas
+                      {order.patient?.id ? "Programar Citas" : "Paciente no disponible"}
                     </Button>
 
                     {/* Evolución Clínica Final Button */}
