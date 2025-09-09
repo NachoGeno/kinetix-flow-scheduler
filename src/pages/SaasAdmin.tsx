@@ -9,7 +9,24 @@ export default function SaasAdmin() {
 
   // Solo super_admin puede acceder a esta página
   if (!profile || profile.role !== 'super_admin') {
-    return <Navigate to="/" replace />;
+    return (
+      <div className="container mx-auto p-6">
+        <Card className="max-w-md mx-auto">
+          <CardContent className="flex flex-col items-center space-y-4 p-6">
+            <Shield className="h-12 w-12 text-muted-foreground" />
+            <div className="text-center">
+              <h2 className="text-lg font-semibold text-foreground">Acceso Restringido</h2>
+              <p className="text-sm text-muted-foreground mt-2">
+                Esta sección está disponible solo para Super Administradores del sistema.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Rol actual: {profile?.role || 'No autenticado'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
