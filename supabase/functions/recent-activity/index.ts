@@ -41,25 +41,26 @@ Deno.serve(async (req) => {
         appointment_date,
         appointment_time,
         status,
-        patient:patients!inner(
-          profile:profiles!inner(
+        created_at,
+        patient:patients(
+          profile:profiles(
             first_name,
             last_name
           )
         ),
-        doctor:doctors!inner(
-          profile:profiles!inner(
+        doctor:doctors(
+          profile:profiles(
             first_name,
             last_name
           ),
-          specialty:specialties!inner(
+          specialty:specialties(
             name
           )
         )
       `)
-      .order('appointment_date', { ascending: false })
-      .order('appointment_time', { ascending: false })
-      .limit(8);
+      .gte('appointment_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]) // Last 30 days
+      .order('created_at', { ascending: false })
+      .limit(10);
 
     if (appointmentsError) {
       console.error('Error fetching appointments:', appointmentsError);
@@ -68,46 +69,77 @@ Deno.serve(async (req) => {
 
     // Transform appointments into activity format
     const activities = appointments?.map(appointment => {
-      const patientName = `${appointment.patient.profile.first_name} ${appointment.patient.profile.last_name}`;
-      const doctorName = `${appointment.doctor.profile.first_name} ${appointment.doctor.profile.last_name}`;
-      const specialtyName = appointment.doctor.specialty.name;
+      const patientName = appointment.patient?.profile 
+        ? `${appointment.patient.profile.first_name || ''} ${appointment.patient.profile.last_name || ''}`.trim()
+        : 'Paciente no disponible';
+      
+      const doctorName = appointment.doctor?.profile 
+        ? `${appointment.doctor.profile.first_name || ''} ${appointment.doctor.profile.last_name || ''}`.trim()
+        : 'Doctor no asignado';
+      
+      const specialtyName = appointment.doctor?.specialty?.name || 'Especialidad no especificada';
       
       let title = '';
       let description = '';
       let type = 'appointment';
+      let statusDisplay = appointment.status;
 
       switch (appointment.status) {
         case 'completed':
           title = 'Sesión completada';
           description = `${patientName} - ${specialtyName} con Dr. ${doctorName}`;
+          statusDisplay = 'completed';
           break;
         case 'scheduled':
           title = 'Turno programado';
           description = `${patientName} - ${specialtyName} con Dr. ${doctorName}`;
+          statusDisplay = 'new';
+          break;
+        case 'confirmed':
+          title = 'Turno confirmado';
+          description = `${patientName} - ${specialtyName} con Dr. ${doctorName}`;
+          statusDisplay = 'confirmed';
           break;
         case 'cancelled':
           title = 'Turno cancelado';
           description = `${patientName} - ${specialtyName} con Dr. ${doctorName}`;
+          statusDisplay = 'cancelled';
           break;
         case 'no_show':
           title = 'Paciente no asistió';
           description = `${patientName} - ${specialtyName} con Dr. ${doctorName}`;
+          statusDisplay = 'no_show';
+          break;
+        case 'in_progress':
+          title = 'Sesión en progreso';
+          description = `${patientName} - ${specialtyName} con Dr. ${doctorName}`;
+          statusDisplay = 'pending';
           break;
         default:
           title = 'Actividad de turno';
           description = `${patientName} - ${specialtyName} con Dr. ${doctorName}`;
+          statusDisplay = 'new';
       }
+
+      // Format the time nicely
+      const appointmentDate = new Date(appointment.appointment_date);
+      const timeFormatted = new Intl.DateTimeFormat('es-ES', {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(new Date(`${appointment.appointment_date}T${appointment.appointment_time}`));
 
       return {
         id: appointment.id,
         type,
         title,
         description,
-        time: `${appointment.appointment_date} ${appointment.appointment_time}`,
-        status: appointment.status,
-        created_at: appointment.appointment_date
+        time: timeFormatted,
+        status: statusDisplay,
+        created_at: appointment.created_at || appointment.appointment_date
       };
-    }) || [];
+    }).filter(activity => activity !== null) || [];
 
     console.log(`Recent activity fetched: ${activities.length} items`);
 
