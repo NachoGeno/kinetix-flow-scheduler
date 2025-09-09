@@ -36,18 +36,41 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <Layout>{children}</Layout>;
 }
 
+// Ruta de inicio: si el usuario es admin (super-usuario SaaS), redirigir al panel de administración
+function HomeRoute() {
+  const { user, loading, profile } = useAuth();
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">Cargando...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (profile?.role === 'admin') {
+    return <Navigate to="/saas-admin" replace />;
+  }
+
+  return (
+    <Layout>
+      <Index />
+    </Layout>
+  );
+}
+
 const App = () => (
   <TooltipProvider>
     <Toaster />
     <Sonner />
     <Routes>
       <Route path="/auth" element={<Auth />} />
-      <Route path="/saas-admin" element={<SaasAdmin />} />
-      <Route path="/" element={
+      <Route path="/saas-admin" element={
         <ProtectedRoute>
-          <Index />
+          <SaasAdmin />
         </ProtectedRoute>
       } />
+      <Route path="/" element={<HomeRoute />} />
       <Route path="/appointments" element={
         <ProtectedRoute>
           <Appointments />
