@@ -3,9 +3,71 @@ import { OrganizationManagement } from '@/components/admin/OrganizationManagemen
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Building2, Users, Activity, TrendingUp } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+
+interface SystemStats {
+  totalOrganizations: number;
+  activeOrganizations: number;
+  totalUsers: number;
+  totalPatients: number;
+  totalAppointments: number;
+}
 
 export default function SaasAdmin() {
   const { profile } = useAuth();
+  const [stats, setStats] = useState<SystemStats>({
+    totalOrganizations: 0,
+    activeOrganizations: 0,
+    totalUsers: 0,
+    totalPatients: 0,
+    totalAppointments: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  const fetchSystemStats = async () => {
+    try {
+      // Fetch organizations
+      const { data: orgsData, error: orgsError } = await supabase
+        .from('organizations')
+        .select('*');
+
+      if (orgsError) throw orgsError;
+
+      // Fetch aggregated statistics
+      const { data: statsData, error: statsError } = await supabase.rpc('get_organization_statistics');
+
+      if (statsError) throw statsError;
+
+      // Calculate totals
+      const totalOrganizations = orgsData?.length || 0;
+      const activeOrganizations = orgsData?.filter(org => org.is_active).length || 0;
+      
+      const totals = statsData?.reduce((acc: any, stat: any) => ({
+        totalUsers: acc.totalUsers + parseInt(stat.total_users),
+        totalPatients: acc.totalPatients + parseInt(stat.total_patients),
+        totalAppointments: acc.totalAppointments + parseInt(stat.total_appointments)
+      }), { totalUsers: 0, totalPatients: 0, totalAppointments: 0 }) || {};
+
+      setStats({
+        totalOrganizations,
+        activeOrganizations,
+        totalUsers: totals.totalUsers || 0,
+        totalPatients: totals.totalPatients || 0,
+        totalAppointments: totals.totalAppointments || 0
+      });
+    } catch (error) {
+      console.error('Error fetching system stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (profile?.role === 'super_admin') {
+      fetchSystemStats();
+    }
+  }, [profile]);
 
   // Solo super_admin puede acceder a esta página
   if (!profile || profile.role !== 'super_admin') {
@@ -47,7 +109,7 @@ export default function SaasAdmin() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
+            <div className="text-2xl font-bold">{loading ? '-' : stats.activeOrganizations}</div>
             <p className="text-xs text-muted-foreground">Clientes del sistema</p>
           </CardContent>
         </Card>
@@ -58,7 +120,7 @@ export default function SaasAdmin() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
+            <div className="text-2xl font-bold">{loading ? '-' : stats.totalUsers}</div>
             <p className="text-xs text-muted-foreground">Usuarios en todas las organizaciones</p>
           </CardContent>
         </Card>
@@ -69,7 +131,7 @@ export default function SaasAdmin() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
+            <div className="text-2xl font-bold">{loading ? '-' : stats.totalPatients}</div>
             <p className="text-xs text-muted-foreground">Pacientes registrados</p>
           </CardContent>
         </Card>
