@@ -142,20 +142,10 @@ export default function Orders() {
         return;
       }
 
-      setOrders((data || []).map(order => {
-        // Debug logging to understand the data structure
-        console.log('Processing order:', order.id, {
-          hasPatient: !!order.patient,
-          patientId: order.patient?.id,
-          patientProfile: order.patient?.profile,
-          hasDoctor: !!order.doctor
-        });
-        
-        return {
-          ...order,
-          document_status: (order.document_status as 'pendiente' | 'completa') || 'pendiente'
-        };
-      }));
+      setOrders((data || []).map(order => ({
+        ...order,
+        document_status: (order.document_status as 'pendiente' | 'completa') || 'pendiente'
+      })));
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast({
@@ -293,7 +283,6 @@ export default function Orders() {
       return;
     }
     
-    console.log('Scheduling appointment for order:', order.id, 'patient:', order.patient.id);
     setSelectedOrder(order);
     // Si la orden tiene múltiples sesiones, usar el formulario de múltiples sesiones
     if (order.sessions_count && order.sessions_count > 1) {
