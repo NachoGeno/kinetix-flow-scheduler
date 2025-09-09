@@ -91,32 +91,48 @@ export function useSuperAdminUsers() {
     first_name: string;
     last_name: string;
     email: string;
+    password: string;
     role: string;
     organization_id: string;
   }) => {
     try {
-      // First create the profile without user_id (will be a patient-style profile)
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .insert({
+      // Create the user in the auth system with email and password
+      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+        email: userData.email,
+        password: userData.password,
+        user_metadata: {
           first_name: userData.first_name,
           last_name: userData.last_name,
-          email: userData.email,
-          role: userData.role as any,
-          organization_id: userData.organization_id,
-          user_id: null // This will be a profile without auth user
-        })
-        .select()
-        .single();
+          role: userData.role,
+          organization_id: userData.organization_id
+        },
+        email_confirm: true // Auto-confirm the email
+      });
 
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
+      if (authError) {
+        console.error('Error creating auth user:', authError);
         toast({
           title: "Error",
-          description: `No se pudo crear el usuario: ${profileError.message}`,
+          description: `No se pudo crear el usuario: ${authError.message}`,
           variant: "destructive",
         });
         return false;
+      }
+
+      // Update the profile with the correct organization and role
+      if (authUser.user) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            role: userData.role as any,
+            organization_id: userData.organization_id
+          })
+          .eq('user_id', authUser.user.id);
+
+        if (updateError) {
+          console.error('Error updating profile:', updateError);
+          // Don't fail the whole operation for this
+        }
       }
 
       toast({

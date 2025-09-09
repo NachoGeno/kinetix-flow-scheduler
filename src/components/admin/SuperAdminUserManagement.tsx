@@ -24,6 +24,7 @@ export default function SuperAdminUserManagement() {
     first_name: '',
     last_name: '',
     email: '',
+    password: '',
     role: 'patient',
     organization_id: ''
   });
@@ -86,7 +87,7 @@ export default function SuperAdminUserManagement() {
   };
 
   const handleCreateUser = async () => {
-    if (newUser.first_name && newUser.last_name && newUser.email && newUser.organization_id) {
+    if (newUser.first_name && newUser.last_name && newUser.email && newUser.password && newUser.organization_id) {
       const success = await createUser(newUser);
       if (success) {
         setIsCreateDialogOpen(false);
@@ -100,6 +101,7 @@ export default function SuperAdminUserManagement() {
       first_name: '',
       last_name: '',
       email: '',
+      password: '',
       role: 'patient',
       organization_id: ''
     });
@@ -299,6 +301,17 @@ export default function SuperAdminUserManagement() {
                   value={newUser.email}
                   onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                   placeholder="Ingrese el email"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="password">Contraseña</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  placeholder="Ingrese la contraseña"
                 />
               </div>
 
