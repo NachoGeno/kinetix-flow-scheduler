@@ -136,13 +136,47 @@ export default function AppointmentCalendar() {
           work_end_time,
           appointment_duration,
           work_days,
-          profile:profiles(first_name, last_name),
-          specialty:specialties(name, color)
+          profile_id,
+          specialty_id
         `)
         .eq('is_active', true);
 
       if (error) throw error;
-      setDoctors(data || []);
+      
+      // Fetch profiles and specialties separately
+      const profileIds = data?.map(d => d.profile_id).filter(Boolean) || [];
+      const specialtyIds = data?.map(d => d.specialty_id).filter(Boolean) || [];
+      
+      const [profilesData, specialtiesData] = await Promise.all([
+        profileIds.length > 0 ? supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', profileIds) : { data: [] },
+        specialtyIds.length > 0 ? supabase
+          .from('specialties')
+          .select('id, name, color')
+          .in('id', specialtyIds) : { data: [] }
+      ]);
+      
+      // Transform the data to match the expected interface
+      const transformedData = data?.map(doctor => {
+        const profile = profilesData.data?.find(p => p.id === doctor.profile_id);
+        const specialty = specialtiesData.data?.find(s => s.id === doctor.specialty_id);
+        
+        return {
+          ...doctor,
+          profile: profile ? {
+            first_name: profile.first_name,
+            last_name: profile.last_name
+          } : null,
+          specialty: specialty ? {
+            name: specialty.name,
+            color: specialty.color
+          } : null
+        };
+      }) || [];
+      
+      setDoctors(transformedData);
     } catch (error) {
       console.error('Error fetching doctors:', error);
       toast({
@@ -159,15 +193,7 @@ export default function AppointmentCalendar() {
       let query = supabase
         .from('appointments')
         .select(`
-          *,
-          patient:patients(
-            profile:profiles(first_name, last_name)
-          ),
-          doctor:doctors(
-            id,
-            profile:profiles(first_name, last_name),
-            specialty:specialties(name, color)
-          )
+          *
         `)
         .eq('appointment_date', format(selectedDate, 'yyyy-MM-dd'))
         .order('appointment_time', { ascending: true });
@@ -176,10 +202,54 @@ export default function AppointmentCalendar() {
         query = query.eq('doctor_id', selectedDoctor);
       }
 
-      const { data, error } = await query;
+      const { data: appointmentsData, error } = await query;
 
       if (error) throw error;
-      setAppointments(data || []);
+      
+      // Get unique patient and doctor IDs
+      const patientIds = [...new Set(appointmentsData?.map(a => a.patient_id).filter(Boolean))];
+      const doctorIds = [...new Set(appointmentsData?.map(a => a.doctor_id).filter(Boolean))];
+      
+      // Fetch related data
+      const [patientsData, doctorsData, profilesData, specialtiesData] = await Promise.all([
+        patientIds.length > 0 ? supabase.from('patients').select('id, profile_id').in('id', patientIds) : { data: [] },
+        doctorIds.length > 0 ? supabase.from('doctors').select('id, profile_id, specialty_id').in('id', doctorIds) : { data: [] },
+        supabase.from('profiles').select('id, first_name, last_name'),
+        supabase.from('specialties').select('id, name, color')
+      ]);
+      
+      // Transform appointments with proper relations
+      const transformedAppointments = appointmentsData?.map(appointment => {
+        const patient = patientsData.data?.find(p => p.id === appointment.patient_id);
+        const patientProfile = patient ? profilesData.data?.find(pr => pr.id === patient.profile_id) : null;
+        
+        const doctor = doctorsData.data?.find(d => d.id === appointment.doctor_id);
+        const doctorProfile = doctor ? profilesData.data?.find(pr => pr.id === doctor.profile_id) : null;
+        const specialty = doctor ? specialtiesData.data?.find(s => s.id === doctor.specialty_id) : null;
+        
+        return {
+          ...appointment,
+          patient: patient ? {
+            profile: patientProfile ? {
+              first_name: patientProfile.first_name,
+              last_name: patientProfile.last_name
+            } : null
+          } : null,
+          doctor: doctor ? {
+            id: doctor.id,
+            profile: doctorProfile ? {
+              first_name: doctorProfile.first_name,
+              last_name: doctorProfile.last_name
+            } : null,
+            specialty: specialty ? {
+              name: specialty.name,
+              color: specialty.color
+            } : null
+          } : null
+        };
+      }) || [];
+      
+      setAppointments(transformedAppointments);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       toast({
@@ -194,6 +264,80 @@ export default function AppointmentCalendar() {
 
   const generateTimeSlots = () => {
     const slots = [];
+    
+    // If "all doctors" is selected, generate slots based on the union of all doctor schedules
+    if (selectedDoctor === 'all') {
+      if (doctors.length === 0) return [];
+      
+      // Get the day name for filtering
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const selectedDayName = dayNames[selectedDate.getDay()];
+      
+      // Find doctors that work on this day
+      const workingDoctors = doctors.filter(doctor => 
+        doctor.work_days && doctor.work_days.includes(selectedDayName)
+      );
+      
+      if (workingDoctors.length === 0) return [];
+      
+      // Find the earliest start time and latest end time
+      const startTimes = workingDoctors.map(d => d.work_start_time || '08:00:00');
+      const endTimes = workingDoctors.map(d => d.work_end_time || '17:00:00');
+      const durations = workingDoctors.map(d => d.appointment_duration || 30);
+      
+      const earliestStart = startTimes.sort()[0];
+      const latestEnd = endTimes.sort().reverse()[0];
+      const commonDuration = Math.min(...durations); // Use the smallest duration
+      
+      const [startHour, startMinute] = earliestStart.split(':').map(Number);
+      const [endHour, endMinute] = latestEnd.split(':').map(Number);
+      
+      let currentHour = startHour;
+      let currentMinute = startMinute;
+      
+      while (currentHour < endHour || (currentHour === endHour && currentMinute < endMinute)) {
+        const timeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
+        
+        // Count how many doctors are available at this time
+        const availableDoctorsAtTime = workingDoctors.filter(doctor => {
+          const doctorStart = doctor.work_start_time || '08:00:00';
+          const doctorEnd = doctor.work_end_time || '17:00:00';
+          return timeString >= doctorStart && timeString < doctorEnd;
+        }).length;
+        
+        // Get appointments for this time slot
+        const allTimeAppointments = appointments.filter(apt => 
+          apt.appointment_time === timeString
+        );
+        
+        const activeTimeAppointments = appointments.filter(apt => 
+          apt.appointment_time === timeString && !['cancelled', 'discharged', 'completed', 'no_show'].includes(apt.status)
+        );
+        
+        // Maximum slots = number of available doctors * 3 (assuming 3 slots per doctor)
+        const maxSlots = availableDoctorsAtTime * 3;
+        const availableSlots = maxSlots - activeTimeAppointments.length;
+        
+        slots.push({
+          time: timeString,
+          display: `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`,
+          appointments: allTimeAppointments,
+          availableSlots,
+          isFull: activeTimeAppointments.length >= maxSlots,
+          maxSlots
+        });
+        
+        currentMinute += commonDuration;
+        if (currentMinute >= 60) {
+          currentHour += Math.floor(currentMinute / 60);
+          currentMinute = currentMinute % 60;
+        }
+      }
+      
+      return slots;
+    }
+    
+    // Handle specific doctor selection
     const doctor = doctors.find(d => d.id === selectedDoctor);
     
     if (!doctor) return [];
@@ -202,20 +346,14 @@ export default function AppointmentCalendar() {
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const selectedDayName = dayNames[selectedDate.getDay()];
     
-    console.log('Selected day:', selectedDayName);
-    console.log('Doctor work days:', doctor.work_days);
-    
     // If the doctor doesn't work on this day, return empty slots
     if (!doctor.work_days || !doctor.work_days.includes(selectedDayName)) {
-      console.log('Doctor does not work on this day');
       return [];
     }
 
     const startTime = doctor.work_start_time || '08:00:00';
     const endTime = doctor.work_end_time || '17:00:00';
     const duration = doctor.appointment_duration || 30;
-
-    console.log('Generating time slots from', startTime, 'to', endTime, 'with duration', duration);
 
     const [startHour, startMinute] = startTime.split(':').map(Number);
     const [endHour, endMinute] = endTime.split(':').map(Number);
@@ -255,7 +393,6 @@ export default function AppointmentCalendar() {
       }
     }
 
-    console.log('Generated', slots.length, 'time slots');
     return slots;
   };
 
@@ -266,7 +403,7 @@ export default function AppointmentCalendar() {
   };
 
   const handleTimeSlotClick = (time: string, isFull: boolean) => {
-    if ((profile?.role === 'patient' || profile?.role === 'admin' || profile?.role === 'reception') && !isFull) {
+    if ((profile?.role === 'admin' || profile?.role === 'reception' || profile?.role === 'secretaria') && !isFull) {
       setSelectedTimeSlot(time);
       setIsNewAppointmentOpen(true);
     }
