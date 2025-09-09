@@ -1652,6 +1652,16 @@ export type Database = {
           year: number
         }[]
       }
+      get_organization_statistics: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          active_doctors: number
+          organization_id: string
+          total_appointments: number
+          total_patients: number
+          total_users: number
+        }[]
+      }
       get_patients_attended_by_month: {
         Args: { doctor_filter?: string; end_date?: string; start_date?: string }
         Returns: {

@@ -81,25 +81,23 @@ export function OrganizationManagement() {
 
   const fetchOrganizationStats = async () => {
     try {
-      // Fetch stats for each organization
-      const statsPromises = organizations.map(async (org) => {
-        const [usersResult, patientsResult, appointmentsResult, doctorsResult] = await Promise.all([
-          supabase.from('profiles').select('id', { count: 'exact' }).eq('organization_id', org.id),
-          supabase.from('patients').select('id', { count: 'exact' }).eq('organization_id', org.id),
-          supabase.from('appointments').select('id', { count: 'exact' }).eq('organization_id', org.id),
-          supabase.from('doctors').select('id', { count: 'exact' }).eq('organization_id', org.id).eq('is_active', true)
-        ]);
+      // Use the new security definer function to get stats
+      const { data, error } = await supabase.rpc('get_organization_statistics');
 
-        return {
-          id: org.id,
-          total_users: usersResult.count || 0,
-          total_patients: patientsResult.count || 0,
-          total_appointments: appointmentsResult.count || 0,
-          active_doctors: doctorsResult.count || 0
-        };
-      });
+      if (error) {
+        console.error('Error fetching organization stats via RPC:', error);
+        return;
+      }
 
-      const stats = await Promise.all(statsPromises);
+      // Transform the data to match the expected format
+      const stats = data?.map((stat: any) => ({
+        id: stat.organization_id,
+        total_users: parseInt(stat.total_users) || 0,
+        total_patients: parseInt(stat.total_patients) || 0,
+        total_appointments: parseInt(stat.total_appointments) || 0,
+        active_doctors: parseInt(stat.active_doctors) || 0
+      })) || [];
+
       setOrganizationStats(stats);
     } catch (error) {
       console.error('Error fetching organization stats:', error);
