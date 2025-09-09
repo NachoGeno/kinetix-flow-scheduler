@@ -142,18 +142,19 @@ export function AppSidebar() {
   };
 
   const getNavClassName = (path: string) => {
-    const baseClasses = "w-full justify-start transition-colors";
+    const baseClasses = "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors w-full";
     if (isActive(path)) {
-      return `${baseClasses} bg-primary text-primary-foreground shadow-sm`;
+      return `${baseClasses} bg-primary text-primary-foreground font-medium shadow-sm`;
     }
-    return `${baseClasses} hover:bg-sidebar-accent hover:text-sidebar-accent-foreground`;
+    return `${baseClasses} text-foreground hover:bg-accent hover:text-accent-foreground`;
   };
 
   return (
-    <div className="flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar">
-      <div className="p-6 border-b border-sidebar-border">
+    <aside className="w-64 h-full bg-card border-r border-border flex flex-col">
+      {/* Header */}
+      <div className="p-6 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 rounded-lg overflow-hidden bg-background border border-border flex items-center justify-center flex-shrink-0">
             <img 
               src="/lovable-uploads/2800aff0-a779-4fb4-9ad8-7d20459df869.png" 
               alt="Rehabilitare Logo" 
@@ -161,63 +162,64 @@ export function AppSidebar() {
             />
           </div>
           <div className="min-w-0">
-            <h2 className="font-semibold text-lg text-sidebar-foreground truncate">
+            <h2 className="font-semibold text-lg text-foreground truncate">
               Rehabilitare
             </h2>
-            <p className="text-sm text-sidebar-foreground/70 truncate">
+            <p className="text-sm text-muted-foreground truncate">
               Centro de Kinesiología
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4">
+      {/* Navigation */}
+      <nav className="flex-1 overflow-auto p-4">
         <div className="space-y-6">
+          {/* Main Navigation */}
           <div>
-            <div className="text-sidebar-foreground/70 font-medium mb-2 px-2">
+            <h3 className="text-muted-foreground font-medium mb-3 px-2 text-sm uppercase tracking-wider">
               Principal
-            </div>
-            <div className="space-y-1">
+            </h3>
+            <ul className="space-y-1">
               {filteredNavigationItems.map((item) => (
-                <NavLink
-                  key={item.title}
-                  to={item.url}
-                  className={getNavClassName(item.url)}
-                  title={item.description}
-                >
-                  <div className="flex items-center gap-3 p-2 rounded-md">
-                    <item.icon className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium truncate">{item.title}</span>
-                  </div>
-                </NavLink>
-              ))}
-            </div>
-          </div>
-
-          {filteredAdminItems.length > 0 && (
-            <div>
-              <div className="text-sidebar-foreground/70 font-medium mb-2 px-2">
-                Administración
-              </div>
-              <div className="space-y-1">
-                {filteredAdminItems.map((item) => (
+                <li key={item.title}>
                   <NavLink
-                    key={item.title}
                     to={item.url}
                     className={getNavClassName(item.url)}
                     title={item.description}
                   >
-                    <div className="flex items-center gap-3 p-2 rounded-md">
+                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                    <span className="font-medium truncate">{item.title}</span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Admin Navigation */}
+          {filteredAdminItems.length > 0 && (
+            <div>
+              <h3 className="text-muted-foreground font-medium mb-3 px-2 text-sm uppercase tracking-wider">
+                Administración
+              </h3>
+              <ul className="space-y-1">
+                {filteredAdminItems.map((item) => (
+                  <li key={item.title}>
+                    <NavLink
+                      to={item.url}
+                      className={getNavClassName(item.url)}
+                      title={item.description}
+                    >
                       <item.icon className="w-5 h-5 flex-shrink-0" />
                       <span className="font-medium truncate">{item.title}</span>
-                    </div>
-                  </NavLink>
+                    </NavLink>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </nav>
+    </aside>
   );
 }
