@@ -1554,6 +1554,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_admin_only_modules: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      can_access_secretaria_modules: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       can_manage_plus_payments: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -1777,6 +1785,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       is_admin: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
+      is_secretaria: {
         Args: { user_id: string }
         Returns: boolean
       }

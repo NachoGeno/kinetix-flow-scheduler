@@ -19,7 +19,7 @@ interface UserProfile {
   first_name: string;
   last_name: string;
   email: string;
-  role: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin';
+  role: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria';
   phone: string | null;
   created_at: string;
   avatar_url: string | null;
@@ -31,7 +31,7 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [newRole, setNewRole] = useState<'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin'>('patient');
+  const [newRole, setNewRole] = useState<'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria'>('patient');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function UserManagement() {
     }
   };
 
-  const updateUserRole = async (userId: string, newRole: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin') => {
+  const updateUserRole = async (userId: string, newRole: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria') => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -120,6 +120,10 @@ export default function UserManagement() {
         return 'default';
       case 'patient':
         return 'secondary';
+      case 'reception':
+        return 'outline'; 
+      case 'secretaria':
+        return 'outline';
       default:
         return 'outline';
     }
@@ -135,6 +139,10 @@ export default function UserManagement() {
         return 'Paciente';
       case 'reception':
         return 'Recepción';
+      case 'secretaria':
+        return 'Secretaria';
+      case 'super_admin':
+        return 'Super Admin';
       default:
         return role;
     }
@@ -252,7 +260,7 @@ export default function UserManagement() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="role">Rol</Label>
-                            <Select value={newRole} onValueChange={(value: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin') => setNewRole(value)}>
+                            <Select value={newRole} onValueChange={(value: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria') => setNewRole(value)}>
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
@@ -261,6 +269,7 @@ export default function UserManagement() {
                                 <SelectItem value="doctor">Doctor</SelectItem>
                                 <SelectItem value="patient">Paciente</SelectItem>
                                 <SelectItem value="reception">Recepción</SelectItem>
+                                <SelectItem value="secretaria">Secretaria</SelectItem>
                                 <SelectItem value="super_admin">Super Admin</SelectItem>
                               </SelectContent>
                             </Select>

@@ -23,70 +23,70 @@ const navigationItems = [
     url: "/",
     icon: Activity,
     description: "Vista general del sistema",
-    roles: ['admin', 'doctor', 'patient']
+    roles: ['admin', 'doctor', 'patient', 'secretaria']
   },
   {
     title: "Citas",
     url: "/appointments",
     icon: Calendar,
     description: "Gestión de citas médicas",
-    roles: ['admin', 'doctor', 'patient']
+    roles: ['admin', 'doctor', 'patient', 'secretaria']
   },
   {
     title: "Pacientes",
     url: "/patients",
     icon: Users,
     description: "Gestión de pacientes",
-    roles: ['admin', 'doctor', 'patient']
+    roles: ['admin', 'doctor', 'patient', 'secretaria']
   },
   {
     title: "Profesionales",
     url: "/doctors",
     icon: UserCheck,
     description: "Gestión de profesionales",
-    roles: ['admin', 'patient']
+    roles: ['admin', 'patient', 'secretaria']
   },
   {
     title: "Órdenes Médicas",
     url: "/orders",
     icon: FileText,
     description: "Órdenes y prescripciones médicas",
-    roles: ['admin', 'doctor']
+    roles: ['admin', 'doctor', 'secretaria']
   },
   {
     title: "Obras Sociales / ART",
     url: "/obras-sociales",
     icon: Building2,
     description: "Gestión de obras sociales y ART",
-    roles: ['admin', 'doctor']
+    roles: ['admin', 'doctor', 'secretaria']
   },
   {
     title: "Presentaciones",
     url: "/presentaciones",
     icon: FileText,
     description: "Documentos para facturación por obra social",
-    roles: ['admin', 'doctor']
+    roles: ['admin', 'doctor', 'secretaria']
   },
   {
     title: "Facturación",
     url: "/billing",
     icon: FileText,
     description: "Facturación por obra social y ART",
-    roles: ['admin', 'reception']
+    roles: ['admin']
   },
   {
     title: "Plus",
     url: "/plus-payments",
     icon: DollarSign,
     description: "Gestión de plus payments",
-    roles: ['admin', 'reception']
+    roles: ['admin', 'reception', 'secretaria']
   },
   {
     title: "Gestión de Caja",
     url: "/cash-management",
     icon: Wallet,
     description: "Control de ingresos, egresos y arqueos",
-    roles: ['admin', 'reception']
+    roles: ['admin', 'reception', 'secretaria']
   },
   {
     title: "Historia Clínica",
@@ -100,7 +100,7 @@ const navigationItems = [
     url: "/novedades",
     icon: MessageCircle,
     description: "Comunicación interna del equipo",
-    roles: ['admin', 'doctor', 'reception']
+    roles: ['admin', 'doctor', 'reception', 'secretaria']
   },
   {
     title: "Reportes",
