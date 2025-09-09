@@ -87,6 +87,57 @@ export function useSuperAdminUsers() {
     }
   };
 
+  const createUser = async (userData: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    role: string;
+    organization_id: string;
+  }) => {
+    try {
+      // First create the profile without user_id (will be a patient-style profile)
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          email: userData.email,
+          role: userData.role as any,
+          organization_id: userData.organization_id,
+          user_id: null // This will be a profile without auth user
+        })
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+        toast({
+          title: "Error",
+          description: `No se pudo crear el usuario: ${profileError.message}`,
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      toast({
+        title: "Éxito",
+        description: "Usuario creado correctamente",
+      });
+      
+      // Refrescar la lista de usuarios
+      await fetchUsers();
+      return true;
+    } catch (error: any) {
+      console.error('Error in createUser:', error);
+      toast({
+        title: "Error",
+        description: `Error inesperado: ${error.message}`,
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -96,5 +147,6 @@ export function useSuperAdminUsers() {
     loading,
     fetchUsers,
     updateUserRole,
+    createUser,
   };
 }

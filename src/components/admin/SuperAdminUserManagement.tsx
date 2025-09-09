@@ -1,21 +1,32 @@
 import { useState } from 'react';
-import { Search, Edit2, Users, Shield, Stethoscope } from 'lucide-react';
+import { Search, Edit2, Users, Shield, Stethoscope, Plus } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSuperAdminUsers } from '@/hooks/useSuperAdminUsers';
+import { useOrganizations } from '@/hooks/useOrganizations';
 import { format } from 'date-fns';
 
 export default function SuperAdminUserManagement() {
-  const { users, loading, updateUserRole } = useSuperAdminUsers();
+  const { users, loading, updateUserRole, createUser } = useSuperAdminUsers();
+  const { organizations } = useOrganizations();
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUser, setEditingUser] = useState<any>(null);
   const [selectedRole, setSelectedRole] = useState('');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newUser, setNewUser] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    role: 'patient',
+    organization_id: ''
+  });
 
   const filteredUsers = users.filter(user =>
     user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -74,6 +85,26 @@ export default function SuperAdminUserManagement() {
     }
   };
 
+  const handleCreateUser = async () => {
+    if (newUser.first_name && newUser.last_name && newUser.email && newUser.organization_id) {
+      const success = await createUser(newUser);
+      if (success) {
+        setIsCreateDialogOpen(false);
+        resetCreateForm();
+      }
+    }
+  };
+
+  const resetCreateForm = () => {
+    setNewUser({
+      first_name: '',
+      last_name: '',
+      email: '',
+      role: 'patient',
+      organization_id: ''
+    });
+  };
+
   const getStats = () => {
     return {
       totalUsers: users.length,
@@ -93,13 +124,21 @@ export default function SuperAdminUserManagement() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Gestión de Usuarios del Sistema
-        </CardTitle>
-        <CardDescription>
-          Administra usuarios de todas las organizaciones del sistema
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Gestión de Usuarios del Sistema
+            </CardTitle>
+            <CardDescription>
+              Administra usuarios de todas las organizaciones del sistema
+            </CardDescription>
+          </div>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Agregar Usuario
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {/* Search */}
@@ -223,6 +262,98 @@ export default function SuperAdminUserManagement() {
             No se encontraron usuarios que coincidan con la búsqueda.
           </div>
         )}
+        
+        {/* Create User Dialog */}
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Crear Nuevo Usuario</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="first_name">Nombre</Label>
+                  <Input
+                    id="first_name"
+                    value={newUser.first_name}
+                    onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })}
+                    placeholder="Ingrese el nombre"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="last_name">Apellido</Label>
+                  <Input
+                    id="last_name"
+                    value={newUser.last_name}
+                    onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })}
+                    placeholder="Ingrese el apellido"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  placeholder="Ingrese el email"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="organization">Organización</Label>
+                <Select
+                  value={newUser.organization_id}
+                  onValueChange={(value) => setNewUser({ ...newUser, organization_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar organización" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizations.map((org) => (
+                      <SelectItem key={org.id} value={org.id}>
+                        {org.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="role">Rol</Label>
+                <Select
+                  value={newUser.role}
+                  onValueChange={(value) => setNewUser({ ...newUser, role: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar rol" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="doctor">Doctor</SelectItem>
+                    <SelectItem value="reception">Recepción</SelectItem>
+                    <SelectItem value="patient">Paciente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={handleCreateUser} className="flex-1">
+                  Crear Usuario
+                </Button>
+                <Button variant="outline" onClick={() => {
+                  setIsCreateDialogOpen(false);
+                  resetCreateForm();
+                }} className="flex-1">
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
