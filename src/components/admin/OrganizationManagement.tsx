@@ -57,7 +57,13 @@ export function OrganizationManagement() {
     max_patients: 1000,
     plan_type: 'basic',
     primary_color: '#3B82F6',
-    secondary_color: '#1E40AF'
+    secondary_color: '#1E40AF',
+    // Admin user fields (only for creation)
+    admin_email: '',
+    admin_password: '',
+    admin_first_name: '',
+    admin_last_name: '',
+    admin_phone: ''
   });
 
   const fetchOrganizations = async () => {
@@ -124,10 +130,11 @@ export function OrganizationManagement() {
     
     try {
       if (editingOrg) {
-        // Update existing organization
+        // Update existing organization (exclude admin fields)
+        const { admin_email, admin_password, admin_first_name, admin_last_name, admin_phone, ...orgData } = formData;
         const { error } = await supabase
           .from('organizations')
-          .update(formData)
+          .update(orgData)
           .eq('id', editingOrg.id);
 
         if (error) throw error;
@@ -137,16 +144,36 @@ export function OrganizationManagement() {
           description: "Organización actualizada correctamente",
         });
       } else {
-        // Create new organization
-        const { error } = await supabase
-          .from('organizations')
-          .insert([formData]);
+        // Create new organization with admin user via edge function
+        const { data, error } = await supabase.functions.invoke('create-organization-with-admin', {
+          body: {
+            name: formData.name,
+            subdomain: formData.subdomain,
+            contact_email: formData.contact_email,
+            contact_phone: formData.contact_phone,
+            address: formData.address,
+            max_users: formData.max_users,
+            max_patients: formData.max_patients,
+            plan_type: formData.plan_type,
+            primary_color: formData.primary_color,
+            secondary_color: formData.secondary_color,
+            admin_email: formData.admin_email,
+            admin_password: formData.admin_password,
+            admin_first_name: formData.admin_first_name,
+            admin_last_name: formData.admin_last_name,
+            admin_phone: formData.admin_phone
+          }
+        });
 
         if (error) throw error;
 
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
         toast({
           title: "Éxito",
-          description: "Organización creada correctamente",
+          description: `Organización creada correctamente. Usuario administrador: ${formData.admin_email}`,
         });
       }
 
@@ -154,11 +181,11 @@ export function OrganizationManagement() {
       setEditingOrg(null);
       resetForm();
       fetchOrganizations();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving organization:', error);
       toast({
         title: "Error",
-        description: "No se pudo guardar la organización",
+        description: error.message || "No se pudo guardar la organización",
         variant: "destructive",
       });
     }
@@ -176,7 +203,13 @@ export function OrganizationManagement() {
       max_patients: org.max_patients,
       plan_type: org.plan_type,
       primary_color: org.primary_color,
-      secondary_color: org.secondary_color
+      secondary_color: org.secondary_color,
+      // Admin fields (empty for existing organizations)
+      admin_email: '',
+      admin_password: '',
+      admin_first_name: '',
+      admin_last_name: '',
+      admin_phone: ''
     });
     setIsDialogOpen(true);
   };
@@ -217,7 +250,12 @@ export function OrganizationManagement() {
       max_patients: 1000,
       plan_type: 'basic',
       primary_color: '#3B82F6',
-      secondary_color: '#1E40AF'
+      secondary_color: '#1E40AF',
+      admin_email: '',
+      admin_password: '',
+      admin_first_name: '',
+      admin_last_name: '',
+      admin_phone: ''
     });
   };
 
@@ -343,6 +381,67 @@ export function OrganizationManagement() {
                   </Select>
                 </div>
               </div>
+
+              {!editingOrg && (
+                <>
+                  <div className="border-t pt-4">
+                    <h4 className="text-sm font-semibold mb-3">Datos del Administrador</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="admin_first_name">Nombre *</Label>
+                        <Input
+                          id="admin_first_name"
+                          value={formData.admin_first_name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, admin_first_name: e.target.value }))}
+                          required={!editingOrg}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="admin_last_name">Apellido *</Label>
+                        <Input
+                          id="admin_last_name"
+                          value={formData.admin_last_name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, admin_last_name: e.target.value }))}
+                          required={!editingOrg}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div>
+                        <Label htmlFor="admin_email">Email del Administrador *</Label>
+                        <Input
+                          id="admin_email"
+                          type="email"
+                          value={formData.admin_email}
+                          onChange={(e) => setFormData(prev => ({ ...prev, admin_email: e.target.value }))}
+                          required={!editingOrg}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="admin_phone">Teléfono del Administrador</Label>
+                        <Input
+                          id="admin_phone"
+                          value={formData.admin_phone}
+                          onChange={(e) => setFormData(prev => ({ ...prev, admin_phone: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <Label htmlFor="admin_password">Contraseña del Administrador *</Label>
+                      <Input
+                        id="admin_password"
+                        type="password"
+                        value={formData.admin_password}
+                        onChange={(e) => setFormData(prev => ({ ...prev, admin_password: e.target.value }))}
+                        required={!editingOrg}
+                        placeholder="Mínimo 6 caracteres"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>

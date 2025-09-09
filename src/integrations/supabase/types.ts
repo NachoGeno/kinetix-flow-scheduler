@@ -1562,6 +1562,21 @@ export type Database = {
         Args: { order_id: string }
         Returns: boolean
       }
+      create_organization_with_validation: {
+        Args: {
+          org_address?: string
+          org_contact_email?: string
+          org_contact_phone?: string
+          org_max_patients?: number
+          org_max_users?: number
+          org_name: string
+          org_plan_type?: string
+          org_primary_color?: string
+          org_secondary_color?: string
+          org_subdomain: string
+        }
+        Returns: Json
+      }
       fix_medical_orders_data_integrity: {
         Args: Record<PropertyKey, never>
         Returns: {
