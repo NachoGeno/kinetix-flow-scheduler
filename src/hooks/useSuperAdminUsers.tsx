@@ -96,43 +96,36 @@ export function useSuperAdminUsers() {
     organization_id: string;
   }) => {
     try {
-      // Create the user in the auth system with email and password
-      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-        email: userData.email,
-        password: userData.password,
-        user_metadata: {
+      // Call the edge function to create the user with admin privileges
+      const { data, error } = await supabase.functions.invoke('create-user-admin', {
+        body: {
           first_name: userData.first_name,
           last_name: userData.last_name,
+          email: userData.email,
+          password: userData.password,
           role: userData.role,
           organization_id: userData.organization_id
-        },
-        email_confirm: true // Auto-confirm the email
+        }
       });
 
-      if (authError) {
-        console.error('Error creating auth user:', authError);
+      if (error) {
+        console.error('Error calling create-user-admin function:', error);
         toast({
           title: "Error",
-          description: `No se pudo crear el usuario: ${authError.message}`,
+          description: `No se pudo crear el usuario: ${error.message}`,
           variant: "destructive",
         });
         return false;
       }
 
-      // Update the profile with the correct organization and role
-      if (authUser.user) {
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            role: userData.role as any,
-            organization_id: userData.organization_id
-          })
-          .eq('user_id', authUser.user.id);
-
-        if (updateError) {
-          console.error('Error updating profile:', updateError);
-          // Don't fail the whole operation for this
-        }
+      if (data?.error) {
+        console.error('Error creating user:', data.error);
+        toast({
+          title: "Error",
+          description: `No se pudo crear el usuario: ${data.error}`,
+          variant: "destructive",
+        });
+        return false;
       }
 
       toast({
