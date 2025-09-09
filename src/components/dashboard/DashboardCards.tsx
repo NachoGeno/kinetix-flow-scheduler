@@ -12,7 +12,7 @@ interface DashboardStats {
 
 export function DashboardCards() {
   const { data: stats, isLoading: loading } = useQuery({
-    queryKey: ['dashboard-stats'],
+    queryKey: ['dashboard-stats', 'organization-aware'],
     queryFn: async (): Promise<DashboardStats> => {
       const { data, error } = await supabase.functions.invoke('dashboard-stats');
       

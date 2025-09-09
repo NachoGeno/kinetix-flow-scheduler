@@ -59,7 +59,7 @@ const getActivityIcon = (type: string) => {
 
 export function RecentActivity() {
   const { data: activities = [], isLoading: loading } = useQuery({
-    queryKey: ['recent-activity'],
+    queryKey: ['recent-activity', 'organization-aware'],
     queryFn: async (): Promise<Activity[]> => {
       const { data, error } = await supabase.functions.invoke('recent-activity');
       
