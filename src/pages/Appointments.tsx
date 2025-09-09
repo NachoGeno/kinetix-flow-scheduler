@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppointmentCalendar from '@/components/appointments/AppointmentCalendar';
 import AppointmentsList from '@/components/appointments/AppointmentsList';
+import { AppointmentDebug } from '@/components/debug/AppointmentDebug';
 
 export default function Appointments() {
   const [view, setView] = useState('calendar');
@@ -47,6 +48,7 @@ export default function Appointments() {
         </TabsContent>
         
         <TabsContent value="list" className="space-y-4">
+          <AppointmentDebug />
           <AppointmentsList />
         </TabsContent>
       </Tabs>

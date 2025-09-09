@@ -275,6 +275,8 @@ export default function AppointmentsList() {
     if (!profile) return;
 
     try {
+      console.log('🔍 Intentando marcar presente turno:', appointmentId, 'con usuario:', profile.id, 'rol:', profile.role);
+      
       const { error: appointmentError } = await supabase
         .from('appointments')
         .update({ 
@@ -283,7 +285,10 @@ export default function AppointmentsList() {
         })
         .eq('id', appointmentId);
 
-      if (appointmentError) throw appointmentError;
+      if (appointmentError) {
+        console.error('❌ Error actualizando appointment:', appointmentError);
+        throw appointmentError;
+      }
 
       const appointment = appointments.find(a => a.id === appointmentId);
       if (!appointment) throw new Error('Appointment not found');
@@ -628,17 +633,20 @@ export default function AppointmentsList() {
                       </Badge>
                        <div className="flex items-center gap-1">
                          {/* Action buttons */}
-                         {(profile?.role === 'doctor' || profile?.role === 'admin') && 
-                          appointment.status === 'scheduled' && (
+                          {(profile?.role === 'doctor' || profile?.role === 'admin' || profile?.role === 'reception') && 
+                           appointment.status === 'scheduled' && (
                            <>
                              <Tooltip>
                                <TooltipTrigger asChild>
-                                 <Button
-                                   variant="outline"
-                                   size="sm"
-                                   className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
-                                   onClick={() => handleMarkAttendance(appointment.id, 'in_progress')}
-                                 >
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+                                    onClick={() => {
+                                      console.log('🎯 Intentando marcar presente:', appointment.patient.profile.first_name, appointment.patient.profile.last_name, appointment.appointment_date, appointment.appointment_time);
+                                      handleMarkAttendance(appointment.id, 'in_progress');
+                                    }}
+                                  >
                                    <UserCheck className="h-4 w-4" />
                                  </Button>
                                </TooltipTrigger>
