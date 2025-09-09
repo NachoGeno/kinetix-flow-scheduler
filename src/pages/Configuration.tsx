@@ -74,18 +74,18 @@ export default function Configuration() {
 
       {/* Panel SaaS para Super Admin */}
       {profile?.role === 'super_admin' && (
-        <Card className="mt-8 border-blue-200 bg-blue-50">
+        <Card className="mt-8 border-primary/20 bg-primary/5">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-900">
+            <CardTitle className="flex items-center gap-2 text-primary">
               <Building2 className="h-5 w-5" />
               Panel Super Admin - Sistema SaaS
             </CardTitle>
-            <CardDescription className="text-blue-700">
+            <CardDescription className="text-muted-foreground">
               Accede al panel de administración global para gestionar todas las organizaciones del sistema multiempresa.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
               <a href="/saas-admin">
                 <Building2 className="mr-2 h-4 w-4" />
                 Ir al Panel SaaS
