@@ -5,7 +5,6 @@ nixPkgs = ["nodejs_20", "yarn"]
 cmds = [
   "rm -rf node_modules package-lock.json yarn.lock",
   "yarn install --ignore-optional",
-  "yarn add @rollup/rollup-linux-x64-gnu --dev --ignore-optional"
 ]
 
 [phases.build]
