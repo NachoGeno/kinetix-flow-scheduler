@@ -9,7 +9,7 @@ interface PatientFilters {
 
 export function usePaginatedPatients(filters: PatientFilters) {
   return useQuery({
-    queryKey: ['patients', 'paginated', filters],
+    queryKey: ['patients', 'paginated', 'organization-aware', filters],
     queryFn: async () => {
       // Use the new PostgreSQL search function for better performance
       const { data, error } = await supabase.rpc('search_patients_paginated', {
