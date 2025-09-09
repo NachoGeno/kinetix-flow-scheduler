@@ -3,12 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface UserProfile {
-  id: string;
+  profile_id: string;
   user_id: string;
   first_name: string;
   last_name: string;
   email: string;
-  role: 'admin' | 'doctor' | 'reception' | 'patient' | 'super_admin';
+  role: string;
   phone?: string;
   created_at: string;
   avatar_url?: string;
@@ -25,7 +25,8 @@ export function useSuperAdminUsers() {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase.rpc('get_all_users_for_super_admin');
+      // Use any type temporarily until Supabase generates new types
+      const { data, error } = await supabase.rpc('get_all_users_for_super_admin') as any;
       
       if (error) {
         console.error('Error fetching users:', error);
@@ -54,7 +55,7 @@ export function useSuperAdminUsers() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ role: newRole })
+        .update({ role: newRole as any })
         .eq('id', userId);
 
       if (error) {

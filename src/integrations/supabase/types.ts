@@ -1607,6 +1607,22 @@ export type Database = {
           patient_name: string
         }[]
       }
+      get_all_users_for_super_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          avatar_url: string
+          created_at: string
+          email: string
+          first_name: string
+          last_name: string
+          organization_id: string
+          organization_name: string
+          phone: string
+          profile_id: string
+          role: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }[]
+      }
       get_appointment_stats: {
         Args: { doctor_filter?: string; end_date?: string; start_date?: string }
         Returns: {

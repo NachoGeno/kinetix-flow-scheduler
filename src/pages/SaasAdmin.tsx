@@ -1,5 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 import { OrganizationManagement } from '@/components/admin/OrganizationManagement';
+import SuperAdminUserManagement from '@/components/admin/SuperAdminUserManagement';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Building2, Users, Activity, TrendingUp } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
@@ -160,6 +161,9 @@ export default function SaasAdmin() {
           <OrganizationManagement />
         </CardContent>
       </Card>
+
+      {/* User Management */}
+      <SuperAdminUserManagement />
     </div>
   );
 }
