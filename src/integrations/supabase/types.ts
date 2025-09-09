@@ -1766,6 +1766,10 @@ export type Database = {
         Args: { user_id: string }
         Returns: boolean
       }
+      is_super_admin_only: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
       revert_appointment_status: {
         Args: { appointment_uuid: string; revert_reason_text: string }
         Returns: boolean
