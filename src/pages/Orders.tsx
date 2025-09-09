@@ -44,7 +44,7 @@ interface MedicalOrder {
       last_name: string;
       dni: string | null;
     };
-  };
+  } | null;
   doctor: {
     profile: {
       first_name: string;
@@ -54,7 +54,7 @@ interface MedicalOrder {
       name: string;
       color: string;
     };
-  };
+  } | null;
 }
 
 const orderTypeLabels = {
@@ -101,9 +101,9 @@ export default function Orders() {
         .from('medical_orders')
         .select(`
           *,
-          patient:patients(
+          patient:patients!inner(
             id,
-            profile:profiles(first_name, last_name, dni)
+            profile:profiles!inner(first_name, last_name, dni)
           ),
           doctor:doctors(
             profile:profiles(first_name, last_name),
@@ -329,10 +329,10 @@ export default function Orders() {
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.patient?.profile?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.patient?.profile?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.doctor?.profile?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.doctor?.profile?.last_name?.toLowerCase().includes(searchTerm.toLowerCase());
+                         (order.patient?.profile?.first_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (order.patient?.profile?.last_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (order.doctor?.profile?.first_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (order.doctor?.profile?.last_name?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || 
                          (statusFilter === 'completed' && order.completed) ||
@@ -483,10 +483,13 @@ export default function Orders() {
                       <div className="flex items-center gap-4 text-sm">
                         <span className="flex items-center gap-1">
                           <User className="h-3 w-3" />
-                          {order.patient?.profile?.first_name} {order.patient?.profile?.last_name}
+                          {order.patient?.profile ? 
+                            `${order.patient.profile.first_name || ''} ${order.patient.profile.last_name || ''}`.trim() || 'Paciente sin datos'
+                            : 'Paciente no disponible'
+                          }
                           {order.patient?.profile?.dni && (
                             <span className="text-muted-foreground">
-                              (DNI: {order.patient?.profile?.dni})
+                              (DNI: {order.patient.profile.dni})
                             </span>
                           )}
                         </span>
@@ -604,21 +607,33 @@ export default function Orders() {
                     </Button>
 
                     {/* Evolución Clínica Final Button */}
-                    <FinalClinicalHistoryForm 
-                      medicalOrderId={order.id}
-                      patientId={order.patient.id}
-                      onSave={fetchOrders}
-                      trigger={
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Evolución Final
-                        </Button>
-                      }
-                    />
+                    {order.patient?.id ? (
+                      <FinalClinicalHistoryForm 
+                        medicalOrderId={order.id}
+                        patientId={order.patient.id}
+                        onSave={fetchOrders}
+                        trigger={
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Evolución Final
+                          </Button>
+                        }
+                      />
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled
+                        className="bg-gray-50 border-gray-200 text-gray-400"
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Paciente no disponible
+                      </Button>
+                    )}
 
                     <Button
                       size="sm"
