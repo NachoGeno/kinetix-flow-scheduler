@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganizationContext } from "@/hooks/useOrganizationContext";
 
 interface CompletedPresentation {
   id: string;
@@ -29,17 +30,23 @@ export function useBilling() {
   const [loading, setLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const { user } = useAuth();
+  const { currentOrgId } = useOrganizationContext();
 
   useEffect(() => {
-    loadObrasSociales();
-  }, []);
+    if (currentOrgId) {
+      loadObrasSociales();
+    }
+  }, [currentOrgId]);
 
   const loadObrasSociales = async () => {
+    if (!currentOrgId) return;
+    
     try {
       const { data, error } = await supabase
         .from("obras_sociales_art")
         .select("*")
         .eq("is_active", true)
+        .eq("organization_id", currentOrgId)
         .order("nombre");
 
       if (error) throw error;
@@ -59,6 +66,8 @@ export function useBilling() {
     periodStart: Date;
     periodEnd: Date;
   }): Promise<CompletedPresentation[]> => {
+    if (!currentOrgId) throw new Error("Organization context not available");
+    
     try {
       const { data, error } = await supabase
         .from("medical_orders")
@@ -87,6 +96,7 @@ export function useBilling() {
         `)
         .eq("completed", true)
         .eq("enviado_a_os", false)
+        .eq("organization_id", currentOrgId)
         .gte("completed_at", periodStart.toISOString())
         .lte("completed_at", periodEnd.toISOString());
 
@@ -161,6 +171,7 @@ export function useBilling() {
       const { error: updateError } = await supabase
         .from("medical_orders")
         .update({ enviado_a_os: true })
+        .eq("organization_id", currentOrgId)
         .in("id", data.selectedPresentations);
 
       if (updateError) throw updateError;

@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -86,6 +87,7 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<MedicalOrder | null>(null);
   const [editingOrder, setEditingOrder] = useState<MedicalOrder | null>(null);
   const { profile } = useAuth();
+  const { currentOrgId } = useOrganizationContext();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -93,7 +95,7 @@ export default function Orders() {
   }, [profile, dateFilter, showAllDates]);
 
   const fetchOrders = async () => {
-    if (!profile) return;
+    if (!profile || !currentOrgId) return;
 
     try {
       setLoading(true);
@@ -110,6 +112,7 @@ export default function Orders() {
             specialty:specialties(name, color)
           )
         `)
+        .eq('organization_id', currentOrgId)
         .order('created_at', { ascending: false });
 
       // Add date filter - by default show only today's orders

@@ -129,6 +129,8 @@ export function usePlusPayments() {
     professional_id?: string;
     payment_date?: string;
   }) => {
+    if (!currentOrgId) throw new Error("Organization context not available");
+    
     try {
       let query = supabase
         .from('plus_payments')
@@ -144,6 +146,7 @@ export function usePlusPayments() {
             profiles!inner(first_name, last_name)
           )
         `)
+        .eq('organization_id', currentOrgId)
         .order('payment_date', { ascending: false })
         .order('created_at', { ascending: false });
 
@@ -212,11 +215,14 @@ export function usePlusPayments() {
   }, []);
 
   const checkExistingPlusPayment = useCallback(async (medicalOrderId: string) => {
+    if (!currentOrgId) return null;
+    
     try {
       const { data, error } = await supabase
         .from('plus_payments')
         .select('id, amount, payment_method, payment_date')
         .eq('medical_order_id', medicalOrderId)
+        .eq('organization_id', currentOrgId)
         .maybeSingle();
 
       if (error) throw error;
@@ -225,7 +231,7 @@ export function usePlusPayments() {
       console.error('Error checking existing plus payment:', error);
       return null;
     }
-  }, []);
+  }, [currentOrgId]);
 
   return {
     createPlusPayment,
