@@ -20,7 +20,6 @@ export const useRolePermissions = (): RolePermissions => {
   const currentRole = profile?.role as UserRole | null;
 
   const canAccessModule = (module: string): boolean => {
-    console.log('🔍 Checking module access for:', module, 'with role:', currentRole);
     if (!currentRole) return false;
 
     // Definir qué roles pueden acceder a cada módulo
@@ -43,16 +42,11 @@ export const useRolePermissions = (): RolePermissions => {
     };
 
     const allowedRoles = modulePermissions[module];
-    const hasAccess = allowedRoles ? allowedRoles.includes(currentRole) : false;
-    console.log('✅ Module access result for', module, ':', hasAccess, '| Allowed roles:', allowedRoles);
-    return hasAccess;
+    return allowedRoles ? allowedRoles.includes(currentRole) : false;
   };
 
   const canAccessAdminOnlyModules = (): boolean => {
-    console.log('🔍 Checking admin access for role:', currentRole);
-    const hasAccess = currentRole === 'admin' || currentRole === 'super_admin';
-    console.log('✅ Admin access result:', hasAccess);
-    return hasAccess;
+    return currentRole === 'admin' || currentRole === 'super_admin';
   };
 
   const canAccessSecretariaModules = (): boolean => {

@@ -54,19 +54,19 @@ interface Appointment {
     profile: {
       first_name: string;
       last_name: string;
-    };
-  };
+    } | null;
+  } | null;
   doctor: {
     id: string;
     profile: {
       first_name: string;
       last_name: string;
-    };
+    } | null;
     specialty: {
       name: string;
       color: string;
-    };
-  };
+    } | null;
+  } | null;
 }
 
 const statusLabels = {
@@ -629,7 +629,7 @@ export default function AppointmentCalendar() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                           <div className="font-medium text-sm text-slate-900 mb-1">
-                                            {appointment.patient.profile.first_name} {appointment.patient.profile.last_name}
+                                            {appointment.patient?.profile?.first_name || 'N/A'} {appointment.patient?.profile?.last_name || ''}
                                           </div>
                                              {(appointment.status !== 'completed' && appointment.status !== 'no_show' && appointment.status !== 'cancelled' && appointment.status !== 'discharged') && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
                                               <Popover 

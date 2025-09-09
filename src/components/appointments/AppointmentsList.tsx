@@ -53,19 +53,19 @@ interface Appointment {
     profile: {
       first_name: string;
       last_name: string;
-    };
-  };
+    } | null;
+  } | null;
   doctor: {
     id: string;
     profile: {
       first_name: string;
       last_name: string;
-    };
+    } | null;
     specialty: {
       name: string;
       color: string;
-    };
-  };
+    } | null;
+  } | null;
 }
 
 const statusColors = {
@@ -308,7 +308,7 @@ export default function AppointmentsList() {
         medicalOrderData?.id || null,
         appointment.patient_id,
         appointment.doctor_id,
-        `${appointment.doctor.profile.first_name} ${appointment.doctor.profile.last_name}`,
+        `${appointment.doctor?.profile?.first_name || 'Doctor'} ${appointment.doctor?.profile?.last_name || 'no asignado'}`,
         appointment.appointment_date
       );
 
@@ -642,10 +642,10 @@ export default function AppointmentsList() {
                                     variant="outline"
                                     size="sm"
                                     className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
-                                    onClick={() => {
-                                      console.log('🎯 Intentando marcar presente:', appointment.patient.profile.first_name, appointment.patient.profile.last_name, appointment.appointment_date, appointment.appointment_time);
-                                      handleMarkAttendance(appointment.id, 'in_progress');
-                                    }}
+                                     onClick={() => {
+                                       console.log('🎯 Intentando marcar presente:', appointment.patient?.profile?.first_name || 'N/A', appointment.patient?.profile?.last_name || 'N/A', appointment.appointment_date, appointment.appointment_time);
+                                       handleMarkAttendance(appointment.id, 'in_progress');
+                                     }}
                                   >
                                    <UserCheck className="h-4 w-4" />
                                  </Button>
@@ -703,10 +703,10 @@ export default function AppointmentsList() {
                                  variant="outline"
                                  size="sm"
                                  className="h-8 w-8 p-0 text-cyan-600 hover:text-cyan-700"
-                                  onClick={() => fetchPatientDischargeData(
-                                    appointment.patient_id,
-                                    `${appointment.patient.profile.first_name} ${appointment.patient.profile.last_name}`
-                                  )}
+                                   onClick={() => fetchPatientDischargeData(
+                                     appointment.patient_id,
+                                     `${appointment.patient?.profile?.first_name || 'N/A'} ${appointment.patient?.profile?.last_name || ''}`
+                                   )}
                                   disabled={isLoadingDischargeData}
                                >
                                  <LogOut className="h-4 w-4" />
@@ -836,7 +836,7 @@ export default function AppointmentsList() {
             setSelectedAppointment(null);
           }}
           onConfirm={handleNoShowConfirm}
-          patientName={selectedAppointment ? `${selectedAppointment.patient.profile.first_name} ${selectedAppointment.patient.profile.last_name}` : ''}
+          patientName={selectedAppointment ? `${selectedAppointment.patient?.profile?.first_name || 'N/A'} ${selectedAppointment.patient?.profile?.last_name || ''}` : ''}
         />
 
         <ResetNoShowDialog
