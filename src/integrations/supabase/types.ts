@@ -1833,7 +1833,13 @@ export type Database = {
       order_type: "laboratory" | "imaging" | "prescription" | "referral"
       payment_method: "cash" | "transfer" | "mercado_pago"
       shift_type: "mañana" | "tarde" | "completo"
-      user_role: "admin" | "doctor" | "patient" | "reception" | "super_admin"
+      user_role:
+        | "admin"
+        | "doctor"
+        | "patient"
+        | "reception"
+        | "super_admin"
+        | "secretaria"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1978,7 +1984,14 @@ export const Constants = {
       order_type: ["laboratory", "imaging", "prescription", "referral"],
       payment_method: ["cash", "transfer", "mercado_pago"],
       shift_type: ["mañana", "tarde", "completo"],
-      user_role: ["admin", "doctor", "patient", "reception", "super_admin"],
+      user_role: [
+        "admin",
+        "doctor",
+        "patient",
+        "reception",
+        "super_admin",
+        "secretaria",
+      ],
     },
   },
 } as const
