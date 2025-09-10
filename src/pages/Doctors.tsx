@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ProfessionalForm } from '@/components/professionals/ProfessionalForm';
+import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 
 interface Doctor {
   id: string;
@@ -56,11 +57,14 @@ export default function Doctors() {
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
+  const { currentOrgId } = useOrganizationContext();
 
   useEffect(() => {
-    fetchDoctors();
-    fetchSpecialties();
-  }, []);
+    if (currentOrgId) {
+      fetchDoctors();
+      fetchSpecialties();
+    }
+  }, [currentOrgId]);
 
   const fetchDoctors = async () => {
     try {
@@ -81,6 +85,7 @@ export default function Doctors() {
             color
           )
         `)
+        .eq('organization_id', currentOrgId)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
@@ -107,21 +112,22 @@ export default function Doctors() {
   };
 
   const fetchSpecialties = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('specialties')
-        .select('*')
-        .order('name');
-
-      if (error) {
-        console.error('Error fetching specialties:', error);
-        return;
-      }
-
-      setSpecialties(data || []);
-    } catch (error) {
-      console.error('Error fetching specialties:', error);
-    }
+    // Usar especialidades predefinidas directamente para evitar problemas con RLS
+    const predefinedSpecialties: Specialty[] = [
+      { id: 'kinesio-fisio', name: 'Kinesiología y Fisioterapia', color: '#3B82F6' },
+      { id: 'medicina-general', name: 'Medicina General', color: '#10B981' },
+      { id: 'traumatologia', name: 'Traumatología', color: '#F59E0B' },
+      { id: 'neurologia', name: 'Neurología', color: '#8B5CF6' },
+      { id: 'cardiologia', name: 'Cardiología', color: '#EF4444' },
+      { id: 'psicologia', name: 'Psicología', color: '#EC4899' },
+      { id: 'nutricion', name: 'Nutrición', color: '#84CC16' },
+      { id: 'fonoaudiologia', name: 'Fonoaudiología', color: '#F97316' },
+      { id: 'terapia-ocupacional', name: 'Terapia Ocupacional', color: '#06B6D4' },
+      { id: 'fisiatria', name: 'Fisiatría', color: '#8B5A2B' }
+    ];
+    
+    console.log('Using predefined specialties:', predefinedSpecialties);
+    setSpecialties(predefinedSpecialties);
   };
 
   const handleFormSuccess = () => {

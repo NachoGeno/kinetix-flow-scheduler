@@ -45,10 +45,12 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
 
   const fetchOrganization = async () => {
     if (!profile?.organization_id) {
+      console.log('No organization_id in profile');
       setOrganization(null);
       return;
     }
 
+    console.log('Fetching organization with ID:', profile.organization_id);
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -62,6 +64,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
         return;
       }
 
+      console.log('Organization fetched:', data);
       setOrganization(data);
     } catch (error) {
       console.error('Error in fetchOrganization:', error);
@@ -75,6 +78,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   };
 
   useEffect(() => {
+    console.log('useOrganization effect - user:', user?.id, 'profile org_id:', profile?.organization_id);
     if (user && profile?.organization_id) {
       fetchOrganization();
     } else {
