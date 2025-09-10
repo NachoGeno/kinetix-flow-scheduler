@@ -124,21 +124,54 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
 
   const fetchDoctors = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch doctors with separate queries to avoid RLS issues
+      const { data: doctorsData, error: doctorsError } = await supabase
         .from('doctors')
-        .select(`
-          id,
-          work_start_time,
-          work_end_time,
-          appointment_duration,
-          work_days,
-          profile:profiles(first_name, last_name),
-          specialty:specialties(name, color)
-        `)
+        .select('id, profile_id, specialty_id, work_start_time, work_end_time, appointment_duration, work_days')
         .eq('is_active', true);
 
-      if (error) throw error;
-      setDoctors(data || []);
+      if (doctorsError) throw doctorsError;
+
+      if (!doctorsData || doctorsData.length === 0) {
+        setDoctors([]);
+        return;
+      }
+
+      // Get profiles and specialties separately
+      const profileIds = doctorsData.map(d => d.profile_id);
+      const specialtyIds = doctorsData.map(d => d.specialty_id);
+
+      const [profilesResult, specialtiesResult] = await Promise.all([
+        supabase.from('profiles').select('id, first_name, last_name').in('id', profileIds),
+        supabase.from('specialties').select('id, name, color').in('id', specialtyIds)
+      ]);
+
+      const profiles = profilesResult.data || [];
+      const specialties = specialtiesResult.data || [];
+
+      // Combine data
+      const enrichedDoctors = doctorsData.map(doctor => {
+        const profile = profiles.find(p => p.id === doctor.profile_id);
+        const specialty = specialties.find(s => s.id === doctor.specialty_id);
+        
+        return {
+          id: doctor.id,
+          work_start_time: doctor.work_start_time,
+          work_end_time: doctor.work_end_time,
+          appointment_duration: doctor.appointment_duration,
+          work_days: doctor.work_days,
+          profile: {
+            first_name: profile?.first_name || 'N/A',
+            last_name: profile?.last_name || 'N/A'
+          },
+          specialty: {
+            name: specialty?.name || 'N/A',
+            color: specialty?.color || '#3B82F6'
+          }
+        };
+      });
+
+      setDoctors(enrichedDoctors);
     } catch (error) {
       console.error('Error fetching doctors:', error);
       toast({
@@ -151,16 +184,45 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
 
   const fetchPatients = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch patients with separate queries to avoid RLS issues
+      const { data: patientsData, error: patientsError } = await supabase
         .from('patients')
-        .select(`
-          id,
-          profile:profiles(first_name, last_name, dni, email)
-        `)
-        .order('profile(first_name)', { ascending: true });
+        .select('id, profile_id')
+        .eq('is_active', true);
 
-      if (error) throw error;
-      setPatients(data || []);
+      if (patientsError) throw patientsError;
+
+      if (!patientsData || patientsData.length === 0) {
+        setPatients([]);
+        return;
+      }
+
+      // Get profiles separately
+      const profileIds = patientsData.map(p => p.profile_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, dni, email')
+        .in('id', profileIds)
+        .order('first_name', { ascending: true });
+
+      if (profilesError) throw profilesError;
+
+      // Combine data
+      const enrichedPatients = patientsData.map(patient => {
+        const profile = profiles?.find(p => p.id === patient.profile_id);
+        
+        return {
+          id: patient.id,
+          profile: {
+            first_name: profile?.first_name || 'N/A',
+            last_name: profile?.last_name || 'N/A',
+            dni: profile?.dni || null,
+            email: profile?.email || 'N/A'
+          }
+        };
+      });
+
+      setPatients(enrichedPatients);
     } catch (error) {
       console.error('Error fetching patients:', error);
       toast({
