@@ -4,7 +4,7 @@ nixPkgs = ["nodejs_20", "yarn"]
 [phases.install]
 cmds = [
   "rm -rf node_modules package-lock.json yarn.lock",
-  "yarn install --ignore-optional",
+  "yarn install",
 ]
 
 [phases.build]
