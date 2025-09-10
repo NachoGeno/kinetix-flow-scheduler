@@ -144,6 +144,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
           profile:profiles(first_name, last_name, dni),
           obra_social_art:obras_sociales_art(id, nombre, tipo)
         `)
+        .eq('is_active', true)
         .order('profile(first_name)', { ascending: true });
 
       if (error) throw error;
