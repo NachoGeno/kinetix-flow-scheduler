@@ -68,7 +68,7 @@ export default function SaasAdmin() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    navigate('/login');
+    navigate('/auth');
   };
 
   useEffect(() => {
