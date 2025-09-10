@@ -26,7 +26,7 @@ export default function PendingDocumentAlert({
       <AlertDescription className="flex items-center justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-warning">⚠️ Orden médica pendiente de entrega</span>
+            <span className="font-medium text-warning">Orden médica pendiente de entrega</span>
             <Badge variant="outline" className="border-warning text-warning">
               Sin documento
             </Badge>

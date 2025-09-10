@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, FileText, User, Calendar, Clock, CalendarPlus, Download, Eye, CalendarIcon } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, FileText, User, Calendar, Clock, CalendarPlus, Download, Eye, CalendarIcon, FileWarning } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -514,20 +514,15 @@ export default function Orders() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge 
-                      className={orderTypeColors[order.order_type as keyof typeof orderTypeColors]}
-                      variant="secondary"
-                    >
-                      {orderTypeLabels[order.order_type as keyof typeof orderTypeLabels]}
-                    </Badge>
-                    <Badge 
                       className={order.completed ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}
                       variant="secondary"
                     >
                       {order.completed ? 'Completada' : 'Pendiente'}
                     </Badge>
                     {order.document_status === 'pendiente' && (
-                      <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">
-                        🔴 Sin documento
+                      <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50 flex items-center gap-1">
+                        <FileWarning className="h-3 w-3" />
+                        Sin documento
                       </Badge>
                     )}
                   </div>
