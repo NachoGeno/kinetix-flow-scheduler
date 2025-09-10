@@ -2,8 +2,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { OrganizationManagement } from '@/components/admin/OrganizationManagement';
 import SuperAdminUserManagement from '@/components/admin/SuperAdminUserManagement';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Building2, Users, Activity, TrendingUp } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
+import { Shield, Building2, Users, Activity, TrendingUp, LogOut } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -17,6 +18,7 @@ interface SystemStats {
 
 export default function SaasAdmin() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<SystemStats>({
     totalOrganizations: 0,
     activeOrganizations: 0,
@@ -64,6 +66,11 @@ export default function SaasAdmin() {
     }
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/login');
+  };
+
   useEffect(() => {
     if (profile?.role === 'super_admin') {
       fetchSystemStats();
@@ -96,10 +103,14 @@ export default function SaasAdmin() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-3 mb-6">
         <Shield className="h-8 w-8 text-blue-600" />
-        <div>
+        <div className="flex-grow">
           <h1 className="text-3xl font-bold">Panel SaaS - Super Admin</h1>
           <p className="text-muted-foreground">Administración central del sistema multiempresa</p>
         </div>
+        <Button variant="outline" onClick={handleSignOut}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Cerrar Sesión
+        </Button>
       </div>
 
       {/* Dashboard Overview */}
