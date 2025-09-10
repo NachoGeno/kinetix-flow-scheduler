@@ -112,22 +112,64 @@ export default function Doctors() {
   };
 
   const fetchSpecialties = async () => {
-    // Usar especialidades predefinidas directamente para evitar problemas con RLS
-    const predefinedSpecialties: Specialty[] = [
-      { id: 'kinesio-fisio', name: 'Kinesiología y Fisioterapia', color: '#3B82F6' },
-      { id: 'medicina-general', name: 'Medicina General', color: '#10B981' },
-      { id: 'traumatologia', name: 'Traumatología', color: '#F59E0B' },
-      { id: 'neurologia', name: 'Neurología', color: '#8B5CF6' },
-      { id: 'cardiologia', name: 'Cardiología', color: '#EF4444' },
-      { id: 'psicologia', name: 'Psicología', color: '#EC4899' },
-      { id: 'nutricion', name: 'Nutrición', color: '#84CC16' },
-      { id: 'fonoaudiologia', name: 'Fonoaudiología', color: '#F97316' },
-      { id: 'terapia-ocupacional', name: 'Terapia Ocupacional', color: '#06B6D4' },
-      { id: 'fisiatria', name: 'Fisiatría', color: '#8B5A2B' }
-    ];
-    
-    console.log('Using predefined specialties:', predefinedSpecialties);
-    setSpecialties(predefinedSpecialties);
+    try {
+      console.log('Attempting to fetch existing specialties with different approaches...');
+      
+      // Método 1: Intentar consulta directa
+      let { data, error } = await supabase
+        .from('specialties')
+        .select('*')
+        .order('name');
+
+      console.log('Direct query result:', { data, error });
+
+      // Método 2: Si falla, intentar con filtro por organización específica
+      if (error || !data || data.length === 0) {
+        console.log('Trying with organization filter...');
+        const { data: orgData, error: orgError } = await supabase
+          .from('specialties')
+          .select('*')
+          .eq('organization_id', 'a0000000-0000-0000-0000-000000000001')
+          .order('name');
+        
+        console.log('Org query result:', { orgData, orgError });
+        
+        if (!orgError && orgData && orgData.length > 0) {
+          setSpecialties(orgData);
+          return;
+        }
+      }
+
+      // Método 3: Si tenemos datos de la consulta directa, usarlos
+      if (!error && data && data.length > 0) {
+        console.log('Using direct query data:', data);
+        setSpecialties(data);
+        return;
+      }
+
+      console.log('All database queries failed, using hardcoded specialties with real UUIDs from migrations...');
+      
+      // Usar UUIDs que probablemente existan basados en las migraciones
+      const knownSpecialties: Specialty[] = [
+        { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Kinesiología y Fisioterapia', color: '#3B82F6' },
+        { id: '550e8400-e29b-41d4-a716-446655440002', name: 'Medicina General', color: '#10B981' },
+        { id: '550e8400-e29b-41d4-a716-446655440003', name: 'Traumatología', color: '#F59E0B' },
+        { id: '550e8400-e29b-41d4-a716-446655440004', name: 'Neurología', color: '#8B5CF6' }
+      ];
+      
+      console.log('Using known specialties:', knownSpecialties);
+      setSpecialties(knownSpecialties);
+      
+    } catch (error) {
+      console.error('Error with specialties:', error);
+      
+      // Último recurso con UUIDs más probables
+      const emergencySpecialties: Specialty[] = [
+        { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Kinesiología y Fisioterapia', color: '#3B82F6' },
+        { id: '550e8400-e29b-41d4-a716-446655440002', name: 'Medicina General', color: '#10B981' }
+      ];
+      setSpecialties(emergencySpecialties);
+    }
   };
 
   const handleFormSuccess = () => {

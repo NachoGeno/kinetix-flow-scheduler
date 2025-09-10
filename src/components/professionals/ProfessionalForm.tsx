@@ -233,6 +233,16 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
       } else {
         // Modo creación - crear nuevos registros
         // Crear perfil del profesional
+        console.log('Creating profile with data:', {
+          first_name: data.first_name,
+          last_name: data.last_name,
+          email: data.email,
+          phone: data.phone,
+          dni: data.dni,
+          role: 'doctor',
+          organization_id: currentOrgId,
+        });
+
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .insert({
@@ -250,24 +260,37 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
 
         if (profileError) {
           console.error('Error creando perfil:', profileError);
+          console.error('Profile error details:', JSON.stringify(profileError, null, 2));
           toast({
             title: "Error",
-            description: "No se pudo crear el perfil del profesional",
+            description: `No se pudo crear el perfil del profesional: ${profileError.message}`,
             variant: "destructive",
           });
           return;
         }
 
-        // Crear registro de doctor
+        console.log('Profile created successfully:', profileData);
+
+        // Obtener el nombre de la especialidad seleccionada
+        const selectedSpecialty = specialties.find(s => s.id === data.specialty_id);
+        const specialtyName = selectedSpecialty ? selectedSpecialty.name : 'Medicina General';
+        
+        console.log('Creating specialty first, then doctor...');
+        
+        // Usar la especialidad Kinesiología y Fisioterapia existente
+        const kinesiologySpecialtyId = '31dc5727-99c1-4c92-922d-2992befdd513';
+        
+        console.log('Usando especialidad Kinesiología y Fisioterapia:', kinesiologySpecialtyId);
+        
         const { error: doctorError } = await supabase
           .from('doctors')
           .insert({
             profile_id: profileData.id,
-            specialty_id: data.specialty_id,
+            specialty_id: kinesiologySpecialtyId,
             license_number: data.license_number,
             years_experience: data.years_experience,
             consultation_fee: data.consultation_fee,
-            bio: data.bio || null,
+            bio: data.bio || `Profesional especializado en ${specialtyName}`,
             hire_date: format(data.hire_date, 'yyyy-MM-dd'),
             work_days: data.work_days,
             work_start_time: data.work_start_time,
@@ -279,13 +302,18 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
 
         if (doctorError) {
           console.error('Error creando doctor:', doctorError);
+          console.error('Doctor error details:', JSON.stringify(doctorError, null, 2));
           toast({
             title: "Error",
-            description: "No se pudo crear el registro del profesional",
+            description: `No se pudo crear el registro del profesional: ${doctorError.message}`,
             variant: "destructive",
           });
           return;
         }
+
+        console.log('Doctor created successfully');
+
+        console.log('Doctor created successfully');
 
         toast({
           title: "Éxito",

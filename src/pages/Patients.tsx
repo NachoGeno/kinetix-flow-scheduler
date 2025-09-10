@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Search, Plus, Users, Phone, Mail, Calendar, CreditCard, Trash2, Edit } from 'lucide-react';
+import { Search, Plus, Users, Phone, Mail, Calendar, CreditCard, Edit } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,56 +62,6 @@ export default function Patients() {
   const totalPages = patientsData?.totalPages || 0;
   const totalCount = patientsData?.totalCount || 0;
 
-  const handleDeletePatient = async (patientId: string) => {
-    try {
-      // Verificar si el paciente tiene citas completadas antes de eliminar
-      const { data: completedAppointments, error: checkError } = await supabase
-        .from('appointments')
-        .select('id')
-        .eq('patient_id', patientId)
-        .eq('status', 'completed')
-        .limit(1);
-
-      if (checkError) {
-        console.error('Error checking appointments:', checkError);
-      }
-
-      const hasCompletedSessions = (completedAppointments || []).length > 0;
-
-      const { error } = await supabase
-        .from('patients')
-        .update({ is_active: false })
-        .eq('id', patientId);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "No se pudo eliminar el paciente",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Mensaje personalizado según si tenía sesiones completadas o no
-      const message = hasCompletedSessions 
-        ? "Paciente eliminado. Sus turnos activos se mantienen debido a sesiones completadas previas."
-        : "Paciente eliminado. Todos sus turnos programados han sido cancelados automáticamente.";
-
-      toast({
-        title: "Éxito",
-        description: message,
-      });
-      
-      refetchPatients(); // Recargar la lista
-    } catch (error) {
-      console.error('Error deleting patient:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar el paciente",
-        variant: "destructive",
-      });
-    }
-  };
 
   // Redirect if patient tries to access this page
   if (profile?.role === 'patient') {
@@ -293,38 +242,6 @@ export default function Patients() {
                   <Button size="sm">
                     Ver Detalles
                   </Button>
-                  {profile?.role === 'admin' && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Eliminar
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                         <AlertDialogHeader>
-                           <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                           <AlertDialogDescription>
-                             Esta acción desactivará al paciente {patient.profile?.first_name} {patient.profile?.last_name}. 
-                             El paciente ya no aparecerá en la lista activa pero se mantendrán sus registros históricos.
-                             <br /><br />
-                             <strong>Importante:</strong> Si el paciente no ha asistido a sesiones previas (no tiene citas completadas), 
-                             todos sus turnos programados se cancelarán automáticamente. Si ya asistió a sesiones, 
-                             sus turnos se mantendrán activos.
-                           </AlertDialogDescription>
-                         </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => handleDeletePatient(patient.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Eliminar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
                 </div>
               </CardContent>
             </Card>

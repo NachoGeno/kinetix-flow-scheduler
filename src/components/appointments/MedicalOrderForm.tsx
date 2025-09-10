@@ -209,6 +209,23 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
     try {
       setLoading(true);
 
+      // Validar que el paciente aún existe y está activo
+      const { data: patientExists, error: patientError } = await supabase
+        .from('patients')
+        .select('id, is_active')
+        .eq('id', values.patient_id)
+        .eq('is_active', true)
+        .single();
+
+      if (patientError || !patientExists) {
+        toast({
+          title: "Error",
+          description: "El paciente seleccionado no existe o ha sido eliminado. Por favor, selecciona otro paciente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const orderData = {
         doctor_name: values.doctor_name,
         patient_id: values.patient_id,
