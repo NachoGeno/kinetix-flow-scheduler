@@ -222,6 +222,7 @@ export default function Doctors() {
               <ProfessionalForm 
                 onSuccess={handleFormSuccess}
                 onCancel={() => setDialogOpen(false)}
+                specialties={specialties}
               />
             </DialogContent>
           </Dialog>
@@ -468,6 +469,7 @@ export default function Doctors() {
               doctorData={selectedDoctor}
               onSuccess={handleFormSuccess}
               onCancel={() => setEditDialogOpen(false)}
+              specialties={specialties}
             />
           )}
         </DialogContent>

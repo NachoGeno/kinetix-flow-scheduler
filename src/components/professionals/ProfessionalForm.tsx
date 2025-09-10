@@ -79,6 +79,7 @@ interface ProfessionalFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   doctorData?: Doctor | null;
+  specialties: Specialty[];
 }
 
 const workDaysOptions = [
@@ -91,9 +92,8 @@ const workDaysOptions = [
   { id: 'sunday', label: 'Domingo' },
 ];
 
-export function ProfessionalForm({ onSuccess, onCancel, doctorData }: ProfessionalFormProps) {
+export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties }: ProfessionalFormProps) {
   const [loading, setLoading] = useState(false);
-  const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [workDays, setWorkDays] = useState<string[]>(['monday', 'tuesday', 'wednesday', 'thursday', 'friday']);
   const { toast } = useToast();
   const { profile } = useAuth();
@@ -119,21 +119,6 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData }: Profession
     },
   });
 
-  // Cargar especialidades al inicializar
-  useEffect(() => {
-    const fetchSpecialties = async () => {
-      const { data, error } = await supabase
-        .from('specialties')
-        .select('*')
-        .order('name');
-      
-      if (!error && data) {
-        setSpecialties(data);
-      }
-    };
-    
-    fetchSpecialties();
-  }, []);
 
   // Cargar datos del doctor si estamos editando
   useEffect(() => {
