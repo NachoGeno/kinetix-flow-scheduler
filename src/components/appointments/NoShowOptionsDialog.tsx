@@ -72,7 +72,7 @@ export default function NoShowOptionsDialog({
                 <Label htmlFor="session_lost" className="cursor-pointer">
                   <div className="flex items-center gap-2 mb-1">
                     <MinusCircle className="h-4 w-4 text-red-600" />
-                    <span className="font-medium">Sesión no asistida pero cobrable</span>
+                    <span className="font-medium">Ausente</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Ausente sin justificativo
