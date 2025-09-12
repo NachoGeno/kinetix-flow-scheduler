@@ -87,7 +87,7 @@ const statusLabels = {
   in_progress: 'En Progreso',
   completed: 'Completada',
   cancelled: 'Cancelada',
-  no_show: 'Ausente - Sin Cobro',
+  no_show: 'Ausente',
   no_show_rescheduled: 'Ausente - Reprogramado',
   no_show_session_lost: 'Ausente - Sesión Cobrable',
   rescheduled: 'Reprogramado',
