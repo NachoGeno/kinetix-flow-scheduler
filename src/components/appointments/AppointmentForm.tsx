@@ -18,7 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { CalendarIcon, Plus, Search, X, Calendar as CalendarDays } from 'lucide-react';
 import { format, addDays, isSameDay, startOfWeek, addWeeks } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { cn, formatDateToISO } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -339,7 +339,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         .from('appointments')
         .select('appointment_time, status')
         .eq('doctor_id', doctorId)
-        .eq('appointment_date', format(appointmentDate, 'yyyy-MM-dd'));
+        .eq('appointment_date', formatDateToISO(appointmentDate));
 
       if (error) throw error;
 
@@ -470,7 +470,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         .from('appointments')
         .select('appointment_time')
         .eq('doctor_id', doctorId)
-        .eq('appointment_date', format(date, 'yyyy-MM-dd'))
+        .eq('appointment_date', formatDateToISO(date))
         .not('status', 'in', '(cancelled,discharged,completed,no_show)');
 
       if (error) throw error;
@@ -509,7 +509,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         .from('appointments')
         .select('id, appointment_time')
         .eq('patient_id', values.patient_id)
-        .eq('appointment_date', format(values.appointment_date, 'yyyy-MM-dd'))
+        .eq('appointment_date', formatDateToISO(values.appointment_date))
         .eq('appointment_time', values.appointment_time)
         .not('status', 'in', '(cancelled,discharged,completed,no_show)')
         .maybeSingle();
@@ -607,7 +607,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         .select('id')
         .eq('patient_id', values.patient_id)
         .eq('doctor_id', values.doctor_id)
-        .eq('appointment_date', format(values.appointment_date, 'yyyy-MM-dd'))
+        .eq('appointment_date', formatDateToISO(values.appointment_date))
         .eq('appointment_time', values.appointment_time)
         .neq('status', 'cancelled')
         .maybeSingle();
@@ -691,7 +691,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       const appointmentsToCreate = recurringAppointments.map((apt) => ({
         patient_id: values.patient_id,
         doctor_id: values.doctor_id,
-        appointment_date: format(apt.date, 'yyyy-MM-dd'),
+        appointment_date: formatDateToISO(apt.date),
         appointment_time: apt.time,
         reason: values.reason,
         status: 'scheduled' as const,
@@ -813,7 +813,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         .select('id')
         .eq('patient_id', values.patient_id)
         .eq('doctor_id', values.doctor_id)
-        .eq('appointment_date', format(values.appointment_date, 'yyyy-MM-dd'))
+        .eq('appointment_date', formatDateToISO(values.appointment_date))
         .eq('appointment_time', values.appointment_time)
         .neq('status', 'cancelled')
         .maybeSingle();
@@ -835,7 +835,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         .insert({
           patient_id: values.patient_id,
           doctor_id: values.doctor_id,
-          appointment_date: format(values.appointment_date, 'yyyy-MM-dd'),
+          appointment_date: formatDateToISO(values.appointment_date),
           appointment_time: values.appointment_time,
           reason: values.reason,
           status: 'scheduled',

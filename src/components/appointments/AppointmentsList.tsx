@@ -16,7 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, isAfter, isBefore, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { cn, formatDateToISO } from '@/lib/utils';
 import { useDebounce } from '@/hooks/useDebounce';
 import { usePaginatedAppointments } from '@/hooks/usePaginatedAppointments';
 import AppointmentForm from './AppointmentForm';
@@ -224,8 +224,8 @@ export default function AppointmentsList() {
   } = usePaginatedAppointments({
     searchTerm: debouncedSearchTerm,
     status: selectedStatus === 'all' ? undefined : selectedStatus,
-    dateFrom: selectedDateFrom ? format(selectedDateFrom, 'yyyy-MM-dd') : undefined,
-    dateTo: selectedDateTo ? format(selectedDateTo, 'yyyy-MM-dd') : undefined,
+    dateFrom: selectedDateFrom ? formatDateToISO(selectedDateFrom) : undefined,
+    dateTo: selectedDateTo ? formatDateToISO(selectedDateTo) : undefined,
     page: currentPage,
     limit: pageSize
   });

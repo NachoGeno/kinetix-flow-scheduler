@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { formatDateToISO } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -195,7 +196,7 @@ export default function AppointmentCalendar() {
         .select(`
           *
         `)
-        .eq('appointment_date', format(selectedDate, 'yyyy-MM-dd'))
+        .eq('appointment_date', formatDateToISO(selectedDate))
         .order('appointment_time', { ascending: true });
 
       if (selectedDoctor !== 'all') {

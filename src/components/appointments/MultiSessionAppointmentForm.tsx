@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { CalendarIcon, X, Check, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { cn, formatDateToISO } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -285,7 +285,7 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
         .from('appointments')
         .select('appointment_time')
         .eq('doctor_id', doctorId)
-        .eq('appointment_date', format(selectedDate, 'yyyy-MM-dd'))
+        .eq('appointment_date', formatDateToISO(selectedDate))
         .neq('status', 'cancelled');
 
       if (error) throw error;
@@ -316,7 +316,7 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
       // Filter out occupied slots and already scheduled sessions
       const occupiedTimes = (appointments || []).map(apt => apt.appointment_time);
       const scheduledTimes = scheduledSessions
-        .filter(session => format(session.date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd'))
+        .filter(session => formatDateToISO(session.date) === formatDateToISO(selectedDate))
         .map(session => session.time);
       
       const availableSlots = slots.filter(slot => 
@@ -397,7 +397,7 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
       const appointments = scheduledSessions.map((session) => ({
         patient_id: values.patient_id,
         doctor_id: values.doctor_id,
-        appointment_date: format(session.date, 'yyyy-MM-dd'),
+        appointment_date: formatDateToISO(session.date),
         appointment_time: session.time,
         reason: values.reason,
         status: 'scheduled' as const,
