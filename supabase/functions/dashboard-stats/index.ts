@@ -58,8 +58,7 @@ Deno.serve(async (req) => {
       supabase
         .from('appointments')
         .select('*', { count: 'exact', head: true })
-        .eq('appointment_date', today)
-        .in('status', ['scheduled', 'confirmed', 'in_progress']),
+        .eq('appointment_date', today),
       
       supabase
         .from('medical_orders')
