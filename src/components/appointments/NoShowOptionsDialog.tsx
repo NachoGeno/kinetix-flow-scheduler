@@ -60,7 +60,7 @@ export default function NoShowOptionsDialog({
                     <span className="font-medium">Reprogramar turno</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    No se descuenta sesión de la orden médica. Se permite agendar un nuevo turno.
+                    No se descuenta sesión ni se factura. Se permite agendar un nuevo turno sin costo.
                   </p>
                 </Label>
               </div>
@@ -72,10 +72,10 @@ export default function NoShowOptionsDialog({
                 <Label htmlFor="session_lost" className="cursor-pointer">
                   <div className="flex items-center gap-2 mb-1">
                     <MinusCircle className="h-4 w-4 text-red-600" />
-                    <span className="font-medium">Contar sesión como pérdida</span>
+                    <span className="font-medium">Sesión no asistida pero cobrable</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Se descuenta una sesión de la orden médica aunque el paciente no haya asistido.
+                    Se descuenta una sesión de la orden médica y se factura como sesión realizada. La orden progresa normalmente.
                   </p>
                 </Label>
               </div>

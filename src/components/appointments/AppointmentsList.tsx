@@ -76,7 +76,7 @@ const statusColors = {
   cancelled: 'bg-red-100 text-red-800',
   no_show: 'bg-gray-100 text-gray-800',
   no_show_rescheduled: 'bg-orange-100 text-orange-800',
-  no_show_session_lost: 'bg-red-100 text-red-800',
+  no_show_session_lost: 'bg-amber-100 text-amber-800',
   rescheduled: 'bg-purple-100 text-purple-800',
   discharged: 'bg-cyan-100 text-cyan-800',
 };
@@ -87,9 +87,9 @@ const statusLabels = {
   in_progress: 'En Progreso',
   completed: 'Completada',
   cancelled: 'Cancelada',
-  no_show: 'Ausente',
+  no_show: 'Ausente - Sin Cobro',
   no_show_rescheduled: 'Ausente - Reprogramado',
-  no_show_session_lost: 'Ausente - Sesión Descontada',
+  no_show_session_lost: 'Ausente - Sesión Cobrable',
   rescheduled: 'Reprogramado',
   discharged: 'Alta Temprana',
 };
