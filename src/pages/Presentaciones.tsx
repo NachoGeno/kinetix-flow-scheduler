@@ -1741,7 +1741,7 @@ export default function Presentaciones() {
                   <div className="flex justify-between items-center pt-2 border-t">
                     
                     <div className="flex gap-2">
-                      {docStatus.status === 'ready_to_generate' && (() => {
+                      {docStatus.status === 'ready_to_present' && (() => {
                         const validation = validateDocumentsForPDF(order);
                         if (!validation.isValid) {
                           return (
