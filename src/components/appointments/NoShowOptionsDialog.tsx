@@ -75,7 +75,7 @@ export default function NoShowOptionsDialog({
                     <span className="font-medium">Sesión no asistida pero cobrable</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Se descuenta una sesión de la orden médica y se factura como sesión realizada. La orden progresa normalmente.
+                    Ausente sin justificativo
                   </p>
                 </Label>
               </div>
