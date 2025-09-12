@@ -173,6 +173,169 @@ export type Database = {
           },
         ]
       }
+      appointments_backup: {
+        Row: {
+          appointment_date: string | null
+          appointment_time: string | null
+          created_at: string | null
+          diagnosis: string | null
+          doctor_id: string | null
+          duration_minutes: number | null
+          id: string | null
+          no_show_reason: string | null
+          notes: string | null
+          organization_id: string | null
+          pardon_reason: string | null
+          pardoned_at: string | null
+          pardoned_by: string | null
+          patient_id: string | null
+          reason: string | null
+          reschedule_reason: string | null
+          rescheduled_at: string | null
+          rescheduled_by: string | null
+          rescheduled_from_id: string | null
+          rescheduled_to_id: string | null
+          session_deducted: boolean | null
+          status: Database["public"]["Enums"]["appointment_status"] | null
+          treatment_plan: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          appointment_date?: string | null
+          appointment_time?: string | null
+          created_at?: string | null
+          diagnosis?: string | null
+          doctor_id?: string | null
+          duration_minutes?: number | null
+          id?: string | null
+          no_show_reason?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          pardon_reason?: string | null
+          pardoned_at?: string | null
+          pardoned_by?: string | null
+          patient_id?: string | null
+          reason?: string | null
+          reschedule_reason?: string | null
+          rescheduled_at?: string | null
+          rescheduled_by?: string | null
+          rescheduled_from_id?: string | null
+          rescheduled_to_id?: string | null
+          session_deducted?: boolean | null
+          status?: Database["public"]["Enums"]["appointment_status"] | null
+          treatment_plan?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          appointment_date?: string | null
+          appointment_time?: string | null
+          created_at?: string | null
+          diagnosis?: string | null
+          doctor_id?: string | null
+          duration_minutes?: number | null
+          id?: string | null
+          no_show_reason?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          pardon_reason?: string | null
+          pardoned_at?: string | null
+          pardoned_by?: string | null
+          patient_id?: string | null
+          reason?: string | null
+          reschedule_reason?: string | null
+          rescheduled_at?: string | null
+          rescheduled_by?: string | null
+          rescheduled_from_id?: string | null
+          rescheduled_to_id?: string | null
+          session_deducted?: boolean | null
+          status?: Database["public"]["Enums"]["appointment_status"] | null
+          treatment_plan?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      billing_excel_fields: {
+        Row: {
+          column_order: number
+          created_at: string
+          default_value: string | null
+          field_key: string
+          field_name: string
+          field_type: string
+          format_pattern: string | null
+          id: string
+          is_required: boolean | null
+          template_id: string
+        }
+        Insert: {
+          column_order: number
+          created_at?: string
+          default_value?: string | null
+          field_key: string
+          field_name: string
+          field_type: string
+          format_pattern?: string | null
+          id?: string
+          is_required?: boolean | null
+          template_id: string
+        }
+        Update: {
+          column_order?: number
+          created_at?: string
+          default_value?: string | null
+          field_key?: string
+          field_name?: string
+          field_type?: string
+          format_pattern?: string | null
+          id?: string
+          is_required?: boolean | null
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_excel_fields_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "billing_excel_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_excel_templates: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean | null
+          obra_social_id: string
+          template_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          obra_social_id: string
+          template_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          obra_social_id?: string
+          template_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_excel_templates_obra_social_id_fkey"
+            columns: ["obra_social_id"]
+            isOneToOne: false
+            referencedRelation: "obras_sociales_art"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_export_templates: {
         Row: {
           column_config: Json
