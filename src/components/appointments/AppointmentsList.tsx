@@ -89,7 +89,7 @@ const statusLabels = {
   cancelled: 'Cancelada',
   no_show: 'Ausente',
   no_show_rescheduled: 'Ausente - Reprogramado',
-  no_show_session_lost: 'Ausente - Sesión Cobrable',
+  no_show_session_lost: 'Ausente',
   rescheduled: 'Reprogramado',
   discharged: 'Alta Temprana',
 };
