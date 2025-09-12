@@ -118,14 +118,17 @@ export default function PatientForm({ onSuccess, onCancel, patient, isEditing = 
       if (isEditing && patient) {
         // Modo edición - actualizar paciente existente
         
-        // Verificar si el DNI cambió y si ya existe otro paciente con ese DNI
+        // Verificar si el DNI cambió y si ya existe otro paciente con ese DNI en la misma organización
         if (data.dni !== patient.profile.dni) {
-          const { data: existingProfile, error: checkError } = await supabase
-            .from('profiles')
-            .select('id, first_name, last_name, dni')
-            .eq('dni', data.dni)
-            .eq('role', 'patient')
-            .neq('id', patient.profile_id) // Excluir el paciente actual
+          const { data: existingPatient, error: checkError } = await supabase
+            .from('patients')
+            .select(`
+              id,
+              profile:profiles!inner(id, first_name, last_name, dni)
+            `)
+            .eq('profiles.dni', data.dni)
+            .eq('organization_id', currentOrgId)
+            .neq('profile_id', patient.profile_id) // Excluir el paciente actual
             .maybeSingle();
 
           if (checkError && checkError.code !== 'PGRST116') {
@@ -138,10 +141,10 @@ export default function PatientForm({ onSuccess, onCancel, patient, isEditing = 
             return;
           }
 
-          if (existingProfile) {
+          if (existingPatient) {
             toast({
               title: "Error",
-              description: "Ya existe otro paciente con este DNI registrado.",
+              description: "Ya existe otro paciente con este DNI en esta organización.",
               variant: "destructive",
             });
             return;
@@ -196,12 +199,15 @@ export default function PatientForm({ onSuccess, onCancel, patient, isEditing = 
       } else {
         // Modo creación - crear nuevo paciente
         
-        // Verificar si ya existe un paciente con el mismo DNI
-        const { data: existingProfile, error: checkError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, dni')
-          .eq('dni', data.dni)
-          .eq('role', 'patient')
+        // Verificar si ya existe un paciente con el mismo DNI en la misma organización
+        const { data: existingPatient, error: checkError } = await supabase
+          .from('patients')
+          .select(`
+            id,
+            profile:profiles!inner(id, first_name, last_name, dni)
+          `)
+          .eq('profiles.dni', data.dni)
+          .eq('organization_id', currentOrgId)
           .maybeSingle();
 
         if (checkError && checkError.code !== 'PGRST116') {
@@ -214,10 +220,10 @@ export default function PatientForm({ onSuccess, onCancel, patient, isEditing = 
           return;
         }
 
-        if (existingProfile) {
+        if (existingPatient) {
           toast({
             title: "Error",
-            description: "Ya existe un paciente con este DNI registrado. Por favor, verifique los datos.",
+            description: "Ya existe un paciente con este DNI en esta organización.",
             variant: "destructive",
           });
           return;
