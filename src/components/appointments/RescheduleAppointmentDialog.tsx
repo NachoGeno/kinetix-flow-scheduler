@@ -380,7 +380,7 @@ export function RescheduleAppointmentDialog({
                     Dr. {appointment.doctor.profile.first_name} {appointment.doctor.profile.last_name}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {appointment.doctor.specialty.name}
+                    {appointment.doctor.specialty?.name || 'Sin especialidad'}
                   </p>
                 </div>
                 <div className="text-right">
@@ -458,7 +458,7 @@ export function RescheduleAppointmentDialog({
               <SelectContent>
                 {doctors.map((doctor) => (
                   <SelectItem key={doctor.id} value={doctor.id}>
-                    Dr. {doctor.profile.first_name} {doctor.profile.last_name} - {doctor.specialty.name}
+                    Dr. {doctor.profile.first_name} {doctor.profile.last_name} - {doctor.specialty?.name || 'Sin especialidad'}
                   </SelectItem>
                 ))}
               </SelectContent>
