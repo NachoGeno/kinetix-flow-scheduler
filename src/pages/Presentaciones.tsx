@@ -87,7 +87,7 @@ interface FilterState {
   professional: string;
   date_from: string;
   date_to: string;
-  status: 'all' | 'ready_to_present' | 'in_preparation' | 'pdf_generated' | 'submitted';
+  status: 'all' | 'ready_to_present' | 'in_preparation' | 'missing_attendance' | 'pdf_generated' | 'submitted';
   search_term: string;
   show_all_dates: boolean;
   only_active_orders: boolean;
@@ -453,6 +453,8 @@ export default function Presentaciones() {
                 return hasAllDocs && sessionsReady && order.presentation_status !== 'pdf_generated';
               case 'in_preparation':
                 return !sessionsReady;
+              case 'missing_attendance':
+                return hasAllDocs && !sessionsReady && !order.completed;
               case 'pdf_generated':
                 return order.presentation_status === 'pdf_generated';
               case 'submitted':
@@ -1363,12 +1365,12 @@ export default function Presentaciones() {
       icon: <AlertCircle className="h-3 w-3" />
     };
     
-    // Sessions pending but some docs can be uploaded
+    // Sessions pending but all docs are ready - missing attendance
     if (!sessionsReady && hasAllDocs) return { 
-      status: 'docs_ready_sessions_pending', 
-      color: 'bg-purple-100 text-purple-800', 
-      text: 'En preparación', 
-      icon: <Clock className="h-3 w-3" />
+      status: 'missing_attendance', 
+      color: 'bg-yellow-100 text-yellow-800', 
+      text: 'Falta Asistencia', 
+      icon: <AlertCircle className="h-3 w-3" />
     };
     
     // Sessions pending and incomplete docs - in preparation
@@ -1450,6 +1452,7 @@ export default function Presentaciones() {
                    <SelectItem value="all">Todos</SelectItem>
                    <SelectItem value="ready_to_present">Listas para presentar</SelectItem>
                    <SelectItem value="in_preparation">En preparación</SelectItem>
+                   <SelectItem value="missing_attendance">Falta Asistencia</SelectItem>
                    <SelectItem value="pdf_generated">PDF generado</SelectItem>
                    <SelectItem value="submitted">Enviadas</SelectItem>
                  </SelectContent>
