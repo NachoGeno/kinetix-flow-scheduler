@@ -1331,11 +1331,19 @@ export default function Presentaciones() {
     const hasAllDocs = docs.medical_order && docs.clinical_evolution && docs.attendance_record && docs.social_work_authorization;
     const sessionsReady = order.sessions_completed;
     
-    // PDF already generated - highest priority
-    if (order.presentation_status === 'pdf_generated') return { 
-      status: 'pdf_generated', 
+    // Enviado - highest priority (new status)
+    if (order.presentation_status === 'submitted') return { 
+      status: 'submitted', 
       color: 'bg-green-100 text-green-800', 
-      text: 'PDF generado', 
+      text: 'Enviado', 
+      icon: <CheckCircle2 className="h-3 w-3" />
+    };
+    
+    // PDF already generated - maintain for backward compatibility
+    if (order.presentation_status === 'pdf_generated') return { 
+      status: 'submitted', // treat as submitted for consistency
+      color: 'bg-green-100 text-green-800', 
+      text: 'Enviado', 
       icon: <CheckCircle2 className="h-3 w-3" />
     };
     
@@ -1565,11 +1573,6 @@ export default function Presentaciones() {
                         {docStatus.icon}
                         {docStatus.text}
                       </Badge>
-                      {order.presentation_status === 'submitted' && (
-                        <Badge className="bg-blue-100 text-blue-800" variant="secondary">
-                          Enviada
-                        </Badge>
-                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -1852,51 +1855,39 @@ export default function Presentaciones() {
                          Reasignar Sesiones
                        </Button>
                        
-                       {docStatus.status === 'ready_to_present' && (() => {
-                        const validation = validateDocumentsForPDF(order);
-                        if (!validation.isValid) {
-                          return (
-                            <div className="flex items-center gap-2 text-sm">
-                              <AlertCircle className="h-4 w-4 text-red-600" />
-                              <span className="text-red-600">
-                                Faltan: {validation.missingDocs.join(', ')}
-                              </span>
-                            </div>
-                          );
-                        }
-                        return (
-                          <Button 
-                            onClick={() => generatePDF(order)}
-                            className="gap-2"
-                            disabled={generatingPdf === order.id}
-                          >
-                            <FileDown className="h-4 w-4" />
-                            {generatingPdf === order.id ? 'Generando...' : 'Generar PDF'}
-                          </Button>
-                        );
-                      })()}
-                      
-                      {docStatus.status === 'pdf_generated' && (
-                        <>
-                          <Button 
-                            variant="outline"
-                            onClick={() => generatePDF(order)}
-                            className="gap-2"
-                            disabled={generatingPdf === order.id}
-                          >
-                            <FileDown className="h-4 w-4" />
-                            Regenerar PDF
-                          </Button>
-                          
-                          <Button 
-                            onClick={() => markAsSubmitted(order.id)}
-                            className="gap-2"
-                          >
-                            <Send className="h-4 w-4" />
-                            Marcar como Enviada
-                          </Button>
-                        </>
-                      )}
+                        {docStatus.status === 'ready_to_present' && (() => {
+                         const validation = validateDocumentsForPDF(order);
+                         if (!validation.isValid) {
+                           return (
+                             <div className="flex items-center gap-2 text-sm">
+                               <AlertCircle className="h-4 w-4 text-red-600" />
+                               <span className="text-red-600">
+                                 Faltan: {validation.missingDocs.join(', ')}
+                               </span>
+                             </div>
+                           );
+                         }
+                         return (
+                           <Button 
+                             onClick={() => markAsSubmitted(order.id)}
+                             className="gap-2"
+                           >
+                             <Send className="h-4 w-4" />
+                             Enviar
+                           </Button>
+                         );
+                       })()}
+                       
+                       {docStatus.status === 'submitted' && (
+                         <Button 
+                           onClick={() => generatePDF(order)}
+                           className="gap-2"
+                           disabled={generatingPdf === order.id}
+                         >
+                           <FileDown className="h-4 w-4" />
+                           {generatingPdf === order.id ? 'Generando...' : 'Generar PDF'}
+                         </Button>
+                       )}
                       
                       {docStatus.status === 'incomplete' && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
