@@ -357,11 +357,17 @@ export default function Presentaciones() {
               patient_uuid: order.patient_id
             });
 
-            if (!recalcError && recalcResult) {
+            if (!recalcError && Array.isArray(recalcResult)) {
               const orderResult = recalcResult.find((r: any) => r.order_id === order.id);
-              if (orderResult) {
-                accurateSessionsUsed = orderResult.new_sessions_used;
-                console.log(`📊 Updated sessions for order ${order.id}: ${accurateSessionsUsed}/${order.total_sessions}`);
+              if (orderResult && typeof orderResult.new_sessions_used === 'number') {
+                const recalculated = orderResult.new_sessions_used;
+                // Guard: nunca bajar el valor por debajo del almacenado
+                if (recalculated >= accurateSessionsUsed) {
+                  accurateSessionsUsed = recalculated;
+                  console.log(`📊 Updated sessions for order ${order.id}: ${accurateSessionsUsed}/${order.total_sessions}`);
+                } else {
+                  console.log(`⚠️ Ignoring lower recalculated sessions (${recalculated}) for order ${order.id}, keeping ${accurateSessionsUsed}`);
+                }
               }
             }
           } catch (recalcError) {
