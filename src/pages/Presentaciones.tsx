@@ -86,6 +86,8 @@ interface FilterState {
   date_to: string;
   status: 'all' | 'ready_to_present' | 'in_preparation' | 'pdf_generated' | 'submitted';
   search_term: string;
+  show_all_dates: boolean;
+  only_active_orders: boolean;
 }
 
 export default function Presentaciones() {
@@ -108,7 +110,9 @@ export default function Presentaciones() {
     professional: '',
     ...getDefaultDates(),
     status: 'all',
-    search_term: ''
+    search_term: '',
+    show_all_dates: false,
+    only_active_orders: false
   });
   const [selectedOrder, setSelectedOrder] = useState<PresentationOrder | null>(null);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
@@ -170,16 +174,30 @@ export default function Presentaciones() {
           baseQuery = baseQuery.eq("obra_social_art_id", filters.obra_social_id);
         }
 
-        // Los filtros de fecha son obligatorios para optimizar la carga
-        // Siempre aplicar filtros de fecha (usar valores por defecto si no hay)
-        const dateFrom = filters.date_from || getDefaultDates().date_from;
-        const dateTo = filters.date_to || getDefaultDates().date_to;
-        
-        baseQuery = baseQuery
-          .gte("created_at", dateFrom)
-          .lte("created_at", dateTo + "T23:59:59");
+        // Apply date filters only if not showing all dates
+        if (!filters.show_all_dates && (filters.date_from || filters.date_to)) {
+          const dateFrom = filters.date_from || getDefaultDates().date_from;
+          const dateTo = filters.date_to || getDefaultDates().date_to;
+          
+          baseQuery = baseQuery
+            .gte("order_date", dateFrom)
+            .lte("order_date", dateTo);
 
-        console.log(`📅 Aplicando filtros de fecha: ${dateFrom} a ${dateTo}`);
+          console.log(`📅 Aplicando filtros de fecha por order_date: ${dateFrom} a ${dateTo}`);
+        } else if (!filters.show_all_dates) {
+          // Default to last week if no specific dates and not showing all
+          const defaultDates = getDefaultDates();
+          baseQuery = baseQuery
+            .gte("order_date", defaultDates.date_from)
+            .lte("order_date", defaultDates.date_to);
+          console.log(`📅 Aplicando filtros de fecha por defecto: ${defaultDates.date_from} a ${defaultDates.date_to}`);
+        }
+
+        // Filter only active orders if requested
+        if (filters.only_active_orders) {
+          baseQuery = baseQuery.eq("completed", false);
+          console.log(`🔄 Aplicando filtro: solo órdenes activas (no cerradas)`);
+        }
 
         if (filters.professional) {
           baseQuery = baseQuery.ilike("doctor_name", `%${filters.professional}%`);
@@ -288,39 +306,51 @@ export default function Presentaciones() {
 
         console.log(`📋 Found ${filteredOrders.length} orders after all filtering`);
 
-        // Process each order to check presentation readiness and get documents
-        const processedOrders: PresentationOrder[] = await Promise.all(
-          (filteredOrders || []).map(async (order) => {
-            console.log(`🔍 Processing order: ${order.id} for ${order.patient.profile.first_name} ${order.patient.profile.last_name}`);
+        // PERFORMANCE OPTIMIZATION: Fetch all presentation documents in a single query
+        const orderIds = filteredOrders.map(order => order.id);
+        let allDocuments: any[] = [];
+        
+        if (orderIds.length > 0) {
+          const { data: documents, error: docsError } = await supabase
+            .from("presentation_documents")
+            .select(`
+              id,
+              medical_order_id,
+              document_type,
+              file_url,
+              file_name,
+              uploaded_at,
+              uploaded_by,
+              uploader:profiles!presentation_documents_uploaded_by_fkey(first_name, last_name)
+            `)
+            .in("medical_order_id", orderIds);
 
-            // Check if all sessions are completed using our database function
-            const { data: sessionCheck, error: sessionError } = await supabase
-              .rpc('check_presentation_ready', { order_id: order.id });
+          if (docsError) {
+            console.error("Error fetching documents:", docsError);
+          } else {
+            allDocuments = documents || [];
+          }
+        }
 
-            if (sessionError) {
-              console.error("Error checking sessions:", sessionError);
-            }
+        // Create a map for quick document lookup
+        const documentsMap = new Map();
+        allDocuments.forEach(doc => {
+          if (!documentsMap.has(doc.medical_order_id)) {
+            documentsMap.set(doc.medical_order_id, []);
+          }
+          documentsMap.get(doc.medical_order_id).push(doc);
+        });
 
-            const sessions_completed = sessionCheck || false;
-            console.log(`📊 Sessions completed for order ${order.id}: ${sessions_completed}`);
+        // Process each order
+        const processedOrders: PresentationOrder[] = (filteredOrders || []).map(order => {
+          console.log(`🔍 Processing order: ${order.id} for ${order.patient.profile.first_name} ${order.patient.profile.last_name}`);
 
-            // Get presentation documents
-            const { data: documents, error: docsError } = await supabase
-              .from("presentation_documents")
-              .select(`
-                id,
-                document_type,
-                file_url,
-                file_name,
-                uploaded_at,
-                uploaded_by,
-                uploader:profiles!presentation_documents_uploaded_by_fkey(first_name, last_name)
-              `)
-              .eq("medical_order_id", order.id);
+          // PERFORMANCE OPTIMIZATION: Calculate sessions completion on frontend
+          const sessions_completed = order.completed === true || order.sessions_used >= order.total_sessions;
+          console.log(`📊 Sessions completed for order ${order.id}: ${sessions_completed} (${order.sessions_used}/${order.total_sessions})`);
 
-            if (docsError) {
-              console.error("Error fetching documents:", docsError);
-            }
+          // Get documents for this order from our map
+          const orderDocuments = documentsMap.get(order.id) || [];
 
             // Organize documents by type
             const documentsByType = {
@@ -343,7 +373,7 @@ export default function Presentaciones() {
             }
 
             // Other documents from presentation_documents table
-            documents?.forEach((doc: any) => {
+            orderDocuments?.forEach((doc: any) => {
               if (doc.document_type === 'clinical_evolution') {
                 documentsByType.clinical_evolution = {
                   id: doc.id,
@@ -379,8 +409,7 @@ export default function Presentaciones() {
               documents: documentsByType,
               sessions_completed
             };
-          })
-        );
+        });
 
         // Apply status filter (this needs to be done after processing)
         let finalOrders = processedOrders;
@@ -1400,6 +1429,7 @@ export default function Presentaciones() {
                 value={filters.date_from}
                 onChange={(e) => setFilters(prev => ({ ...prev, date_from: e.target.value }))}
                 required
+                disabled={filters.show_all_dates}
               />
             </div>
             <div className="space-y-2">
@@ -1409,7 +1439,36 @@ export default function Presentaciones() {
                 value={filters.date_to}
                 onChange={(e) => setFilters(prev => ({ ...prev, date_to: e.target.value }))}
                 required
+                disabled={filters.show_all_dates}
               />
+            </div>
+          </div>
+
+          {/* New Filter Options */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="show_all_dates"
+                checked={filters.show_all_dates}
+                onCheckedChange={(checked) => 
+                  setFilters(prev => ({ ...prev, show_all_dates: checked === true }))
+                }
+              />
+              <Label htmlFor="show_all_dates" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Todas las fechas
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="only_active_orders"
+                checked={filters.only_active_orders}
+                onCheckedChange={(checked) => 
+                  setFilters(prev => ({ ...prev, only_active_orders: checked === true }))
+                }
+              />
+              <Label htmlFor="only_active_orders" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Sólo órdenes activas (no cerradas)
+              </Label>
             </div>
           </div>
         </CardContent>
