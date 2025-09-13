@@ -31,11 +31,14 @@ import {
   AlertCircle,
   Edit2,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  RefreshCw,
+  Settings
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import AppointmentReassignmentDialog from '@/components/appointments/AppointmentReassignmentDialog';
 
 interface PresentationOrder {
   id: string;
@@ -126,6 +129,8 @@ export default function Presentaciones() {
   const [documentToDelete, setDocumentToDelete] = useState<{orderId: string, docType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization', docId: string} | null>(null);
   const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<{url: string, name: string, type: string, originalPath?: string} | null>(null);
+  const [reassignmentDialogOpen, setReassignmentDialogOpen] = useState(false);
+  const [selectedPatientForReassignment, setSelectedPatientForReassignment] = useState<{id: string, name: string} | null>(null);
 
   // Fetch obras sociales
   const { data: obrasSociales } = useQuery({
@@ -341,13 +346,30 @@ export default function Presentaciones() {
           documentsMap.get(doc.medical_order_id).push(doc);
         });
 
-        // Process each order
-        const processedOrders: PresentationOrder[] = (filteredOrders || []).map(order => {
+        // Process each order - recalculate sessions using new assignment logic
+        const processedOrders: PresentationOrder[] = await Promise.all((filteredOrders || []).map(async (order) => {
           console.log(`🔍 Processing order: ${order.id} for ${order.patient.profile.first_name} ${order.patient.profile.last_name}`);
 
-          // PERFORMANCE OPTIMIZATION: Calculate sessions completion on frontend
-          const sessions_completed = order.completed === true || order.sessions_used >= order.total_sessions;
-          console.log(`📊 Sessions completed for order ${order.id}: ${sessions_completed} (${order.sessions_used}/${order.total_sessions})`);
+          // Get accurate session count from the new assignment-aware function
+          let accurateSessionsUsed = order.sessions_used;
+          try {
+            const { data: recalcResult, error: recalcError } = await supabase.rpc('recalc_patient_order_sessions_with_assignments', {
+              patient_uuid: order.patient_id
+            });
+
+            if (!recalcError && recalcResult) {
+              const orderResult = recalcResult.find((r: any) => r.order_id === order.id);
+              if (orderResult) {
+                accurateSessionsUsed = orderResult.new_sessions_used;
+                console.log(`📊 Updated sessions for order ${order.id}: ${accurateSessionsUsed}/${order.total_sessions}`);
+              }
+            }
+          } catch (recalcError) {
+            console.warn('Could not recalculate sessions for order:', order.id, recalcError);
+          }
+
+          const sessions_completed = order.completed === true || accurateSessionsUsed >= order.total_sessions;
+          console.log(`📊 Sessions completed for order ${order.id}: ${sessions_completed} (${accurateSessionsUsed}/${order.total_sessions})`);
 
           // Get documents for this order from our map
           const orderDocuments = documentsMap.get(order.id) || [];
@@ -406,10 +428,11 @@ export default function Presentaciones() {
 
             return {
               ...order,
+              sessions_used: accurateSessionsUsed, // Use the accurate count
               documents: documentsByType,
               sessions_completed
             };
-        });
+        }));
 
         // Apply status filter (this needs to be done after processing)
         let finalOrders = processedOrders;
@@ -725,6 +748,18 @@ export default function Presentaciones() {
     console.log(`🔄 Refreshing presentation files for order: ${orderId}`);
     await refetch();
     toast.success("Archivos de presentación actualizados");
+  };
+
+  const handleOpenReassignmentDialog = (order: PresentationOrder) => {
+    setSelectedPatientForReassignment({
+      id: order.patient.id,
+      name: `${order.patient.profile.first_name} ${order.patient.profile.last_name}`
+    });
+    setReassignmentDialogOpen(true);
+  };
+
+  const handleReassignmentComplete = () => {
+    refetch(); // Refresh data after reassignment
   };
 
   const validateDocumentsForPDF = (order: PresentationOrder): { isValid: boolean; missingDocs: string[]; activeFiles: string[] } => {
@@ -1796,11 +1831,22 @@ export default function Presentaciones() {
                      </Button>
                    </div>
 
-                   {/* Actions */}
-                  <div className="flex justify-between items-center pt-2 border-t">
-                    
-                    <div className="flex gap-2">
-                      {docStatus.status === 'ready_to_present' && (() => {
+                    {/* Actions */}
+                   <div className="flex justify-between items-center pt-2 border-t">
+                     
+                     <div className="flex gap-2">
+                       {/* Reassignment button */}
+                       <Button
+                         variant="ghost"
+                         size="sm"
+                         onClick={() => handleOpenReassignmentDialog(order)}
+                         className="gap-2"
+                       >
+                         <Settings className="h-4 w-4" />
+                         Reasignar Sesiones
+                       </Button>
+                       
+                       {docStatus.status === 'ready_to_present' && (() => {
                         const validation = validateDocumentsForPDF(order);
                         if (!validation.isValid) {
                           return (
@@ -2071,14 +2117,26 @@ export default function Presentaciones() {
                 )}
               </div>
             )}
-            {!viewingDocument && (
-              <div className="w-full h-full flex items-center justify-center">
-                <p className="text-gray-500">Cargando documento...</p>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+             {!viewingDocument && (
+               <div className="w-full h-full flex items-center justify-center">
+                 <p className="text-gray-500">Cargando documento...</p>
+               </div>
+             )}
+           </div>
+         </DialogContent>
+       </Dialog>
+
+       {/* Reassignment Dialog */}
+       <AppointmentReassignmentDialog
+         isOpen={reassignmentDialogOpen}
+         onClose={() => {
+           setReassignmentDialogOpen(false);
+           setSelectedPatientForReassignment(null);
+         }}
+         patientId={selectedPatientForReassignment?.id || null}
+         patientName={selectedPatientForReassignment?.name || ''}
+         onReassignmentComplete={handleReassignmentComplete}
+       />
+     </div>
+   );
+ }

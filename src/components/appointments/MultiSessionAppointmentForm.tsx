@@ -405,11 +405,36 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
         organization_id: currentOrgId,
       }));
 
-      const { error } = await supabase
+      const { data: createdAppointments, error } = await supabase
         .from('appointments')
-        .insert(appointments);
+        .insert(appointments)
+        .select('id');
 
       if (error) throw error;
+
+      // If medical order is selected, assign all appointments to it
+      if (values.medical_order_id && values.medical_order_id !== 'none' && createdAppointments) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) {
+          const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('user_id', user.id)
+            .single();
+
+          if (userProfile) {
+            const assignments = createdAppointments.map(apt => ({
+              appointment_id: apt.id,
+              medical_order_id: values.medical_order_id,
+              assigned_by: userProfile.id,
+            }));
+
+            await supabase
+              .from('appointment_order_assignments')
+              .insert(assignments);
+          }
+        }
+      }
 
       toast({
         title: "Éxito",

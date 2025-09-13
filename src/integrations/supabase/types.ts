@@ -14,6 +14,55 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_order_assignments: {
+        Row: {
+          appointment_id: string
+          assigned_at: string
+          assigned_by: string
+          created_at: string
+          id: string
+          medical_order_id: string
+        }
+        Insert: {
+          appointment_id: string
+          assigned_at?: string
+          assigned_by: string
+          created_at?: string
+          id?: string
+          medical_order_id: string
+        }
+        Update: {
+          appointment_id?: string
+          assigned_at?: string
+          assigned_by?: string
+          created_at?: string
+          id?: string
+          medical_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_order_assignments_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_order_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_order_assignments_medical_order_id_fkey"
+            columns: ["medical_order_id"]
+            isOneToOne: false
+            referencedRelation: "medical_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointment_status_history: {
         Row: {
           action_type: string
@@ -1987,6 +2036,17 @@ export type Database = {
         Returns: boolean
       }
       recalc_patient_order_sessions: {
+        Args: { patient_uuid: string }
+        Returns: {
+          action_taken: string
+          new_completed: boolean
+          new_sessions_used: number
+          old_completed: boolean
+          old_sessions_used: number
+          order_id: string
+        }[]
+      }
+      recalc_patient_order_sessions_with_assignments: {
         Args: { patient_uuid: string }
         Returns: {
           action_taken: string
