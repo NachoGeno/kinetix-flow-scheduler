@@ -1717,6 +1717,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      audit_patient_session_allocation: {
+        Args: { patient_uuid?: string }
+        Returns: {
+          calculated_fifo_sessions: number
+          current_sessions_used: number
+          discrepancy: number
+          order_date: string
+          order_id: string
+          order_status: string
+          patient_id: string
+          patient_name: string
+          total_sessions: number
+        }[]
+      }
       can_access_admin_only_modules: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -1748,6 +1762,15 @@ export type Database = {
         }
         Returns: {
           organization_id: string
+        }[]
+      }
+      fix_all_patient_session_counts: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          orders_changed: number
+          orders_processed: number
+          patient_id: string
+          patient_name: string
         }[]
       }
       fix_medical_orders_data_integrity: {
@@ -1962,6 +1985,17 @@ export type Database = {
       is_super_admin_only: {
         Args: { user_id: string }
         Returns: boolean
+      }
+      recalc_patient_order_sessions: {
+        Args: { patient_uuid: string }
+        Returns: {
+          action_taken: string
+          new_completed: boolean
+          new_sessions_used: number
+          old_completed: boolean
+          old_sessions_used: number
+          order_id: string
+        }[]
       }
       revert_appointment_status: {
         Args: { appointment_uuid: string; revert_reason_text: string }
