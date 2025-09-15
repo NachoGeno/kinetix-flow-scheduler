@@ -412,27 +412,39 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
 
       if (error) throw error;
 
-      // If medical order is selected, assign all appointments to it
+      // If medical order is selected, assign all appointments to it and update sessions_used
       if (values.medical_order_id && values.medical_order_id !== 'none' && createdAppointments) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.id) {
-          const { data: userProfile } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('user_id', user.id)
-            .single();
+        // Create explicit assignments for traceability
+        if (profile?.id) {
+          const assignments = createdAppointments.map(apt => ({
+            appointment_id: apt.id,
+            medical_order_id: values.medical_order_id as string,
+            assigned_by: profile.id,
+          }));
 
-          if (userProfile) {
-            const assignments = createdAppointments.map(apt => ({
-              appointment_id: apt.id,
-              medical_order_id: values.medical_order_id,
-              assigned_by: userProfile.id,
-            }));
+          await supabase
+            .from('appointment_order_assignments')
+            .insert(assignments);
+        }
 
-            await supabase
-              .from('appointment_order_assignments')
-              .insert(assignments);
-          }
+        // Increment sessions_used at scheduling time as per business rule
+        const { data: orderData, error: orderError } = await supabase
+          .from('medical_orders')
+          .select('id, sessions_used, total_sessions')
+          .eq('id', values.medical_order_id)
+          .single();
+
+        if (!orderError && orderData) {
+          const newSessionsUsed = (orderData.sessions_used || 0) + createdAppointments.length;
+          const isCompleted = newSessionsUsed >= orderData.total_sessions;
+
+          await supabase
+            .from('medical_orders')
+            .update({
+              sessions_used: newSessionsUsed,
+              completed: isCompleted
+            })
+            .eq('id', values.medical_order_id);
         }
       }
 
