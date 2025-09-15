@@ -77,6 +77,7 @@ interface MedicalOrder {
   sessions_used: number;
   document_status: 'pendiente' | 'completa';
   created_at: string;
+  order_date: string;
 }
 
 interface RecurringAppointment {
@@ -292,7 +293,8 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           total_sessions,
           sessions_used,
           document_status,
-          created_at
+          created_at,
+          order_date
         `)
         .eq('patient_id', patientId)
         .eq('completed', false)
@@ -991,7 +993,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                           )}
                            {medicalOrders.map((order) => {
                              const sessionsRemaining = order.total_sessions - order.sessions_used;
-                             const orderDate = format(new Date(order.created_at), "dd/MM/yyyy", { locale: es });
+                             const orderDate = format(new Date(order.order_date), "dd/MM/yyyy", { locale: es });
                              
                              return (
                                <SelectItem 
@@ -1062,7 +1064,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
               const selectedOrder = medicalOrders.find(o => o.id === selectedOrderId);
               
               if (selectedOrder) {
-                const orderDate = new Date(selectedOrder.created_at);
+                const orderDate = new Date(selectedOrder.order_date);
                 const daysSinceCreated = Math.floor((new Date().getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
                 const sessionsRemaining = selectedOrder.total_sessions - selectedOrder.sessions_used;
                 const isOldOrder = daysSinceCreated > 90; // Más de 3 meses
