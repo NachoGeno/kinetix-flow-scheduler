@@ -23,6 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useOrganizationContext } from '@/hooks/useOrganizationContext';
+import { useOrderAssignments } from '@/hooks/useOrderAssignments';
 import PatientForm from '@/components/patients/PatientForm';
 import MedicalOrderForm from './MedicalOrderForm';
 import PendingDocumentAlert from './PendingDocumentAlert';
@@ -107,6 +108,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   const { profile } = useAuth();
   const { toast } = useToast();
   const { currentOrgId } = useOrganizationContext();
+  const { assignAppointmentToOrder } = useOrderAssignments();
 
   const weekDays = [
     { key: 'monday', label: 'Lun', value: 1 },
@@ -699,14 +701,15 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         organization_id: currentOrgId,
       }));
 
-      const { error } = await supabase
+      const { data: createdAppointments, error } = await supabase
         .from('appointments')
-        .insert(appointmentsToCreate);
+        .insert(appointmentsToCreate)
+        .select('id');
 
       if (error) throw error;
 
-      // Update medical order sessions if applicable
-      if (medicalOrderId) {
+      // Update medical order sessions and create assignments if applicable
+      if (medicalOrderId && createdAppointments) {
         const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
         if (selectedOrder) {
           const newSessionsUsed = selectedOrder.sessions_used + recurringAppointments.length;
@@ -719,6 +722,11 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
               completed: isCompleted
             })
             .eq('id', medicalOrderId);
+
+          // Crear asignaciones explícitas para todos los appointments creados
+          for (const appointment of createdAppointments) {
+            await assignAppointmentToOrder(appointment.id, medicalOrderId);
+          }
         }
       }
 
@@ -830,7 +838,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       }
 
       // Crear una sola cita
-      const { error: createError } = await supabase
+      const { data: createdAppointment, error: createError } = await supabase
         .from('appointments')
         .insert({
           patient_id: values.patient_id,
@@ -840,12 +848,14 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           reason: values.reason,
           status: 'scheduled',
           organization_id: currentOrgId
-        });
+        })
+        .select('id')
+        .single();
 
       if (createError) throw createError;
 
-      // Si hay una orden médica, incrementar sessions_used
-      if (medicalOrderId) {
+      // Si hay una orden médica, incrementar sessions_used y crear asignación
+      if (medicalOrderId && createdAppointment) {
         const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
         if (selectedOrder) {
           const newSessionsUsed = selectedOrder.sessions_used + 1;
@@ -862,6 +872,9 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           if (updateError) {
             console.error('Error updating medical order:', updateError);
           } else {
+            // Crear la asignación explícita entre el appointment y la orden médica
+            await assignAppointmentToOrder(createdAppointment.id, medicalOrderId);
+            
             toast({
               title: "Éxito",
               description: `Cita agendada. Sesiones restantes: ${selectedOrder.total_sessions - newSessionsUsed}`,
