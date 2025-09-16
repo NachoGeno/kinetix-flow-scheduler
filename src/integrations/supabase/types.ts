@@ -1766,6 +1766,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_appointment_to_oldest_available_order: {
+        Args: { appointment_id_param: string; patient_id_param: string }
+        Returns: boolean
+      }
       audit_patient_session_allocation: {
         Args: { patient_uuid?: string }
         Returns: {
@@ -2035,6 +2039,10 @@ export type Database = {
         Args: { user_id: string }
         Returns: boolean
       }
+      recalc_order_sessions: {
+        Args: { order_id_param: string }
+        Returns: undefined
+      }
       recalc_patient_order_sessions: {
         Args: { patient_uuid: string }
         Returns: {
@@ -2048,14 +2056,7 @@ export type Database = {
       }
       recalc_patient_order_sessions_with_assignments: {
         Args: { patient_uuid: string }
-        Returns: {
-          action_taken: string
-          new_completed: boolean
-          new_sessions_used: number
-          old_completed: boolean
-          old_sessions_used: number
-          order_id: string
-        }[]
+        Returns: undefined
       }
       revert_appointment_status: {
         Args: { appointment_uuid: string; revert_reason_text: string }
