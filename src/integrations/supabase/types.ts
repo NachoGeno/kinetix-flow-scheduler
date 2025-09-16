@@ -14,6 +14,55 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_order_assignments: {
+        Row: {
+          appointment_id: string
+          assigned_at: string
+          assigned_by: string
+          created_at: string
+          id: string
+          medical_order_id: string
+        }
+        Insert: {
+          appointment_id: string
+          assigned_at?: string
+          assigned_by: string
+          created_at?: string
+          id?: string
+          medical_order_id: string
+        }
+        Update: {
+          appointment_id?: string
+          assigned_at?: string
+          assigned_by?: string
+          created_at?: string
+          id?: string
+          medical_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_order_assignments_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_order_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_order_assignments_medical_order_id_fkey"
+            columns: ["medical_order_id"]
+            isOneToOne: false
+            referencedRelation: "medical_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointment_status_history: {
         Row: {
           action_type: string
@@ -1717,6 +1766,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_appointment_to_oldest_available_order: {
+        Args: { appointment_id_param: string; patient_id_param: string }
+        Returns: boolean
+      }
+      audit_patient_session_allocation: {
+        Args: { patient_uuid?: string }
+        Returns: {
+          calculated_fifo_sessions: number
+          current_sessions_used: number
+          discrepancy: number
+          order_date: string
+          order_id: string
+          order_status: string
+          patient_id: string
+          patient_name: string
+          total_sessions: number
+        }[]
+      }
       can_access_admin_only_modules: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -1748,6 +1815,15 @@ export type Database = {
         }
         Returns: {
           organization_id: string
+        }[]
+      }
+      fix_all_patient_session_counts: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          orders_changed: number
+          orders_processed: number
+          patient_id: string
+          patient_name: string
         }[]
       }
       fix_medical_orders_data_integrity: {
@@ -1962,6 +2038,25 @@ export type Database = {
       is_super_admin_only: {
         Args: { user_id: string }
         Returns: boolean
+      }
+      recalc_order_sessions: {
+        Args: { order_id_param: string }
+        Returns: undefined
+      }
+      recalc_patient_order_sessions: {
+        Args: { patient_uuid: string }
+        Returns: {
+          action_taken: string
+          new_completed: boolean
+          new_sessions_used: number
+          old_completed: boolean
+          old_sessions_used: number
+          order_id: string
+        }[]
+      }
+      recalc_patient_order_sessions_with_assignments: {
+        Args: { patient_uuid: string }
+        Returns: undefined
       }
       revert_appointment_status: {
         Args: { appointment_uuid: string; revert_reason_text: string }
