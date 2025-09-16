@@ -123,7 +123,7 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
   // Cargar datos del doctor si estamos editando
   useEffect(() => {
     if (doctorData && specialties.length > 0) {
-      const specialty = specialties.find(s => s.name === doctorData.specialty.name);
+      const specialty = specialties.find(s => s.name === doctorData.specialty?.name);
       
       form.reset({
         first_name: doctorData.profile.first_name,
