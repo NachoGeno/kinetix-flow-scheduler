@@ -714,16 +714,8 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       if (medicalOrderId && createdAppointments) {
         const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
         if (selectedOrder) {
-          const newSessionsUsed = selectedOrder.sessions_used + recurringAppointments.length;
-          const isCompleted = newSessionsUsed >= selectedOrder.total_sessions;
-
-          await supabase
-            .from('medical_orders')
-            .update({ 
-              sessions_used: newSessionsUsed,
-              completed: isCompleted
-            })
-            .eq('id', medicalOrderId);
+          // Las sesiones se actualizarán automáticamente via triggers del backend
+          // No necesitamos actualizar manualmente sessions_used
 
           // Crear asignaciones explícitas para todos los appointments creados
           for (const appointment of createdAppointments) {
@@ -860,28 +852,16 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       if (medicalOrderId && createdAppointment) {
         const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
         if (selectedOrder) {
-          const newSessionsUsed = selectedOrder.sessions_used + 1;
-          const isCompleted = newSessionsUsed >= selectedOrder.total_sessions;
-
-          const { error: updateError } = await supabase
-            .from('medical_orders')
-            .update({ 
-              sessions_used: newSessionsUsed,
-              completed: isCompleted
-            })
-            .eq('id', medicalOrderId);
-
-          if (updateError) {
-            console.error('Error updating medical order:', updateError);
-          } else {
-            // Crear la asignación explícita entre el appointment y la orden médica
-            await assignAppointmentToOrder(createdAppointment.id, medicalOrderId);
-            
-            toast({
-              title: "Éxito",
-              description: `Cita agendada. Sesiones restantes: ${selectedOrder.total_sessions - newSessionsUsed}`,
-            });
-          }
+          // Las sesiones se actualizarán automáticamente via triggers del backend
+          // No necesitamos actualizar manualmente sessions_used
+          
+          // Crear la asignación explícita entre el appointment y la orden médica
+          await assignAppointmentToOrder(createdAppointment.id, medicalOrderId);
+          
+          toast({
+            title: "Éxito",
+            description: `Cita creada y asignada a orden médica`,
+          });
         }
       } else {
         toast({

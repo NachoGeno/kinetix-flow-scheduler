@@ -357,7 +357,7 @@ export default function Presentaciones() {
               patient_uuid: order.patient_id
             });
 
-            if (!recalcError && Array.isArray(recalcResult)) {
+            if (!recalcError && recalcResult && Array.isArray(recalcResult)) {
               const orderResult = recalcResult.find((r: any) => r.order_id === order.id);
               if (orderResult && typeof orderResult.new_sessions_used === 'number') {
                 const recalculated = orderResult.new_sessions_used;

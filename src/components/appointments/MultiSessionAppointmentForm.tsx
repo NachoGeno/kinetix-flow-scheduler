@@ -435,16 +435,8 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
           .single();
 
         if (!orderError && orderData) {
-          const newSessionsUsed = (orderData.sessions_used || 0) + createdAppointments.length;
-          const isCompleted = newSessionsUsed >= orderData.total_sessions;
-
-          await supabase
-            .from('medical_orders')
-            .update({
-              sessions_used: newSessionsUsed,
-              completed: isCompleted
-            })
-            .eq('id', values.medical_order_id);
+        // Las sesiones se actualizarán automáticamente via triggers del backend
+        // No necesitamos actualizar manualmente sessions_used
         }
       }
 
