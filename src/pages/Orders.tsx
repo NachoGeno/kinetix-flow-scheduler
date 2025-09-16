@@ -38,6 +38,7 @@ interface MedicalOrder {
   attachment_name: string | null;
   document_status: 'pendiente' | 'completa';
   sessions_count?: number;
+  scheduled_appointments?: number;
   patient: {
     id: string;
     profile: {
@@ -110,7 +111,8 @@ export default function Orders() {
           doctor:doctors(
             profile:profiles(first_name, last_name),
             specialty:specialties(name, color)
-          )
+          ),
+          appointment_order_assignments(count)
         `)
         .eq('organization_id', currentOrgId)
         .order('created_at', { ascending: false });
@@ -147,7 +149,8 @@ export default function Orders() {
 
       setOrders((data || []).map(order => ({
         ...order,
-        document_status: (order.document_status as 'pendiente' | 'completa') || 'pendiente'
+        document_status: (order.document_status as 'pendiente' | 'completa') || 'pendiente',
+        scheduled_appointments: order.appointment_order_assignments?.[0]?.count || 0
       })));
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -519,6 +522,12 @@ export default function Orders() {
                     >
                       {order.completed ? 'Completada' : 'Pendiente'}
                     </Badge>
+                    {(order.scheduled_appointments || 0) > 0 && (
+                      <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50 flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        Programada ({order.scheduled_appointments} turno{(order.scheduled_appointments || 0) > 1 ? 's' : ''})
+                      </Badge>
+                    )}
                     {order.document_status === 'pendiente' && (
                       <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50 flex items-center gap-1">
                         <FileWarning className="h-3 w-3" />
