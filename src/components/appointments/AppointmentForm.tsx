@@ -671,22 +671,6 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
     const medicalOrderId = values.medical_order_id === 'none' ? null : values.medical_order_id;
 
-    // Validate medical order sessions
-    if (medicalOrderId) {
-      const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
-      if (selectedOrder) {
-        const availableSessions = selectedOrder.total_sessions - selectedOrder.sessions_used;
-        if (recurringAppointments.length > availableSessions) {
-          toast({
-            title: "Sin sesiones suficientes",
-            description: `La orden médica solo tiene ${availableSessions} sesiones disponibles, pero intentas agendar ${recurringAppointments.length}`,
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-    }
-
     try {
       const appointmentsToCreate = recurringAppointments.map((apt) => ({
         patient_id: values.patient_id,
@@ -699,32 +683,38 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         organization_id: currentOrgId,
       }));
 
-      const { error } = await supabase
+      const { data: createdAppointments, error: appointmentError } = await supabase
         .from('appointments')
-        .insert(appointmentsToCreate);
+        .insert(appointmentsToCreate)
+        .select('id');
 
-      if (error) throw error;
+      if (appointmentError) throw appointmentError;
 
-      // Update medical order sessions if applicable
-      if (medicalOrderId) {
-        const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
-        if (selectedOrder) {
-          const newSessionsUsed = selectedOrder.sessions_used + recurringAppointments.length;
-          const isCompleted = newSessionsUsed >= selectedOrder.total_sessions;
+      // If a medical order is selected, link all appointments to it
+      if (medicalOrderId && createdAppointments) {
+        const assignments = createdAppointments.map(appointment => ({
+          appointment_id: appointment.id,
+          medical_order_id: medicalOrderId,
+          assigned_by: profile?.id || null
+        }));
 
-          await supabase
-            .from('medical_orders')
-            .update({ 
-              sessions_used: newSessionsUsed,
-              completed: isCompleted
-            })
-            .eq('id', medicalOrderId);
+        const { error: assignmentError } = await supabase
+          .from('appointment_order_assignments')
+          .insert(assignments);
+
+        if (assignmentError) {
+          console.error('Error linking appointments to order:', assignmentError);
+          toast({
+            title: "Advertencia",
+            description: "Las citas se crearon pero no se pudieron vincular a la orden médica",
+            variant: "destructive",
+          });
         }
       }
 
       toast({
         title: "Éxito",
-        description: `Se crearon ${recurringAppointments.length} citas recurrentes correctamente`,
+        description: `Se crearon ${recurringAppointments.length} citas recurrentes correctamente${medicalOrderId ? ' y se vincularon a la orden médica' : ''}`,
       });
 
       form.reset();
@@ -830,7 +820,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       }
 
       // Crear una sola cita
-      const { error: createError } = await supabase
+      const { data: createdAppointment, error: createError } = await supabase
         .from('appointments')
         .insert({
           patient_id: values.patient_id,
@@ -840,40 +830,38 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           reason: values.reason,
           status: 'scheduled',
           organization_id: currentOrgId
-        });
+        })
+        .select('id')
+        .single();
 
       if (createError) throw createError;
 
-      // Si hay una orden médica, incrementar sessions_used
-      if (medicalOrderId) {
-        const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
-        if (selectedOrder) {
-          const newSessionsUsed = selectedOrder.sessions_used + 1;
-          const isCompleted = newSessionsUsed >= selectedOrder.total_sessions;
+      // Si hay una orden médica, vincular la cita a la orden
+      if (medicalOrderId && createdAppointment) {
+        const { error: assignmentError } = await supabase
+          .from('appointment_order_assignments')
+          .insert({
+            appointment_id: createdAppointment.id,
+            medical_order_id: medicalOrderId,
+            assigned_by: profile?.id || null
+          });
 
-          const { error: updateError } = await supabase
-            .from('medical_orders')
-            .update({ 
-              sessions_used: newSessionsUsed,
-              completed: isCompleted
-            })
-            .eq('id', medicalOrderId);
-
-          if (updateError) {
-            console.error('Error updating medical order:', updateError);
-          } else {
-            toast({
-              title: "Éxito",
-              description: `Cita agendada. Sesiones restantes: ${selectedOrder.total_sessions - newSessionsUsed}`,
-            });
-          }
+        if (assignmentError) {
+          console.error('Error linking appointment to order:', assignmentError);
+          toast({
+            title: "Advertencia",
+            description: "La cita se creó pero no se pudo vincular a la orden médica",
+            variant: "destructive",
+          });
         }
-      } else {
-        toast({
-          title: "Éxito",
-          description: "Cita agendada correctamente",
-        });
       }
+
+      toast({
+        title: "Éxito",
+        description: medicalOrderId 
+          ? "Cita agendada y vinculada a la orden médica correctamente"
+          : "Cita agendada correctamente",
+      });
 
       form.reset();
       onSuccess?.();

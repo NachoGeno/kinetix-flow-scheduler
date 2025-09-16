@@ -296,7 +296,7 @@ export default function Orders() {
   };
 
   const handleAppointmentCreated = () => {
-    fetchOrders();
+    fetchOrders(); // Refresh orders to reflect updated session counts
     setIsAppointmentOpen(false);
     setIsMultiSessionOpen(false);
     setSelectedOrder(null);

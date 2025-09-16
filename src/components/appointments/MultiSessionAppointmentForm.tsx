@@ -405,15 +405,38 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
         organization_id: currentOrgId,
       }));
 
-      const { error } = await supabase
+      const { data: createdAppointments, error: appointmentError } = await supabase
         .from('appointments')
-        .insert(appointments);
+        .insert(appointments)
+        .select('id');
 
-      if (error) throw error;
+      if (appointmentError) throw appointmentError;
+
+      // If a medical order is selected, link all appointments to it
+      if (values.medical_order_id && values.medical_order_id !== 'none' && createdAppointments) {
+        const assignments = createdAppointments.map(appointment => ({
+          appointment_id: appointment.id,
+          medical_order_id: values.medical_order_id,
+          assigned_by: profile?.id || null
+        }));
+
+        const { error: assignmentError } = await supabase
+          .from('appointment_order_assignments')
+          .insert(assignments);
+
+        if (assignmentError) {
+          console.error('Error linking appointments to order:', assignmentError);
+          toast({
+            title: "Advertencia",
+            description: "Las citas se crearon pero no se pudieron vincular a la orden médica",
+            variant: "destructive",
+          });
+        }
+      }
 
       toast({
         title: "Éxito",
-        description: `Se crearon ${scheduledSessions.length} citas correctamente`,
+        description: `Se crearon ${scheduledSessions.length} citas correctamente${values.medical_order_id !== 'none' ? ' y se vincularon a la orden médica' : ''}`,
       });
 
       form.reset();
