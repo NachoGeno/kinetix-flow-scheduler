@@ -405,40 +405,11 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
         organization_id: currentOrgId,
       }));
 
-      const { data: createdAppointments, error } = await supabase
+      const { error } = await supabase
         .from('appointments')
-        .insert(appointments)
-        .select('id');
+        .insert(appointments);
 
       if (error) throw error;
-
-      // If medical order is selected, assign all appointments to it and update sessions_used
-      if (values.medical_order_id && values.medical_order_id !== 'none' && createdAppointments) {
-        // Create explicit assignments for traceability
-        if (profile?.id) {
-          const assignments = createdAppointments.map(apt => ({
-            appointment_id: apt.id,
-            medical_order_id: values.medical_order_id as string,
-            assigned_by: profile.id,
-          }));
-
-          await supabase
-            .from('appointment_order_assignments')
-            .insert(assignments);
-        }
-
-        // Increment sessions_used at scheduling time as per business rule
-        const { data: orderData, error: orderError } = await supabase
-          .from('medical_orders')
-          .select('id, sessions_used, total_sessions')
-          .eq('id', values.medical_order_id)
-          .single();
-
-        if (!orderError && orderData) {
-        // Las sesiones se actualizarán automáticamente via triggers del backend
-        // No necesitamos actualizar manualmente sessions_used
-        }
-      }
 
       toast({
         title: "Éxito",

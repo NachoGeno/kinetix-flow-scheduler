@@ -24,7 +24,8 @@ const formSchema = z.object({
   instructions: z.string().optional(),
   sessions_count: z.number().min(1, 'Debe tener al menos 1 sesión').max(50, 'Máximo 50 sesiones'),
   order_date: z.date({ message: 'Selecciona la fecha de la orden' }),
-  obra_social_art_id: z.string().min(1, 'Debe seleccionar una Obra Social/ART'),
+  obra_social_art_id: z.string().optional(),
+  art_provider: z.string().optional(),
   art_authorization_number: z.string().optional(),
 });
 
@@ -87,6 +88,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
       sessions_count: editOrder?.total_sessions || 1,
       order_date: editOrder?.order_date ? new Date(editOrder.order_date) : new Date(),
       obra_social_art_id: editOrder?.obra_social_art_id || '',
+      art_provider: editOrder?.art_provider || '',
       art_authorization_number: editOrder?.art_authorization_number || '',
     },
   });
@@ -233,7 +235,8 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
         urgent: false,
         completed: editOrder ? editOrder.completed : false,
         order_date: values.order_date.toISOString().split('T')[0],
-        obra_social_art_id: values.obra_social_art_id,
+        obra_social_art_id: values.obra_social_art_id || null,
+        art_provider: values.art_provider || null,
         art_authorization_number: values.art_authorization_number || null,
         total_sessions: values.sessions_count,
         sessions_used: editOrder ? editOrder.sessions_used : 0,
@@ -500,6 +503,22 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
           )}
         />
 
+        <FormField
+          control={form.control}
+          name="art_provider"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>ART/Obra Social (manual)</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Solo si no está en la lista anterior..."
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}

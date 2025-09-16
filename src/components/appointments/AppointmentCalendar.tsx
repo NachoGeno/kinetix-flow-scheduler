@@ -19,8 +19,7 @@ import {
   AlertCircle,
   XCircle,
   PlayCircle,
-  RotateCcw,
-  Play
+  RotateCcw
 } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -28,7 +27,6 @@ import { formatDateToISO } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-
 import AppointmentForm from './AppointmentForm';
 
 interface Doctor {
@@ -49,8 +47,6 @@ interface Doctor {
 
 interface Appointment {
   id: string;
-  patient_id: string;
-  doctor_id: string;
   appointment_date: string;
   appointment_time: string;
   status: string;
@@ -77,7 +73,8 @@ interface Appointment {
 const statusLabels = {
   scheduled: 'Agendado',
   confirmed: 'Confirmado',
-  completed: 'Presente',
+  in_progress: 'Asistido', 
+  completed: 'Completado',
   cancelled: 'Cancelado',
   discharged: 'Dado de Alta',
   rescheduled: 'Reprogramado',
@@ -89,6 +86,7 @@ const statusLabels = {
 const statusColors = {
   scheduled: 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border-blue-200',
   confirmed: 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-green-200',
+  in_progress: 'bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 border-amber-200',
   completed: 'bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 border-purple-200',
   cancelled: 'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border-red-200',
   discharged: 'bg-gradient-to-r from-teal-50 to-teal-100 text-teal-700 border-teal-200',
@@ -98,6 +96,7 @@ const statusColors = {
 const statusIcons = {
   scheduled: CalendarIcon,
   confirmed: CheckCircle,
+  in_progress: PlayCircle,
   completed: CheckCircle,
   cancelled: XCircle,
   discharged: CheckCircle,
@@ -118,7 +117,6 @@ export default function AppointmentCalendar() {
   const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
   const { profile } = useAuth();
   const { toast } = useToast();
-  
 
   useEffect(() => {
     fetchDoctors();
@@ -412,39 +410,17 @@ export default function AppointmentCalendar() {
     }
   };
 
-  const handleStatusUpdate = async (appointmentId: string, newStatus: 'in_progress' | 'completed' | 'no_show') => {
+  const handleStatusUpdate = async (appointmentId: string, newStatus: 'completed' | 'no_show') => {
     try {
-      const appointment = appointments.find(a => a.id === appointmentId);
-      if (!appointment) {
-        toast({
-          title: "Error",
-          description: "Cita no encontrada",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const { error } = await supabase
         .from('appointments')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
+        .update({ status: newStatus })
         .eq('id', appointmentId);
 
-      if (error) {
-        console.error('Supabase error:', error);
-        toast({
-          title: "Error",
-          description: `Error al actualizar la cita: ${error.message}`,
-          variant: "destructive",
-        });
-        return;
-      }
-
+      if (error) throw error;
 
       const statusMessages = {
-        completed: "Paciente marcado como presente",
+        completed: "Paciente marcado como asistido y sesión completada",
         no_show: "Paciente marcado como ausente"
       };
 
@@ -461,7 +437,7 @@ export default function AppointmentCalendar() {
       console.error('Error updating appointment status:', error);
       toast({
         title: "Error",
-        description: "Error al actualizar el estado de la cita. Revisa la consola para más detalles.",
+        description: "No se pudo actualizar el estado de la cita",
         variant: "destructive",
       });
     }
@@ -799,82 +775,79 @@ export default function AppointmentCalendar() {
                                                 onOpenChange={(open) => setOpenPopovers(prev => ({ ...prev, [appointment.id]: open }))}
                                               >
                                                  <PopoverTrigger asChild>
-                                                     <div className={`inline-flex items-center text-xs cursor-pointer rounded-md px-2 py-1 ${
-                                                       appointment.status === 'cancelled' 
-                                                         ? 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
-                                                         : appointment.status === 'completed'
-                                                         ? 'bg-green-500 hover:bg-green-600 text-white border border-green-400'
-                                                         : 'bg-blue-500 hover:bg-blue-600 text-white border border-blue-400'
-                                                     }`}>
+                                                    <div className={`inline-flex items-center text-xs cursor-pointer rounded-md px-2 py-1 ${
+                                                      appointment.status === 'cancelled' 
+                                                        ? 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
+                                                        : appointment.status === 'completed' || appointment.status === 'in_progress'
+                                                        ? 'bg-green-500 hover:bg-green-600 text-white border border-green-400'
+                                                        : 'bg-blue-500 hover:bg-blue-600 text-white border border-blue-400'
+                                                    }`}>
                                                      <CalendarIcon className="h-3 w-3 mr-1" />
                                                      {statusLabels[appointment.status] || appointment.status}
                                                    </div>
                                                 </PopoverTrigger>
                                                  <PopoverContent className="w-48 p-2 bg-white shadow-lg border rounded-md z-50">
-                                                    <div className="space-y-1">
-                                                      {appointment.status === 'scheduled' || appointment.status === 'confirmed' ? (
-                                                        <>
-                                                          <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                              <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                                                onClick={(e) => {
-                                                                  e.stopPropagation();
-                                                                  handleStatusUpdate(appointment.id, 'completed');
-                                                                }}
-                                                              >
-                                                                <CheckCircle className="h-4 w-4 mr-2" />
-                                                                Dar Presente
-                                                              </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                              <p>Marcar paciente como presente</p>
-                                                            </TooltipContent>
-                                                          </Tooltip>
-                                                          <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                              <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                onClick={(e) => {
-                                                                  e.stopPropagation();
-                                                                  handleStatusUpdate(appointment.id, 'no_show');
-                                                                }}
-                                                              >
-                                                                <XCircle className="h-4 w-4 mr-2" />
-                                                                Ausente
-                                                              </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                              <p>Marcar como ausente</p>
-                                                            </TooltipContent>
-                                                           </Tooltip>
-                                                         </>
-                                                       ) : (
-                                                        <Tooltip>
-                                                          <TooltipTrigger asChild>
-                                                            <Button
-                                                              variant="ghost"
-                                                              size="sm"
-                                                              className="w-full justify-start text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                                                              onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleRevertAttendance(appointment.id);
-                                                              }}
-                                                            >
-                                                              <RotateCcw className="h-4 w-4 mr-2" />
-                                                              Revertir Asistencia
-                                                            </Button>
-                                                          </TooltipTrigger>
-                                                          <TooltipContent>
-                                                            <p>Revertir asistencia</p>
-                                                          </TooltipContent>
-                                                        </Tooltip>
-                                                      )}
-                                                    </div>
+                                                   <div className="space-y-1">
+                                                     {appointment.status !== 'in_progress' ? (
+                                                       <>
+                                                         <Tooltip>
+                                                           <TooltipTrigger asChild>
+                                                             <Button
+                                                               variant="ghost"
+                                                               size="sm"
+                                                               className="w-8 h-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                               onClick={(e) => {
+                                                                 e.stopPropagation();
+                                                                 handleStatusUpdate(appointment.id, 'completed');
+                                                               }}
+                                                             >
+                                                               <CheckCircle className="h-4 w-4" />
+                                                             </Button>
+                                                           </TooltipTrigger>
+                                                           <TooltipContent>
+                                                             <p>Marcar como asistido</p>
+                                                           </TooltipContent>
+                                                         </Tooltip>
+                                                         <Tooltip>
+                                                           <TooltipTrigger asChild>
+                                                             <Button
+                                                               variant="ghost"
+                                                               size="sm"
+                                                               className="w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                               onClick={(e) => {
+                                                                 e.stopPropagation();
+                                                                 handleStatusUpdate(appointment.id, 'no_show');
+                                                               }}
+                                                             >
+                                                               <XCircle className="h-4 w-4" />
+                                                             </Button>
+                                                           </TooltipTrigger>
+                                                           <TooltipContent>
+                                                             <p>Marcar como ausente</p>
+                                                           </TooltipContent>
+                                                         </Tooltip>
+                                                       </>
+                                                     ) : (
+                                                       <Tooltip>
+                                                         <TooltipTrigger asChild>
+                                                           <Button
+                                                             variant="ghost"
+                                                             size="sm"
+                                                             className="w-8 h-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                                             onClick={(e) => {
+                                                               e.stopPropagation();
+                                                               handleRevertAttendance(appointment.id);
+                                                             }}
+                                                           >
+                                                             <RotateCcw className="h-4 w-4" />
+                                                           </Button>
+                                                         </TooltipTrigger>
+                                                         <TooltipContent>
+                                                           <p>Revertir asistencia</p>
+                                                         </TooltipContent>
+                                                       </Tooltip>
+                                                     )}
+                                                   </div>
                                                  </PopoverContent>
                                               </Popover>
                                             ) : (

@@ -31,14 +31,11 @@ import {
   AlertCircle,
   Edit2,
   Trash2,
-  ExternalLink,
-  RefreshCw,
-  Settings
+  ExternalLink
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import AppointmentReassignmentDialog from '@/components/appointments/AppointmentReassignmentDialog';
 
 interface PresentationOrder {
   id: string;
@@ -87,10 +84,8 @@ interface FilterState {
   professional: string;
   date_from: string;
   date_to: string;
-  status: 'all' | 'ready_to_present' | 'in_preparation' | 'missing_attendance' | 'pdf_generated' | 'submitted';
+  status: 'all' | 'ready_to_present' | 'in_preparation' | 'pdf_generated' | 'submitted';
   search_term: string;
-  show_all_dates: boolean;
-  only_active_orders: boolean;
 }
 
 export default function Presentaciones() {
@@ -113,9 +108,7 @@ export default function Presentaciones() {
     professional: '',
     ...getDefaultDates(),
     status: 'all',
-    search_term: '',
-    show_all_dates: false,
-    only_active_orders: false
+    search_term: ''
   });
   const [selectedOrder, setSelectedOrder] = useState<PresentationOrder | null>(null);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
@@ -129,8 +122,6 @@ export default function Presentaciones() {
   const [documentToDelete, setDocumentToDelete] = useState<{orderId: string, docType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization', docId: string} | null>(null);
   const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<{url: string, name: string, type: string, originalPath?: string} | null>(null);
-  const [reassignmentDialogOpen, setReassignmentDialogOpen] = useState(false);
-  const [selectedPatientForReassignment, setSelectedPatientForReassignment] = useState<{id: string, name: string} | null>(null);
 
   // Fetch obras sociales
   const { data: obrasSociales } = useQuery({
@@ -179,30 +170,16 @@ export default function Presentaciones() {
           baseQuery = baseQuery.eq("obra_social_art_id", filters.obra_social_id);
         }
 
-        // Apply date filters only if not showing all dates
-        if (!filters.show_all_dates && (filters.date_from || filters.date_to)) {
-          const dateFrom = filters.date_from || getDefaultDates().date_from;
-          const dateTo = filters.date_to || getDefaultDates().date_to;
-          
-          baseQuery = baseQuery
-            .gte("order_date", dateFrom)
-            .lte("order_date", dateTo);
+        // Los filtros de fecha son obligatorios para optimizar la carga
+        // Siempre aplicar filtros de fecha (usar valores por defecto si no hay)
+        const dateFrom = filters.date_from || getDefaultDates().date_from;
+        const dateTo = filters.date_to || getDefaultDates().date_to;
+        
+        baseQuery = baseQuery
+          .gte("created_at", dateFrom)
+          .lte("created_at", dateTo + "T23:59:59");
 
-          console.log(`📅 Aplicando filtros de fecha por order_date: ${dateFrom} a ${dateTo}`);
-        } else if (!filters.show_all_dates) {
-          // Default to last week if no specific dates and not showing all
-          const defaultDates = getDefaultDates();
-          baseQuery = baseQuery
-            .gte("order_date", defaultDates.date_from)
-            .lte("order_date", defaultDates.date_to);
-          console.log(`📅 Aplicando filtros de fecha por defecto: ${defaultDates.date_from} a ${defaultDates.date_to}`);
-        }
-
-        // Filter only active orders if requested
-        if (filters.only_active_orders) {
-          baseQuery = baseQuery.eq("completed", false);
-          console.log(`🔄 Aplicando filtro: solo órdenes activas (no cerradas)`);
-        }
+        console.log(`📅 Aplicando filtros de fecha: ${dateFrom} a ${dateTo}`);
 
         if (filters.professional) {
           baseQuery = baseQuery.ilike("doctor_name", `%${filters.professional}%`);
@@ -311,66 +288,39 @@ export default function Presentaciones() {
 
         console.log(`📋 Found ${filteredOrders.length} orders after all filtering`);
 
-        // PERFORMANCE OPTIMIZATION: Fetch all presentation documents in a single query
-        const orderIds = filteredOrders.map(order => order.id);
-        let allDocuments: any[] = [];
-        
-        if (orderIds.length > 0) {
-          const { data: documents, error: docsError } = await supabase
-            .from("presentation_documents")
-            .select(`
-              id,
-              medical_order_id,
-              document_type,
-              file_url,
-              file_name,
-              uploaded_at,
-              uploaded_by,
-              uploader:profiles!presentation_documents_uploaded_by_fkey(first_name, last_name)
-            `)
-            .in("medical_order_id", orderIds);
+        // Process each order to check presentation readiness and get documents
+        const processedOrders: PresentationOrder[] = await Promise.all(
+          (filteredOrders || []).map(async (order) => {
+            console.log(`🔍 Processing order: ${order.id} for ${order.patient.profile.first_name} ${order.patient.profile.last_name}`);
 
-          if (docsError) {
-            console.error("Error fetching documents:", docsError);
-          } else {
-            allDocuments = documents || [];
-          }
-        }
+            // Check if all sessions are completed using our database function
+            const { data: sessionCheck, error: sessionError } = await supabase
+              .rpc('check_presentation_ready', { order_id: order.id });
 
-        // Create a map for quick document lookup
-        const documentsMap = new Map();
-        allDocuments.forEach(doc => {
-          if (!documentsMap.has(doc.medical_order_id)) {
-            documentsMap.set(doc.medical_order_id, []);
-          }
-          documentsMap.get(doc.medical_order_id).push(doc);
-        });
-
-        // Process each order - recalculate sessions using new assignment logic
-        const processedOrders: PresentationOrder[] = await Promise.all((filteredOrders || []).map(async (order) => {
-          console.log(`🔍 Processing order: ${order.id} for ${order.patient.profile.first_name} ${order.patient.profile.last_name}`);
-
-          // Get accurate session count from the new assignment-aware function
-          let accurateSessionsUsed = order.sessions_used;
-          try {
-            const { error: recalcError } = await supabase.rpc('recalc_patient_order_sessions_with_assignments', {
-              patient_uuid: order.patient_id
-            });
-
-            if (!recalcError) {
-              console.log('Sesiones recalculadas para paciente:', order.patient_id);
-            } else {
-              console.error('Error recalculating sessions:', recalcError);
+            if (sessionError) {
+              console.error("Error checking sessions:", sessionError);
             }
-          } catch (recalcError) {
-            console.warn('Could not recalculate sessions for order:', order.id, recalcError);
-          }
 
-          const sessions_completed = order.completed === true || accurateSessionsUsed >= order.total_sessions;
-          console.log(`📊 Sessions completed for order ${order.id}: ${sessions_completed} (${accurateSessionsUsed}/${order.total_sessions})`);
+            const sessions_completed = sessionCheck || false;
+            console.log(`📊 Sessions completed for order ${order.id}: ${sessions_completed}`);
 
-          // Get documents for this order from our map
-          const orderDocuments = documentsMap.get(order.id) || [];
+            // Get presentation documents
+            const { data: documents, error: docsError } = await supabase
+              .from("presentation_documents")
+              .select(`
+                id,
+                document_type,
+                file_url,
+                file_name,
+                uploaded_at,
+                uploaded_by,
+                uploader:profiles!presentation_documents_uploaded_by_fkey(first_name, last_name)
+              `)
+              .eq("medical_order_id", order.id);
+
+            if (docsError) {
+              console.error("Error fetching documents:", docsError);
+            }
 
             // Organize documents by type
             const documentsByType = {
@@ -393,7 +343,7 @@ export default function Presentaciones() {
             }
 
             // Other documents from presentation_documents table
-            orderDocuments?.forEach((doc: any) => {
+            documents?.forEach((doc: any) => {
               if (doc.document_type === 'clinical_evolution') {
                 documentsByType.clinical_evolution = {
                   id: doc.id,
@@ -426,11 +376,11 @@ export default function Presentaciones() {
 
             return {
               ...order,
-              sessions_used: accurateSessionsUsed, // Use the accurate count
               documents: documentsByType,
               sessions_completed
             };
-        }));
+          })
+        );
 
         // Apply status filter (this needs to be done after processing)
         let finalOrders = processedOrders;
@@ -445,8 +395,6 @@ export default function Presentaciones() {
                 return hasAllDocs && sessionsReady && order.presentation_status !== 'pdf_generated';
               case 'in_preparation':
                 return !sessionsReady;
-              case 'missing_attendance':
-                return hasAllDocs && !sessionsReady && !order.completed;
               case 'pdf_generated':
                 return order.presentation_status === 'pdf_generated';
               case 'submitted':
@@ -748,18 +696,6 @@ export default function Presentaciones() {
     console.log(`🔄 Refreshing presentation files for order: ${orderId}`);
     await refetch();
     toast.success("Archivos de presentación actualizados");
-  };
-
-  const handleOpenReassignmentDialog = (order: PresentationOrder) => {
-    setSelectedPatientForReassignment({
-      id: order.patient.id,
-      name: `${order.patient.profile.first_name} ${order.patient.profile.last_name}`
-    });
-    setReassignmentDialogOpen(true);
-  };
-
-  const handleReassignmentComplete = () => {
-    refetch(); // Refresh data after reassignment
   };
 
   const validateDocumentsForPDF = (order: PresentationOrder): { isValid: boolean; missingDocs: string[]; activeFiles: string[] } => {
@@ -1325,19 +1261,11 @@ export default function Presentaciones() {
     const hasAllDocs = docs.medical_order && docs.clinical_evolution && docs.attendance_record && docs.social_work_authorization;
     const sessionsReady = order.sessions_completed;
     
-    // Enviado - highest priority (new status)
-    if (order.presentation_status === 'submitted') return { 
-      status: 'submitted', 
-      color: 'bg-green-100 text-green-800', 
-      text: 'Enviado', 
-      icon: <CheckCircle2 className="h-3 w-3" />
-    };
-    
-    // PDF already generated - maintain for backward compatibility
+    // PDF already generated - highest priority
     if (order.presentation_status === 'pdf_generated') return { 
-      status: 'submitted', // treat as submitted for consistency
+      status: 'pdf_generated', 
       color: 'bg-green-100 text-green-800', 
-      text: 'Enviado', 
+      text: 'PDF generado', 
       icon: <CheckCircle2 className="h-3 w-3" />
     };
     
@@ -1357,12 +1285,12 @@ export default function Presentaciones() {
       icon: <AlertCircle className="h-3 w-3" />
     };
     
-    // Sessions pending but all docs are ready - missing attendance
+    // Sessions pending but some docs can be uploaded
     if (!sessionsReady && hasAllDocs) return { 
-      status: 'missing_attendance', 
-      color: 'bg-yellow-100 text-yellow-800', 
-      text: 'Falta Asistencia', 
-      icon: <AlertCircle className="h-3 w-3" />
+      status: 'docs_ready_sessions_pending', 
+      color: 'bg-purple-100 text-purple-800', 
+      text: 'En preparación', 
+      icon: <Clock className="h-3 w-3" />
     };
     
     // Sessions pending and incomplete docs - in preparation
@@ -1444,7 +1372,6 @@ export default function Presentaciones() {
                    <SelectItem value="all">Todos</SelectItem>
                    <SelectItem value="ready_to_present">Listas para presentar</SelectItem>
                    <SelectItem value="in_preparation">En preparación</SelectItem>
-                   <SelectItem value="missing_attendance">Falta Asistencia</SelectItem>
                    <SelectItem value="pdf_generated">PDF generado</SelectItem>
                    <SelectItem value="submitted">Enviadas</SelectItem>
                  </SelectContent>
@@ -1473,7 +1400,6 @@ export default function Presentaciones() {
                 value={filters.date_from}
                 onChange={(e) => setFilters(prev => ({ ...prev, date_from: e.target.value }))}
                 required
-                disabled={filters.show_all_dates}
               />
             </div>
             <div className="space-y-2">
@@ -1483,36 +1409,7 @@ export default function Presentaciones() {
                 value={filters.date_to}
                 onChange={(e) => setFilters(prev => ({ ...prev, date_to: e.target.value }))}
                 required
-                disabled={filters.show_all_dates}
               />
-            </div>
-          </div>
-
-          {/* New Filter Options */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="show_all_dates"
-                checked={filters.show_all_dates}
-                onCheckedChange={(checked) => 
-                  setFilters(prev => ({ ...prev, show_all_dates: checked === true }))
-                }
-              />
-              <Label htmlFor="show_all_dates" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                Todas las fechas
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="only_active_orders"
-                checked={filters.only_active_orders}
-                onCheckedChange={(checked) => 
-                  setFilters(prev => ({ ...prev, only_active_orders: checked === true }))
-                }
-              />
-              <Label htmlFor="only_active_orders" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                Sólo órdenes activas (no cerradas)
-              </Label>
             </div>
           </div>
         </CardContent>
@@ -1568,6 +1465,11 @@ export default function Presentaciones() {
                         {docStatus.icon}
                         {docStatus.text}
                       </Badge>
+                      {order.presentation_status === 'submitted' && (
+                        <Badge className="bg-blue-100 text-blue-800" variant="secondary">
+                          Enviada
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -1835,54 +1737,55 @@ export default function Presentaciones() {
                      </Button>
                    </div>
 
-                    {/* Actions */}
-                   <div className="flex justify-between items-center pt-2 border-t">
-                     
-                     <div className="flex gap-2">
-                       {/* Reassignment button */}
-                       <Button
-                         variant="ghost"
-                         size="sm"
-                         onClick={() => handleOpenReassignmentDialog(order)}
-                         className="gap-2"
-                       >
-                         <Settings className="h-4 w-4" />
-                         Reasignar Sesiones
-                       </Button>
-                       
-                        {docStatus.status === 'ready_to_present' && (() => {
-                         const validation = validateDocumentsForPDF(order);
-                         if (!validation.isValid) {
-                           return (
-                             <div className="flex items-center gap-2 text-sm">
-                               <AlertCircle className="h-4 w-4 text-red-600" />
-                               <span className="text-red-600">
-                                 Faltan: {validation.missingDocs.join(', ')}
-                               </span>
-                             </div>
-                           );
-                         }
-                         return (
-                           <Button 
-                             onClick={() => markAsSubmitted(order.id)}
-                             className="gap-2"
-                           >
-                             <Send className="h-4 w-4" />
-                             Enviar
-                           </Button>
-                         );
-                       })()}
-                       
-                       {docStatus.status === 'submitted' && (
-                         <Button 
-                           onClick={() => generatePDF(order)}
-                           className="gap-2"
-                           disabled={generatingPdf === order.id}
-                         >
-                           <FileDown className="h-4 w-4" />
-                           {generatingPdf === order.id ? 'Generando...' : 'Generar PDF'}
-                         </Button>
-                       )}
+                   {/* Actions */}
+                  <div className="flex justify-between items-center pt-2 border-t">
+                    
+                    <div className="flex gap-2">
+                      {docStatus.status === 'ready_to_generate' && (() => {
+                        const validation = validateDocumentsForPDF(order);
+                        if (!validation.isValid) {
+                          return (
+                            <div className="flex items-center gap-2 text-sm">
+                              <AlertCircle className="h-4 w-4 text-red-600" />
+                              <span className="text-red-600">
+                                Faltan: {validation.missingDocs.join(', ')}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <Button 
+                            onClick={() => generatePDF(order)}
+                            className="gap-2"
+                            disabled={generatingPdf === order.id}
+                          >
+                            <FileDown className="h-4 w-4" />
+                            {generatingPdf === order.id ? 'Generando...' : 'Generar PDF'}
+                          </Button>
+                        );
+                      })()}
+                      
+                      {docStatus.status === 'pdf_generated' && (
+                        <>
+                          <Button 
+                            variant="outline"
+                            onClick={() => generatePDF(order)}
+                            className="gap-2"
+                            disabled={generatingPdf === order.id}
+                          >
+                            <FileDown className="h-4 w-4" />
+                            Regenerar PDF
+                          </Button>
+                          
+                          <Button 
+                            onClick={() => markAsSubmitted(order.id)}
+                            className="gap-2"
+                          >
+                            <Send className="h-4 w-4" />
+                            Marcar como Enviada
+                          </Button>
+                        </>
+                      )}
                       
                       {docStatus.status === 'incomplete' && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -2109,26 +2012,14 @@ export default function Presentaciones() {
                 )}
               </div>
             )}
-             {!viewingDocument && (
-               <div className="w-full h-full flex items-center justify-center">
-                 <p className="text-gray-500">Cargando documento...</p>
-               </div>
-             )}
-           </div>
-         </DialogContent>
-       </Dialog>
-
-       {/* Reassignment Dialog */}
-       <AppointmentReassignmentDialog
-         isOpen={reassignmentDialogOpen}
-         onClose={() => {
-           setReassignmentDialogOpen(false);
-           setSelectedPatientForReassignment(null);
-         }}
-         patientId={selectedPatientForReassignment?.id || null}
-         patientName={selectedPatientForReassignment?.name || ''}
-         onReassignmentComplete={handleReassignmentComplete}
-       />
-     </div>
-   );
- }
+            {!viewingDocument && (
+              <div className="w-full h-full flex items-center justify-center">
+                <p className="text-gray-500">Cargando documento...</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

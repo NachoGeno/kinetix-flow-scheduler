@@ -23,7 +23,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useOrganizationContext } from '@/hooks/useOrganizationContext';
-import { useOrderAssignments } from '@/hooks/useOrderAssignments';
 import PatientForm from '@/components/patients/PatientForm';
 import MedicalOrderForm from './MedicalOrderForm';
 import PendingDocumentAlert from './PendingDocumentAlert';
@@ -77,7 +76,6 @@ interface MedicalOrder {
   sessions_used: number;
   document_status: 'pendiente' | 'completa';
   created_at: string;
-  order_date: string;
 }
 
 interface RecurringAppointment {
@@ -109,7 +107,6 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   const { profile } = useAuth();
   const { toast } = useToast();
   const { currentOrgId } = useOrganizationContext();
-  const { assignAppointmentToOrder } = useOrderAssignments();
 
   const weekDays = [
     { key: 'monday', label: 'Lun', value: 1 },
@@ -293,8 +290,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           total_sessions,
           sessions_used,
           document_status,
-          created_at,
-          order_date
+          created_at
         `)
         .eq('patient_id', patientId)
         .eq('completed', false)
@@ -703,24 +699,26 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         organization_id: currentOrgId,
       }));
 
-      const { data: createdAppointments, error } = await supabase
+      const { error } = await supabase
         .from('appointments')
-        .insert(appointmentsToCreate)
-        .select('id');
+        .insert(appointmentsToCreate);
 
       if (error) throw error;
 
-      // Update medical order sessions and create assignments if applicable
-      if (medicalOrderId && createdAppointments) {
+      // Update medical order sessions if applicable
+      if (medicalOrderId) {
         const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
         if (selectedOrder) {
-          // Las sesiones se actualizarán automáticamente via triggers del backend
-          // No necesitamos actualizar manualmente sessions_used
+          const newSessionsUsed = selectedOrder.sessions_used + recurringAppointments.length;
+          const isCompleted = newSessionsUsed >= selectedOrder.total_sessions;
 
-          // Crear asignaciones explícitas para todos los appointments creados
-          for (const appointment of createdAppointments) {
-            await assignAppointmentToOrder(appointment.id, medicalOrderId);
-          }
+          await supabase
+            .from('medical_orders')
+            .update({ 
+              sessions_used: newSessionsUsed,
+              completed: isCompleted
+            })
+            .eq('id', medicalOrderId);
         }
       }
 
@@ -832,7 +830,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       }
 
       // Crear una sola cita
-      const { data: createdAppointment, error: createError } = await supabase
+      const { error: createError } = await supabase
         .from('appointments')
         .insert({
           patient_id: values.patient_id,
@@ -842,26 +840,33 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           reason: values.reason,
           status: 'scheduled',
           organization_id: currentOrgId
-        })
-        .select('id')
-        .single();
+        });
 
       if (createError) throw createError;
 
-      // Si hay una orden médica, incrementar sessions_used y crear asignación
-      if (medicalOrderId && createdAppointment) {
+      // Si hay una orden médica, incrementar sessions_used
+      if (medicalOrderId) {
         const selectedOrder = medicalOrders.find(order => order.id === medicalOrderId);
         if (selectedOrder) {
-          // Las sesiones se actualizarán automáticamente via triggers del backend
-          // No necesitamos actualizar manualmente sessions_used
-          
-          // Crear la asignación explícita entre el appointment y la orden médica
-          await assignAppointmentToOrder(createdAppointment.id, medicalOrderId);
-          
-          toast({
-            title: "Éxito",
-            description: `Cita creada y asignada a orden médica`,
-          });
+          const newSessionsUsed = selectedOrder.sessions_used + 1;
+          const isCompleted = newSessionsUsed >= selectedOrder.total_sessions;
+
+          const { error: updateError } = await supabase
+            .from('medical_orders')
+            .update({ 
+              sessions_used: newSessionsUsed,
+              completed: isCompleted
+            })
+            .eq('id', medicalOrderId);
+
+          if (updateError) {
+            console.error('Error updating medical order:', updateError);
+          } else {
+            toast({
+              title: "Éxito",
+              description: `Cita agendada. Sesiones restantes: ${selectedOrder.total_sessions - newSessionsUsed}`,
+            });
+          }
         }
       } else {
         toast({
@@ -973,7 +978,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                           )}
                            {medicalOrders.map((order) => {
                              const sessionsRemaining = order.total_sessions - order.sessions_used;
-                             const orderDate = format(new Date(order.order_date), "dd/MM/yyyy", { locale: es });
+                             const orderDate = format(new Date(order.created_at), "dd/MM/yyyy", { locale: es });
                              
                              return (
                                <SelectItem 
@@ -1044,7 +1049,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
               const selectedOrder = medicalOrders.find(o => o.id === selectedOrderId);
               
               if (selectedOrder) {
-                const orderDate = new Date(selectedOrder.order_date);
+                const orderDate = new Date(selectedOrder.created_at);
                 const daysSinceCreated = Math.floor((new Date().getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
                 const sessionsRemaining = selectedOrder.total_sessions - selectedOrder.sessions_used;
                 const isOldOrder = daysSinceCreated > 90; // Más de 3 meses

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Clock, Search, Filter, Trash2, CheckCircle, UserCheck, UserX, RotateCcw, ArrowRight, Info, Edit, CalendarIcon, X, LogOut, Undo2 } from 'lucide-react';
+import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX, RotateCcw, ArrowRight, Info, Edit, CalendarIcon, X, LogOut, Undo2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,7 +100,7 @@ export default function AppointmentsList() {
   const [selectedDateFrom, setSelectedDateFrom] = useState<Date | undefined>(undefined);
   const [selectedDateTo, setSelectedDateTo] = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
-  
+  const [showNewAppointmentDialog, setShowNewAppointmentDialog] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showNoShowDialog, setShowNoShowDialog] = useState(false);
   const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
@@ -241,6 +241,10 @@ export default function AppointmentsList() {
   // Check if user can reset no-shows
   const canResetNoShows = profile?.role === 'admin' || profile?.role === 'reception';
 
+  const handleAppointmentCreated = () => {
+    refetchAppointments();
+    setShowNewAppointmentDialog(false);
+  };
 
   const handleCancelAppointment = async (appointmentId: string) => {
     try {
@@ -431,6 +435,22 @@ export default function AppointmentsList() {
               {totalCount} citas encontradas
             </p>
           </div>
+          {profile?.role === 'patient' && (
+            <Dialog open={showNewAppointmentDialog} onOpenChange={setShowNewAppointmentDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nueva Cita
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Agendar Nueva Cita</DialogTitle>
+                </DialogHeader>
+                <AppointmentForm onSuccess={handleAppointmentCreated} />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
         {/* Filters */}
