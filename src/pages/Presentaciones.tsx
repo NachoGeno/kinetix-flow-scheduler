@@ -353,22 +353,14 @@ export default function Presentaciones() {
           // Get accurate session count from the new assignment-aware function
           let accurateSessionsUsed = order.sessions_used;
           try {
-            const { data: recalcResult, error: recalcError } = await supabase.rpc('recalc_patient_order_sessions_with_assignments', {
+            const { error: recalcError } = await supabase.rpc('recalc_patient_order_sessions_with_assignments', {
               patient_uuid: order.patient_id
             });
 
-            if (!recalcError && recalcResult && Array.isArray(recalcResult)) {
-              const orderResult = recalcResult.find((r: any) => r.order_id === order.id);
-              if (orderResult && typeof orderResult.new_sessions_used === 'number') {
-                const recalculated = orderResult.new_sessions_used;
-                // Guard: nunca bajar el valor por debajo del almacenado
-                if (recalculated >= accurateSessionsUsed) {
-                  accurateSessionsUsed = recalculated;
-                  console.log(`📊 Updated sessions for order ${order.id}: ${accurateSessionsUsed}/${order.total_sessions}`);
-                } else {
-                  console.log(`⚠️ Ignoring lower recalculated sessions (${recalculated}) for order ${order.id}, keeping ${accurateSessionsUsed}`);
-                }
-              }
+            if (!recalcError) {
+              console.log('Sesiones recalculadas para paciente:', order.patient_id);
+            } else {
+              console.error('Error recalculating sessions:', recalcError);
             }
           } catch (recalcError) {
             console.warn('Could not recalculate sessions for order:', order.id, recalcError);
