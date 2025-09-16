@@ -2058,6 +2058,18 @@ export type Database = {
         Args: { patient_uuid: string }
         Returns: undefined
       }
+      repair_medical_orders_data_integrity: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          action_taken: string
+          new_completed: boolean
+          new_sessions_used: number
+          old_completed: boolean
+          old_sessions_used: number
+          order_id: string
+          patient_name: string
+        }[]
+      }
       revert_appointment_status: {
         Args: { appointment_uuid: string; revert_reason_text: string }
         Returns: boolean
