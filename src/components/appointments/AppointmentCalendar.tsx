@@ -28,7 +28,7 @@ import { formatDateToISO } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { useUnifiedMedicalHistory } from '@/hooks/useUnifiedMedicalHistory';
+
 import AppointmentForm from './AppointmentForm';
 
 interface Doctor {
@@ -121,7 +121,7 @@ export default function AppointmentCalendar() {
   const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
   const { profile } = useAuth();
   const { toast } = useToast();
-  const { createOrUpdateMedicalHistoryEntry } = useUnifiedMedicalHistory();
+  
 
   useEffect(() => {
     fetchDoctors();
@@ -445,26 +445,11 @@ export default function AppointmentCalendar() {
         return;
       }
 
-      // Create medical history entry for in_progress status
-      if (newStatus === 'in_progress') {
-        const doctorName = appointment.doctor?.profile ? 
-          `${appointment.doctor.profile.first_name} ${appointment.doctor.profile.last_name}` : 
-          'Profesional';
-        
-        await createOrUpdateMedicalHistoryEntry(
-          appointmentId,
-          null, // medical_order_id will be handled by the hook
-          appointment.patient_id,
-          appointment.doctor_id,
-          doctorName,
-          appointment.appointment_date
-        );
-      }
 
       const statusMessages = {
-        in_progress: "Sesión iniciada correctamente",
-        completed: "Sesión completada correctamente",
-        no_show: "Paciente marcado como ausente"
+        completed: "Paciente marcado como presente",
+        no_show: "Paciente marcado como ausente",
+        in_progress: "Asistencia registrada"
       };
 
       toast({
@@ -841,15 +826,15 @@ export default function AppointmentCalendar() {
                                                                 className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                                                                 onClick={(e) => {
                                                                   e.stopPropagation();
-                                                                  handleStatusUpdate(appointment.id, 'in_progress');
+                                                                  handleStatusUpdate(appointment.id, 'completed');
                                                                 }}
                                                               >
-                                                                <Play className="h-4 w-4 mr-2" />
-                                                                Iniciar Sesión
+                                                                <CheckCircle className="h-4 w-4 mr-2" />
+                                                                Dar Presente
                                                               </Button>
                                                             </TooltipTrigger>
                                                             <TooltipContent>
-                                                              <p>Marcar como asistido e iniciar sesión</p>
+                                                              <p>Marcar paciente como presente</p>
                                                             </TooltipContent>
                                                           </Tooltip>
                                                           <Tooltip>
@@ -886,11 +871,11 @@ export default function AppointmentCalendar() {
                                                                 }}
                                                               >
                                                                 <CheckCircle className="h-4 w-4 mr-2" />
-                                                                Completar Sesión
+                                                                Completar Turno
                                                               </Button>
                                                             </TooltipTrigger>
                                                             <TooltipContent>
-                                                              <p>Marcar sesión como completada</p>
+                                                              <p>Marcar turno como completado</p>
                                                             </TooltipContent>
                                                           </Tooltip>
                                                         </>
