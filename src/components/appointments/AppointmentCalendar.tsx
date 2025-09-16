@@ -19,7 +19,8 @@ import {
   AlertCircle,
   XCircle,
   PlayCircle,
-  RotateCcw
+  RotateCcw,
+  Play
 } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -27,6 +28,7 @@ import { formatDateToISO } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useUnifiedMedicalHistory } from '@/hooks/useUnifiedMedicalHistory';
 import AppointmentForm from './AppointmentForm';
 
 interface Doctor {
@@ -47,6 +49,8 @@ interface Doctor {
 
 interface Appointment {
   id: string;
+  patient_id: string;
+  doctor_id: string;
   appointment_date: string;
   appointment_time: string;
   status: string;
@@ -117,6 +121,7 @@ export default function AppointmentCalendar() {
   const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
   const { profile } = useAuth();
   const { toast } = useToast();
+  const { createOrUpdateMedicalHistoryEntry } = useUnifiedMedicalHistory();
 
   useEffect(() => {
     fetchDoctors();
@@ -410,17 +415,55 @@ export default function AppointmentCalendar() {
     }
   };
 
-  const handleStatusUpdate = async (appointmentId: string, newStatus: 'completed' | 'no_show') => {
+  const handleStatusUpdate = async (appointmentId: string, newStatus: 'in_progress' | 'completed' | 'no_show') => {
     try {
+      const appointment = appointments.find(a => a.id === appointmentId);
+      if (!appointment) {
+        toast({
+          title: "Error",
+          description: "Cita no encontrada",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('appointments')
-        .update({ status: newStatus })
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', appointmentId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        toast({
+          title: "Error",
+          description: `Error al actualizar la cita: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create medical history entry for in_progress status
+      if (newStatus === 'in_progress') {
+        const doctorName = appointment.doctor?.profile ? 
+          `${appointment.doctor.profile.first_name} ${appointment.doctor.profile.last_name}` : 
+          'Profesional';
+        
+        await createOrUpdateMedicalHistoryEntry(
+          appointmentId,
+          null, // medical_order_id will be handled by the hook
+          appointment.patient_id,
+          appointment.doctor_id,
+          doctorName,
+          appointment.appointment_date
+        );
+      }
 
       const statusMessages = {
-        completed: "Paciente marcado como asistido y sesión completada",
+        in_progress: "Sesión iniciada correctamente",
+        completed: "Sesión completada correctamente",
         no_show: "Paciente marcado como ausente"
       };
 
@@ -437,7 +480,7 @@ export default function AppointmentCalendar() {
       console.error('Error updating appointment status:', error);
       toast({
         title: "Error",
-        description: "No se pudo actualizar el estado de la cita",
+        description: "Error al actualizar el estado de la cita. Revisa la consola para más detalles.",
         variant: "destructive",
       });
     }
@@ -787,67 +830,92 @@ export default function AppointmentCalendar() {
                                                    </div>
                                                 </PopoverTrigger>
                                                  <PopoverContent className="w-48 p-2 bg-white shadow-lg border rounded-md z-50">
-                                                   <div className="space-y-1">
-                                                     {appointment.status !== 'in_progress' ? (
-                                                       <>
-                                                         <Tooltip>
-                                                           <TooltipTrigger asChild>
-                                                             <Button
-                                                               variant="ghost"
-                                                               size="sm"
-                                                               className="w-8 h-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                               onClick={(e) => {
-                                                                 e.stopPropagation();
-                                                                 handleStatusUpdate(appointment.id, 'completed');
-                                                               }}
-                                                             >
-                                                               <CheckCircle className="h-4 w-4" />
-                                                             </Button>
-                                                           </TooltipTrigger>
-                                                           <TooltipContent>
-                                                             <p>Marcar como asistido</p>
-                                                           </TooltipContent>
-                                                         </Tooltip>
-                                                         <Tooltip>
-                                                           <TooltipTrigger asChild>
-                                                             <Button
-                                                               variant="ghost"
-                                                               size="sm"
-                                                               className="w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                               onClick={(e) => {
-                                                                 e.stopPropagation();
-                                                                 handleStatusUpdate(appointment.id, 'no_show');
-                                                               }}
-                                                             >
-                                                               <XCircle className="h-4 w-4" />
-                                                             </Button>
-                                                           </TooltipTrigger>
-                                                           <TooltipContent>
-                                                             <p>Marcar como ausente</p>
-                                                           </TooltipContent>
-                                                         </Tooltip>
-                                                       </>
-                                                     ) : (
-                                                       <Tooltip>
-                                                         <TooltipTrigger asChild>
-                                                           <Button
-                                                             variant="ghost"
-                                                             size="sm"
-                                                             className="w-8 h-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                                                             onClick={(e) => {
-                                                               e.stopPropagation();
-                                                               handleRevertAttendance(appointment.id);
-                                                             }}
-                                                           >
-                                                             <RotateCcw className="h-4 w-4" />
-                                                           </Button>
-                                                         </TooltipTrigger>
-                                                         <TooltipContent>
-                                                           <p>Revertir asistencia</p>
-                                                         </TooltipContent>
-                                                       </Tooltip>
-                                                     )}
-                                                   </div>
+                                                    <div className="space-y-1">
+                                                      {appointment.status === 'scheduled' || appointment.status === 'confirmed' ? (
+                                                        <>
+                                                          <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                              <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  handleStatusUpdate(appointment.id, 'in_progress');
+                                                                }}
+                                                              >
+                                                                <Play className="h-4 w-4 mr-2" />
+                                                                Iniciar Sesión
+                                                              </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                              <p>Marcar como asistido e iniciar sesión</p>
+                                                            </TooltipContent>
+                                                          </Tooltip>
+                                                          <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                              <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  handleStatusUpdate(appointment.id, 'no_show');
+                                                                }}
+                                                              >
+                                                                <XCircle className="h-4 w-4 mr-2" />
+                                                                Ausente
+                                                              </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                              <p>Marcar como ausente</p>
+                                                            </TooltipContent>
+                                                          </Tooltip>
+                                                        </>
+                                                      ) : appointment.status === 'in_progress' ? (
+                                                        <>
+                                                          <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                              <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                                onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  handleStatusUpdate(appointment.id, 'completed');
+                                                                }}
+                                                              >
+                                                                <CheckCircle className="h-4 w-4 mr-2" />
+                                                                Completar Sesión
+                                                              </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                              <p>Marcar sesión como completada</p>
+                                                            </TooltipContent>
+                                                          </Tooltip>
+                                                        </>
+                                                      ) : (
+                                                        <Tooltip>
+                                                          <TooltipTrigger asChild>
+                                                            <Button
+                                                              variant="ghost"
+                                                              size="sm"
+                                                              className="w-full justify-start text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRevertAttendance(appointment.id);
+                                                              }}
+                                                            >
+                                                              <RotateCcw className="h-4 w-4 mr-2" />
+                                                              Revertir Asistencia
+                                                            </Button>
+                                                          </TooltipTrigger>
+                                                          <TooltipContent>
+                                                            <p>Revertir asistencia</p>
+                                                          </TooltipContent>
+                                                        </Tooltip>
+                                                      )}
+                                                    </div>
                                                  </PopoverContent>
                                               </Popover>
                                             ) : (
