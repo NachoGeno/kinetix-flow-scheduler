@@ -1766,6 +1766,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      analyze_medical_order_assignments: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          active_assignments: number
+          order_completed: boolean
+          order_description: string
+          order_id: string
+          over_assignment: number
+          patient_name: string
+          sessions_used: number
+          total_sessions: number
+        }[]
+      }
       assign_appointment_to_oldest_available_order: {
         Args: { appointment_id_param: string; patient_id_param: string }
         Returns: boolean
