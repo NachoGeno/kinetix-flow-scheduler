@@ -619,6 +619,15 @@ export default function Orders() {
                       Editar
                     </Button>
                     
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => handleScheduleAppointment(order)}
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Programar Cita{order.sessions_count && order.sessions_count > 1 ? 's' : ''}
+                    </Button>
+                    
                     {/* REMOVED: Manual completion button - orders now complete automatically when sessions are actually attended */}
                     
                     <AlertDialog>

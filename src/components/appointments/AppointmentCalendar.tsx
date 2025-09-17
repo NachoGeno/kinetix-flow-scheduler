@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Clock, 
@@ -404,7 +404,7 @@ export default function AppointmentCalendar() {
   };
 
   const handleTimeSlotClick = (time: string, isFull: boolean) => {
-    if ((profile?.role === 'admin' || profile?.role === 'reception' || profile?.role === 'secretaria') && !isFull) {
+    if ((profile?.role === 'admin' || profile?.role === 'reception' || profile?.role === 'secretaria' || profile?.role === 'super_admin') && !isFull) {
       setSelectedTimeSlot(time);
       setIsNewAppointmentOpen(true);
     }
@@ -882,6 +882,21 @@ export default function AppointmentCalendar() {
         </div>
       </div>
     </div>
+
+    {/* New Appointment Dialog */}
+    <Dialog open={isNewAppointmentOpen} onOpenChange={setIsNewAppointmentOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Nueva Cita</DialogTitle>
+          <DialogDescription>
+            Crear una nueva cita para {selectedTimeSlot && format(selectedDate, 'PPP', { locale: es })} a las {selectedTimeSlot}
+          </DialogDescription>
+        </DialogHeader>
+        <AppointmentForm
+          onSuccess={handleAppointmentCreated}
+        />
+      </DialogContent>
+    </Dialog>
     </TooltipProvider>
   );
 }
