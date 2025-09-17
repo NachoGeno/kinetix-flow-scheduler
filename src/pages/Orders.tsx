@@ -302,6 +302,14 @@ export default function Orders() {
     setSelectedOrder(null);
   };
 
+  const handleFinalHistorySuccess = () => {
+    fetchOrders(); // Refresh to update any changes
+    toast({
+      title: "Evolución final guardada",
+      description: "La evolución final ha sido guardada correctamente",
+    });
+  };
+
   // REMOVED: Manual completion function - orders now complete automatically 
   // when all sessions are actually attended through appointment completions
   const handleCompleteOrder_DISABLED = async (orderId: string) => {
@@ -627,6 +635,23 @@ export default function Orders() {
                       <Calendar className="h-4 w-4 mr-2" />
                       Programar Cita{order.sessions_count && order.sessions_count > 1 ? 's' : ''}
                     </Button>
+                    
+                    {order.completed && (
+                      <FinalClinicalHistoryForm
+                        medicalOrderId={order.id}
+                        patientId={order.patient?.id || ''}
+                        onSave={handleFinalHistorySuccess}
+                        trigger={
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Evolución Final
+                          </Button>
+                        }
+                      />
+                    )}
                     
                     {/* REMOVED: Manual completion button - orders now complete automatically when sessions are actually attended */}
                     
