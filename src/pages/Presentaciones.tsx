@@ -85,7 +85,7 @@ interface FilterState {
   professional: string;
   date_from: string;
   date_to: string;
-  status: 'all' | 'ready_to_present' | 'in_preparation' | 'pdf_generated' | 'submitted';
+  status: 'all' | 'ready_to_present' | 'in_preparation' | 'missing_attendance' | 'pdf_generated' | 'submitted';
   search_term: string;
 }
 
@@ -410,6 +410,8 @@ export default function Presentaciones() {
                 return hasAllDocs && sessionsReady && order.presentation_status !== 'pdf_generated';
               case 'in_preparation':
                 return !sessionsReady;
+              case 'missing_attendance':
+                return hasAllDocs && !sessionsReady;
               case 'pdf_generated':
                 return order.presentation_status === 'pdf_generated';
               case 'submitted':
@@ -1387,6 +1389,7 @@ export default function Presentaciones() {
                    <SelectItem value="all">Todos</SelectItem>
                    <SelectItem value="ready_to_present">Listas para presentar</SelectItem>
                    <SelectItem value="in_preparation">En preparación</SelectItem>
+                   <SelectItem value="missing_attendance">Falta asistencia</SelectItem>
                    <SelectItem value="pdf_generated">PDF generado</SelectItem>
                    <SelectItem value="submitted">Enviadas</SelectItem>
                  </SelectContent>
