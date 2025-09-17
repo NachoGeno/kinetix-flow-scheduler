@@ -788,37 +788,27 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
           return;
         }
       } else {
-        // Validar que la orden seleccionada tenga sesiones disponibles con datos frescos
-        const { data: currentOrder, error: orderError } = await supabase
-          .from('medical_orders')
-          .select('id, total_sessions, sessions_used, completed')
-          .eq('id', medicalOrderId)
-          .eq('patient_id', values.patient_id)
-          .maybeSingle();
+        // Validate medical order capacity before creating appointment
+        const { data: canAssign, error: validationError } = await supabase
+          .rpc('validate_appointment_assignment_capacity', {
+            order_id_param: medicalOrderId,
+            additional_sessions: 1
+          });
 
-        if (orderError) {
-          console.error('Error al verificar orden médica:', orderError);
+        if (validationError) {
+          console.error('Error validating capacity:', validationError);
           toast({
-            title: "Error",
-            description: "No se pudo verificar la orden médica.",
+            title: "Error de validación",
+            description: "No se pudo validar la capacidad de la orden médica",
             variant: "destructive",
           });
           return;
         }
 
-        if (!currentOrder) {
+        if (!canAssign) {
           toast({
-            title: "Error",
-            description: "La orden médica seleccionada no existe o no pertenece a este paciente.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (currentOrder.completed || currentOrder.sessions_used >= currentOrder.total_sessions) {
-          toast({
-            title: "Sin sesiones disponibles",
-            description: "La orden médica seleccionada no tiene sesiones disponibles.",
+            title: "Capacidad excedida",
+            description: "La orden médica no tiene suficientes sesiones disponibles para asignar este turno",
             variant: "destructive",
           });
           return;
