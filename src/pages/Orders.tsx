@@ -619,34 +619,6 @@ export default function Orders() {
                       {order.patient?.id ? "Programar Citas" : "Paciente no disponible"}
                     </Button>
 
-                    {/* Evolución Clínica Final Button */}
-                    {order.patient?.id ? (
-                      <FinalClinicalHistoryForm 
-                        medicalOrderId={order.id}
-                        patientId={order.patient.id}
-                        onSave={fetchOrders}
-                        trigger={
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                          >
-                            <FileText className="h-4 w-4 mr-2" />
-                            Evolución Final
-                          </Button>
-                        }
-                      />
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled
-                        className="bg-gray-50 border-gray-200 text-gray-400"
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        Paciente no disponible
-                      </Button>
-                    )}
 
                     <Button
                       size="sm"
