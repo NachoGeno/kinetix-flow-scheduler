@@ -524,33 +524,7 @@ export default function AppointmentCalendar() {
             </h1>
             <p className="text-slate-600 mt-1">Gestiona tus citas médicas de forma eficiente</p>
           </div>
-          {(profile?.role === 'patient' || profile?.role === 'admin') && (
-            <Dialog open={isNewAppointmentOpen} onOpenChange={setIsNewAppointmentOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  size="lg"
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Plus className="h-5 w-5 mr-2" />
-                  Nueva Cita
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-hidden">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <CalendarIcon className="h-5 w-5" />
-                    Agendar Nueva Cita
-                  </DialogTitle>
-                </DialogHeader>
-                <AppointmentForm 
-                  onSuccess={handleAppointmentCreated}
-                  selectedDate={selectedDate}
-                  selectedDoctor={selectedDoctor !== 'all' ? selectedDoctor : undefined}
-                  selectedTime={selectedTimeSlot}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
+          {/* Nueva Cita button hidden per user request */}
         </div>
 
         {/* Main Layout - Fixed Grid */}
