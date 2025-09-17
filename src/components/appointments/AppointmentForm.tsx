@@ -280,30 +280,29 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     }
 
     try {
+      // Use new function that counts active assignments instead of just completed sessions
       const { data, error } = await supabase
-        .from('medical_orders')
-        .select(`
-          id,
-          description,
-          instructions,
-          doctor_name,
-          total_sessions,
-          sessions_used,
-          document_status,
-          created_at
-        `)
-        .eq('patient_id', patientId)
-        .eq('completed', false)
-        .order('created_at', { ascending: false });
+        .rpc('get_medical_orders_with_availability', {
+          patient_id_param: patientId
+        });
 
       if (error) throw error;
       
-      // Solo mostrar órdenes que tengan sesiones disponibles
-      const availableOrders = (data || []).filter(order => order.sessions_used < order.total_sessions);
-      setMedicalOrders(availableOrders.map(order => ({
-        ...order,
-        document_status: (order.document_status as 'pendiente' | 'completa') || 'pendiente'
-      })));
+      // Transform data to match expected interface
+      const transformedOrders = (data || []).map(order => ({
+        id: order.id,
+        description: order.description,
+        instructions: order.instructions || null,
+        doctor_name: null, // Will be populated if needed
+        total_sessions: order.total_sessions,
+        sessions_used: order.sessions_used,
+        document_status: 'completa' as const, // Default status
+        created_at: order.created_at,
+        sessions_remaining: order.sessions_remaining, // New field for UI
+        active_assignments_count: order.active_assignments_count // New field for debugging
+      }));
+
+      setMedicalOrders(transformedOrders);
     } catch (error) {
       console.error('Error fetching medical orders:', error);
       toast({

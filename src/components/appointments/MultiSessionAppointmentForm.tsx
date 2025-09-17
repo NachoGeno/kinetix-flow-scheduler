@@ -241,26 +241,57 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
     }
 
     try {
-      const { data, error } = await supabase
-        .from('medical_orders')
-        .select(`
-          id,
-          description,
-          instructions,
-          document_status,
-          doctor:doctors(
-            profile:profiles(first_name, last_name)
-          )
-        `)
-        .eq('patient_id', patientId)
-        .eq('completed', false)
-        .order('created_at', { ascending: false });
+      // Use new function that only returns orders with available sessions
+      const { data: ordersData, error: ordersError } = await supabase
+        .rpc('get_medical_orders_with_availability', {
+          patient_id_param: patientId
+        });
 
-      if (error) throw error;
-      setMedicalOrders((data || []).map(order => ({
-        ...order,
-        document_status: (order.document_status as 'pendiente' | 'completa') || 'pendiente'
-      })));
+      if (ordersError) throw ordersError;
+
+      if (!ordersData || ordersData.length === 0) {
+        setMedicalOrders([]);
+        return;
+      }
+
+      // Get doctor information separately to maintain compatibility
+      const doctorIds = ordersData.map(o => o.doctor_id).filter(Boolean);
+      let doctorProfiles = [];
+      
+      if (doctorIds.length > 0) {
+        const { data: doctorsResult, error: doctorsError } = await supabase
+          .from('doctors')
+          .select(`
+            id,
+            profile:profiles(first_name, last_name)
+          `)
+          .in('id', doctorIds);
+
+        if (!doctorsError && doctorsResult) {
+          doctorProfiles = doctorsResult;
+        }
+      }
+
+      // Transform to expected interface
+      const transformedOrders = ordersData.map(order => {
+        const doctorInfo = doctorProfiles.find(d => d.id === order.doctor_id);
+        
+        return {
+          id: order.id,
+          description: order.description,
+          instructions: order.instructions || null,
+          document_status: 'completa' as const,
+          sessions_count: order.sessions_remaining, // Available sessions for scheduling
+          doctor: {
+            profile: {
+              first_name: doctorInfo?.profile?.first_name || 'N/A',
+              last_name: doctorInfo?.profile?.last_name || 'N/A'
+            }
+          }
+        };
+      });
+
+      setMedicalOrders(transformedOrders);
     } catch (error) {
       console.error('Error fetching medical orders:', error);
       toast({

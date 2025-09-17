@@ -1842,6 +1842,10 @@ export type Database = {
         Args: { order_id: string }
         Returns: boolean
       }
+      get_active_assignments_count: {
+        Args: { order_id_param: string }
+        Returns: number
+      }
       get_active_patients_in_treatment: {
         Args: {
           end_date?: string
@@ -1917,6 +1921,27 @@ export type Database = {
           total_amount: number
           total_payments: number
           transfer_amount: number
+        }[]
+      }
+      get_medical_orders_with_availability: {
+        Args: { patient_id_param: string }
+        Returns: {
+          active_assignments_count: number
+          completed: boolean
+          created_at: string
+          description: string
+          doctor_id: string
+          id: string
+          obra_social_art_id: string
+          order_date: string
+          order_type: Database["public"]["Enums"]["order_type"]
+          organization_id: string
+          patient_id: string
+          sessions_remaining: number
+          sessions_used: number
+          total_sessions: number
+          updated_at: string
+          urgent: boolean
         }[]
       }
       get_new_patients_by_month: {
@@ -2096,6 +2121,10 @@ export type Database = {
           patient_data: Json
           total_count: number
         }[]
+      }
+      validate_appointment_assignment_capacity: {
+        Args: { additional_sessions?: number; order_id_param: string }
+        Returns: boolean
       }
     }
     Enums: {
