@@ -894,6 +894,9 @@ export default function AppointmentCalendar() {
         </DialogHeader>
         <AppointmentForm
           onSuccess={handleAppointmentCreated}
+          selectedDate={selectedDate}
+          selectedTime={selectedTimeSlot}
+          selectedDoctor={selectedDoctor !== 'all' ? selectedDoctor : undefined}
         />
       </DialogContent>
     </Dialog>
