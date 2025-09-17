@@ -68,6 +68,7 @@ interface PresentationOrder {
     social_work_authorization: DocumentInfo | null;
   };
   sessions_completed: boolean;
+  actual_completed_sessions?: number;
 }
 
 interface DocumentInfo {
@@ -304,6 +305,19 @@ export default function Presentaciones() {
             const sessions_completed = sessionCheck || false;
             console.log(`📊 Sessions completed for order ${order.id}: ${sessions_completed}`);
 
+            // Get actual count of completed sessions for this order
+            const { data: completedSessionsData, error: completedError } = await supabase
+              .from('appointment_order_assignments')
+              .select(`
+                appointment_id,
+                appointments!inner(status)
+              `)
+              .eq('medical_order_id', order.id)
+              .eq('appointments.status', 'completed');
+
+            const actual_completed_sessions = completedSessionsData?.length || 0;
+            console.log(`✅ Actual completed sessions for order ${order.id}: ${actual_completed_sessions}`);
+
             // Get presentation documents
             const { data: documents, error: docsError } = await supabase
               .from("presentation_documents")
@@ -377,7 +391,8 @@ export default function Presentaciones() {
             return {
               ...order,
               documents: documentsByType,
-              sessions_completed
+              sessions_completed,
+              actual_completed_sessions
             };
           })
         );
@@ -1483,8 +1498,8 @@ export default function Presentaciones() {
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {order.sessions_completed 
-                          ? `${order.sessions_used} de ${order.total_sessions} sesiones completadas`
-                          : `Sesión ${order.sessions_used} de ${order.total_sessions}`}
+                          ? `${order.actual_completed_sessions || 0} de ${order.total_sessions} sesiones completadas`
+                          : `${order.actual_completed_sessions || 0} de ${order.total_sessions} sesiones completadas`}
                       </span>
                     </div>
                   </div>
