@@ -608,16 +608,6 @@ export default function Orders() {
                   )}
 
                   <div className="flex justify-end gap-2 pt-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      disabled={!order.patient?.id}
-                      onClick={() => handleScheduleAppointment(order)}
-                      className={!order.patient?.id ? "opacity-50 cursor-not-allowed" : ""}
-                    >
-                      <CalendarPlus className="h-4 w-4 mr-2" />
-                      {order.patient?.id ? "Programar Citas" : "Paciente no disponible"}
-                    </Button>
 
 
                     <Button
