@@ -293,10 +293,10 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         id: order.id,
         description: order.description,
         instructions: order.instructions || null,
-        doctor_name: null, // Will be populated if needed
+        doctor_name: null, // Not needed in appointment forms
         total_sessions: order.total_sessions,
         sessions_used: order.sessions_used,
-        document_status: 'completa' as const, // Default status
+        document_status: (order.document_status as 'pendiente' | 'completa') || 'pendiente', // Use actual status
         created_at: order.created_at,
         sessions_remaining: order.sessions_remaining, // New field for UI
         active_assignments_count: order.active_assignments_count // New field for debugging
@@ -671,6 +671,35 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     const medicalOrderId = values.medical_order_id === 'none' ? null : values.medical_order_id;
 
     try {
+      // Validate medical order capacity before creating appointments
+      if (medicalOrderId) {
+        const appointmentsCount = isRecurring ? recurringAppointments.length : 1;
+        const { data: canAssign, error: validationError } = await supabase
+          .rpc('validate_appointment_assignment_capacity', {
+            order_id_param: medicalOrderId,
+            additional_sessions: appointmentsCount
+          });
+
+        if (validationError) {
+          console.error('Error validating capacity:', validationError);
+          toast({
+            title: "Error de validación",
+            description: "No se pudo validar la capacidad de la orden médica",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!canAssign) {
+          toast({
+            title: "Capacidad excedida",
+            description: "La orden médica no tiene suficientes sesiones disponibles para asignar estos turnos",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       const appointmentsToCreate = recurringAppointments.map((apt) => ({
         patient_id: values.patient_id,
         doctor_id: values.doctor_id,

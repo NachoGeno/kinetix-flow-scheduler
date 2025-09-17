@@ -280,7 +280,7 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
           id: order.id,
           description: order.description,
           instructions: order.instructions || null,
-          document_status: 'completa' as const,
+          document_status: (order.document_status as 'pendiente' | 'completa') || 'pendiente',
           sessions_count: order.sessions_remaining, // Available sessions for scheduling
           doctor: {
             profile: {
@@ -423,6 +423,34 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
 
     try {
       setLoading(true);
+
+      // Validate medical order capacity before creating appointments
+      if (values.medical_order_id && values.medical_order_id !== 'none') {
+        const { data: canAssign, error: validationError } = await supabase
+          .rpc('validate_appointment_assignment_capacity', {
+            order_id_param: values.medical_order_id,
+            additional_sessions: scheduledSessions.length
+          });
+
+        if (validationError) {
+          console.error('Error validating capacity:', validationError);
+          toast({
+            title: "Error de validación",
+            description: "No se pudo validar la capacidad de la orden médica",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!canAssign) {
+          toast({
+            title: "Capacidad excedida",
+            description: "La orden médica no tiene suficientes sesiones disponibles para asignar estos turnos",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
 
       // Crear todas las citas
       const appointments = scheduledSessions.map((session) => ({

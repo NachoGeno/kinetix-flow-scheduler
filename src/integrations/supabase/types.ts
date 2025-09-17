@@ -1931,7 +1931,9 @@ export type Database = {
           created_at: string
           description: string
           doctor_id: string
+          document_status: string
           id: string
+          instructions: string
           obra_social_art_id: string
           order_date: string
           order_type: Database["public"]["Enums"]["order_type"]
