@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { cn, formatDateToISO } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useOrganizationContext } from '@/hooks/useOrganizationContext';
@@ -234,7 +234,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
         order_type: 'prescription' as const,
         urgent: false,
         completed: editOrder ? editOrder.completed : false,
-        order_date: values.order_date.toISOString().split('T')[0],
+        order_date: formatDateToISO(values.order_date),
         obra_social_art_id: values.obra_social_art_id || null,
         art_provider: values.art_provider || null,
         art_authorization_number: values.art_authorization_number || null,
