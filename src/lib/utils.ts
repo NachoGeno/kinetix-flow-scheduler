@@ -18,3 +18,15 @@ export function formatDateToISO(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Parses a date-only string (YYYY-MM-DD) to a Date object in local timezone.
+ * This prevents the timezone shift issue that occurs with new Date('YYYY-MM-DD').
+ * 
+ * @param dateString - The date string in YYYY-MM-DD format
+ * @returns Date object in local timezone
+ */
+export function parseDateOnly(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
