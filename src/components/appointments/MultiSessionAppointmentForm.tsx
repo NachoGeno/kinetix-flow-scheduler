@@ -89,6 +89,7 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [scheduledSessions, setScheduledSessions] = useState<ScheduledSession[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Anti-doble submit
   const { profile } = useAuth();
   const { toast } = useToast();
   const { currentOrgId } = useOrganizationContext();
@@ -365,31 +366,82 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
     }
   };
 
-  const addSession = () => {
-    if (!selectedDate || !selectedTime) {
+  const addSession = async () => {
+    if (!selectedDate || !selectedTime || !form.watch('doctor_id')) {
       toast({
         title: "Error",
-        description: "Selecciona fecha y hora para la sesión",
+        description: "Selecciona fecha, hora y doctor antes de agregar la sesión",
         variant: "destructive",
       });
       return;
     }
 
-    const newSession: ScheduledSession = {
-      date: selectedDate,
-      time: selectedTime,
-      sessionNumber: scheduledSessions.length + 1,
-    };
+    // Verificar duplicados ANTES de agregar
+    const patientId = form.watch('patient_id');
+    const doctorId = form.watch('doctor_id');
+    const dateStr = formatDateToISO(selectedDate);
+    
+    // Verificar si ya existe esta sesión en lo programado
+    const alreadyScheduled = scheduledSessions.some(session => 
+      formatDateToISO(session.date) === dateStr && session.time === selectedTime
+    );
+    
+    if (alreadyScheduled) {
+      toast({
+        title: "Sesión duplicada",
+        description: "Ya has programado una sesión para esta fecha y hora",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setScheduledSessions([...scheduledSessions, newSession]);
-    setSelectedDate(undefined);
-    setSelectedTime('');
-    setAvailableSlots([]);
+    // Verificar si ya existe en la base de datos
+    try {
+      const { data: existingAppointment, error } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('patient_id', patientId)
+        .eq('doctor_id', doctorId)
+        .eq('appointment_date', dateStr)
+        .eq('appointment_time', selectedTime)
+        .in('status', ['scheduled', 'confirmed', 'in_progress'])
+        .maybeSingle();
 
-    toast({
-      title: "Sesión agregada",
-      description: `Sesión ${newSession.sessionNumber} programada para ${format(selectedDate, 'dd/MM/yyyy')} a las ${selectedTime.substring(0, 5)}`,
-    });
+      if (error) throw error;
+
+      if (existingAppointment) {
+        toast({
+          title: "Cita ya existe",
+          description: "Ya existe una cita programada para este paciente en esta fecha y hora",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Si no hay duplicados, agregar la sesión
+      const newSession: ScheduledSession = {
+        date: selectedDate,
+        time: selectedTime,
+        sessionNumber: scheduledSessions.length + 1,
+      };
+
+      setScheduledSessions([...scheduledSessions, newSession]);
+      setSelectedDate(undefined);
+      setSelectedTime('');
+      setAvailableSlots([]);
+
+      toast({
+        title: "Sesión agregada",
+        description: `Sesión ${newSession.sessionNumber} programada para ${format(selectedDate, 'dd/MM/yyyy')} a las ${selectedTime.substring(0, 5)}`,
+      });
+    } catch (error) {
+      console.error('Error checking duplicates:', error);
+      toast({
+        title: "Error",
+        description: "Error al verificar duplicados. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    }
   };
 
   const removeSession = (index: number) => {
@@ -403,6 +455,9 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    // Anti-doble submit: prevenir múltiples envíos concurrentes
+    if (isSubmitting) return;
+    
     if (scheduledSessions.length === 0) {
       toast({
         title: "Error",
@@ -422,80 +477,56 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
     }
 
     try {
+      setIsSubmitting(true);
       setLoading(true);
 
-      // Validate medical order capacity before creating appointments
-      if (values.medical_order_id && values.medical_order_id !== 'none') {
-        const { data: canAssign, error: validationError } = await supabase
-          .rpc('validate_appointment_assignment_capacity', {
-            order_id_param: values.medical_order_id,
-            additional_sessions: scheduledSessions.length
-          });
-
-        if (validationError) {
-          console.error('Error validating capacity:', validationError);
-          toast({
-            title: "Error de validación",
-            description: "No se pudo validar la capacidad de la orden médica",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (!canAssign) {
-          toast({
-            title: "Capacidad excedida",
-            description: "La orden médica no tiene suficientes sesiones disponibles para asignar estos turnos",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
-      // Crear todas las citas
-      const appointments = scheduledSessions.map((session) => ({
+      // Preparar datos para la RPC transaccional
+      const appointmentData = scheduledSessions.map((session) => ({
         patient_id: values.patient_id,
         doctor_id: values.doctor_id,
         appointment_date: formatDateToISO(session.date),
         appointment_time: session.time,
         reason: values.reason,
-        status: 'scheduled' as const,
+        status: 'scheduled',
         notes: `Sesión ${session.sessionNumber} de ${values.sessions_count}`,
-        organization_id: currentOrgId,
+        duration_minutes: 30
       }));
 
-      const { data: createdAppointments, error: appointmentError } = await supabase
-        .from('appointments')
-        .insert(appointments)
-        .select('id');
+      // Usar la nueva RPC transaccional
+      const medicalOrderId = values.medical_order_id !== 'none' ? values.medical_order_id : null;
+      const { data: results, error: rpcError } = await supabase
+        .rpc('create_appointments_with_order', {
+          appointments_data: appointmentData,
+          medical_order_id_param: medicalOrderId,
+          assigned_by_param: profile?.id || null
+        });
 
-      if (appointmentError) throw appointmentError;
+      if (rpcError) throw rpcError;
 
-      // If a medical order is selected, link all appointments to it
-      if (values.medical_order_id && values.medical_order_id !== 'none' && createdAppointments) {
-        const assignments = createdAppointments.map(appointment => ({
-          appointment_id: appointment.id,
-          medical_order_id: values.medical_order_id,
-          assigned_by: profile?.id || null
-        }));
+      // Contar resultados exitosos y conflictos
+      const successful = results?.filter(r => r.was_created).length || 0;
+      const conflicts = results?.filter(r => !r.was_created).length || 0;
 
-        const { error: assignmentError } = await supabase
-          .from('appointment_order_assignments')
-          .insert(assignments);
+      if (successful === 0) {
+        toast({
+          title: "Todas las citas ya existen",
+          description: "Todas las sesiones programadas ya estaban creadas previamente",
+          variant: "destructive",
+        });
+        return;
+      }
 
-        if (assignmentError) {
-          console.error('Error linking appointments to order:', assignmentError);
-          toast({
-            title: "Advertencia",
-            description: "Las citas se crearon pero no se pudieron vincular a la orden médica",
-            variant: "destructive",
-          });
-        }
+      let message = `Se crearon ${successful} citas correctamente`;
+      if (conflicts > 0) {
+        message += ` (${conflicts} ya existían y se omitieron)`;
+      }
+      if (medicalOrderId) {
+        message += ' y se vincularon a la orden médica';
       }
 
       toast({
         title: "Éxito",
-        description: `Se crearon ${scheduledSessions.length} citas correctamente${values.medical_order_id !== 'none' ? ' y se vincularon a la orden médica' : ''}`,
+        description: message,
       });
 
       form.reset();
@@ -510,6 +541,7 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
       });
     } finally {
       setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -773,9 +805,9 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
           <Button 
             type="submit" 
             className="w-full" 
-            disabled={loading || scheduledSessions.length !== form.watch('sessions_count')}
+            disabled={loading || isSubmitting || scheduledSessions.length !== form.watch('sessions_count')}
           >
-            {loading ? 'Creando citas...' : `Crear ${scheduledSessions.length} Citas`}
+            {(loading || isSubmitting) ? 'Creando citas...' : `Crear ${scheduledSessions.length} Citas`}
           </Button>
         </form>
       </Form>

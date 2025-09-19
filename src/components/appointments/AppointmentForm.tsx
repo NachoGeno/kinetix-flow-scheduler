@@ -104,6 +104,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [appointmentSummary, setAppointmentSummary] = useState<any>(null);
   const [recurringAppointments, setRecurringAppointments] = useState<RecurringAppointment[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Anti-doble submit
   const { profile } = useAuth();
   const { toast } = useToast();
   const { currentOrgId } = useOrganizationContext();
@@ -761,7 +762,11 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    // Anti-doble submit: prevenir múltiples envíos concurrentes
+    if (isSubmitting) return;
+    
     try {
+      setIsSubmitting(true);
       setLoading(true);
 
       const medicalOrderId = values.medical_order_id === 'none' ? null : values.medical_order_id;
@@ -837,41 +842,34 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         return;
       }
 
-      // Crear una sola cita
-      const { data: createdAppointment, error: createError } = await supabase
-        .from('appointments')
-        .insert({
-          patient_id: values.patient_id,
-          doctor_id: values.doctor_id,
-          appointment_date: formatDateToISO(values.appointment_date),
-          appointment_time: values.appointment_time,
-          reason: values.reason,
-          status: 'scheduled',
-          organization_id: currentOrgId
-        })
-        .select('id')
-        .single();
+      // Usar la nueva RPC transaccional para crear y asignar atómicamente
+      const appointmentData = [{
+        patient_id: values.patient_id,
+        doctor_id: values.doctor_id,
+        appointment_date: formatDateToISO(values.appointment_date),
+        appointment_time: values.appointment_time,
+        reason: values.reason,
+        status: 'scheduled',
+        duration_minutes: 30
+      }];
 
-      if (createError) throw createError;
+      const { data: results, error: rpcError } = await supabase
+        .rpc('create_appointments_with_order', {
+          appointments_data: appointmentData,
+          medical_order_id_param: medicalOrderId,
+          assigned_by_param: profile?.id || null
+        });
 
-      // Si hay una orden médica, vincular la cita a la orden
-      if (medicalOrderId && createdAppointment) {
-        const { error: assignmentError } = await supabase
-          .from('appointment_order_assignments')
-          .insert({
-            appointment_id: createdAppointment.id,
-            medical_order_id: medicalOrderId,
-            assigned_by: profile?.id || null
-          });
+      if (rpcError) throw rpcError;
 
-        if (assignmentError) {
-          console.error('Error linking appointment to order:', assignmentError);
-          toast({
-            title: "Advertencia",
-            description: "La cita se creó pero no se pudo vincular a la orden médica",
-            variant: "destructive",
-          });
-        }
+      const result = results?.[0];
+      if (!result?.was_created) {
+        toast({
+          title: "Cita duplicada",
+          description: result?.conflict_reason || "Ya existe una cita programada para este horario",
+          variant: "destructive",
+        });
+        return;
       }
 
       toast({
@@ -892,6 +890,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       });
     } finally {
       setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -1355,8 +1354,8 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Validando...' : isRecurring ? `Crear ${recurringAppointments.length} Citas` : 'Revisar y Confirmar'}
+          <Button type="submit" className="w-full" disabled={loading || isSubmitting}>
+            {(loading || isSubmitting) ? 'Validando...' : isRecurring ? `Crear ${recurringAppointments.length} Citas` : 'Revisar y Confirmar'}
           </Button>
         </form>
       </Form>
