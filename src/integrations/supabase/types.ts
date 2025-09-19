@@ -2098,6 +2098,18 @@ export type Database = {
         Args: { patient_uuid: string }
         Returns: undefined
       }
+      remediate_duplicate_appointments: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          appointment_date: string
+          appointment_time: string
+          cancelled_count: number
+          doctor_name: string
+          duplicates_found: number
+          oldest_kept_id: string
+          patient_name: string
+        }[]
+      }
       repair_medical_orders_data_integrity: {
         Args: Record<PropertyKey, never>
         Returns: {
