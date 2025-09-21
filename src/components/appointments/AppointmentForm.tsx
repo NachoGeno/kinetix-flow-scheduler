@@ -561,7 +561,11 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       const medicalOrder = medicalOrders.find(o => o.id === values.medical_order_id);
 
       if (!patient || !doctor) {
-        toast.error('Error al obtener información del paciente o doctor');
+        toast({
+          title: "Error",
+          description: "Error al obtener información del paciente o doctor",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -570,7 +574,11 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       // 1. Validar rango de fecha
       const dateValidation = validateAppointmentDate(values.appointment_date);
       if (!dateValidation.isValid) {
-        toast.error(dateValidation.error);
+        toast({
+          title: "Error",
+          description: dateValidation.error || "Fecha inválida",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -630,10 +638,14 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
       setAppointmentSummary(summary);
       setIsConfirmDialogOpen(true);
-    } catch (error) {
-      console.error('Error preparing summary:', error);
-      toast.error('Error al preparar el resumen');
-    } finally {
+      } catch (error) {
+        console.error('Error preparing summary:', error);
+        toast({
+          title: "Error",
+          description: "Error al preparar el resumen",
+          variant: "destructive",
+        });
+      } finally {
       setLoading(false);
     }
   };
@@ -653,7 +665,11 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       }
     } catch (error) {
       console.error('Error creating appointment:', error);
-      toast.error('Error al crear la cita');
+      toast({
+        title: "Error",
+        description: "Error al crear la cita",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -674,16 +690,13 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     const dateValidation = validateAppointmentDate(values.appointment_date);
     const integrityCheck = validateDateIntegrity(values.appointment_date, formattedDate);
 
-    logAppointmentDebug('Creando turno individual - validaciones finales', {
-      selectedDate: values.appointment_date,
-      formattedDate: formattedDate,
-      appointmentTime: values.appointment_time,
-      doctorId: values.doctor_id,
-      patientId: values.patient_id,
-      medicalOrderId: values.medical_order_id,
-      dateValidation: dateValidation,
-      integrityCheck: integrityCheck,
-    });
+      logAppointmentDebug('Creando turno individual - validaciones finales', {
+        selectedDate: values.appointment_date,
+        formattedDate: formattedDate,
+        appointmentTime: values.appointment_time,
+        doctorId: values.doctor_id,
+        patientId: values.patient_id,
+      });
 
     if (!dateValidation.isValid) {
       throw new Error(`Fecha inválida: ${dateValidation.error}`);
@@ -748,17 +761,13 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       const dateValidation = validateAppointmentDate(apt.date);
       const integrityCheck = validateDateIntegrity(apt.date, formattedDate);
 
-      logAppointmentDebug(`Turno recurrente ${index + 1}/${recurringAppointments.length}`, {
-        selectedDate: apt.date,
-        formattedDate: formattedDate,
-        appointmentTime: apt.time,
-        doctorId: values.doctor_id,
-        patientId: values.patient_id,
-        medicalOrderId: values.medical_order_id,
-        sessionNumber: apt.sessionNumber,
-        dateValidation: dateValidation,
-        integrityCheck: integrityCheck,
-      });
+        logAppointmentDebug(`Turno recurrente ${index + 1}/${recurringAppointments.length}`, {
+          selectedDate: apt.date,
+          formattedDate: formattedDate,
+          appointmentTime: apt.time,
+          doctorId: values.doctor_id,
+          patientId: values.patient_id,
+        });
 
       if (!dateValidation.isValid) {
         throw new Error(`Fecha inválida en sesión ${apt.sessionNumber}: ${dateValidation.error}`);
@@ -1255,8 +1264,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       {/* Pending Document Alert */}
       {form.watch('medical_order_id') && medicalOrders.length > 0 && (
         <PendingDocumentAlert 
-          medicalOrderId={form.watch('medical_order_id')} 
-          medicalOrders={medicalOrders}
+          medicalOrderId={form.watch('medical_order_id')}
         />
       )}
 

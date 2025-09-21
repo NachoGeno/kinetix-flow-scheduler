@@ -716,7 +716,7 @@ export default function Orders() {
           </DialogHeader>
           {selectedOrder && (
             <MultiSessionAppointmentForm 
-              selectedOrder={selectedOrder}
+              preselectedMedicalOrder={selectedOrder}
               onSuccess={handleAppointmentCreated}
             />
           )}

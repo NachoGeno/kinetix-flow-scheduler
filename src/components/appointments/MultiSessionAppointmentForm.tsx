@@ -252,7 +252,11 @@ export default function MultiSessionAppointmentForm({ onSuccess, preselectedMedi
 
       if (ordersError) {
         console.error('Error fetching medical orders:', ordersError);
-        toast.error('Error al cargar las órdenes médicas');
+      toast({
+        title: "Error",
+        description: "Error al cargar las órdenes médicas",
+        variant: "destructive",
+      });
         setValidationStatus({ 
           isValidating: false, 
           error: 'Error al cargar las órdenes médicas' 
@@ -347,7 +351,11 @@ export default function MultiSessionAppointmentForm({ onSuccess, preselectedMedi
       }
     } catch (error) {
       console.error('Error fetching medical orders:', error);
-      toast.error('Error al cargar las órdenes médicas');
+      toast({
+        title: "Error",
+        description: "Error al cargar las órdenes médicas",
+        variant: "destructive",
+      });
       setValidationStatus({ 
         isValidating: false, 
         error: 'Error inesperado al cargar las órdenes médicas' 
@@ -561,7 +569,11 @@ export default function MultiSessionAppointmentForm({ onSuccess, preselectedMedi
 
     // VALIDACIÓN CRÍTICA: Orden médica es OBLIGATORIA
     if (!values.medical_order_id) {
-      toast.error('Debe seleccionar una orden médica. Todos los turnos requieren una orden médica asociada.');
+      toast({
+        title: "Error",
+        description: "Debe seleccionar una orden médica. Todos los turnos requieren una orden médica asociada.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -577,20 +589,32 @@ export default function MultiSessionAppointmentForm({ onSuccess, preselectedMedi
 
       if (validationError) {
         console.error('AUDIT_LOG: Error validando capacidad para múltiples sesiones:', validationError);
-        toast.error('Error validando la capacidad de la orden médica');
+        toast({
+          title: "Error",
+          description: "Error validando la capacidad de la orden médica",
+          variant: "destructive",
+        });
         return;
       }
 
-      if (!validationResult.valid) {
+      if (!(validationResult as any).valid) {
         console.warn(`AUDIT_LOG: Validación fallida para ${scheduledSessions.length} sesiones:`, validationResult);
-        toast.error(validationResult.message || 'La orden médica no tiene capacidad suficiente para todas las sesiones');
+        toast({
+          title: "Error",
+          description: (validationResult as any).message || 'La orden médica no tiene capacidad suficiente para todas las sesiones',
+          variant: "destructive",
+        });
         return;
       }
 
       console.log(`AUDIT_LOG: Validación exitosa para ${scheduledSessions.length} sesiones en orden ${values.medical_order_id}:`, validationResult);
     } catch (error) {
       console.error('AUDIT_LOG: Error inesperado validando capacidad múltiple:', error);
-      toast.error('Error validando la orden médica');
+      toast({
+        title: "Error",
+        description: "Error validando la orden médica",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -612,10 +636,6 @@ export default function MultiSessionAppointmentForm({ onSuccess, preselectedMedi
           appointmentTime: session.time,
           doctorId: values.doctor_id,
           patientId: values.patient_id,
-          medicalOrderId: values.medical_order_id,
-          sessionNumber: session.sessionNumber,
-          dateValidation: dateValidation,
-          integrityCheck: integrityCheck,
         });
 
         if (!dateValidation.isValid) {
@@ -688,7 +708,11 @@ export default function MultiSessionAppointmentForm({ onSuccess, preselectedMedi
       if (onSuccess) onSuccess();
     } catch (error) {
       console.error('AUDIT_LOG: Error creando sesiones múltiples:', error);
-      toast.error(error.message || 'Error al crear las sesiones múltiples');
+      toast({
+        title: "Error",
+        description: (error as any).message || 'Error al crear las sesiones múltiples',
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
       setLoading(false);
@@ -1018,17 +1042,7 @@ export default function MultiSessionAppointmentForm({ onSuccess, preselectedMedi
       {/* Pending Document Alert */}
       {form.watch('medical_order_id') && medicalOrders.length > 0 && (
         <PendingDocumentAlert 
-          medicalOrderId={form.watch('medical_order_id')} 
-          medicalOrders={medicalOrders.map(order => ({
-            id: order.id,
-            description: order.description,
-            instructions: order.instructions,
-            doctor_name: `${order.doctor.profile.first_name} ${order.doctor.profile.last_name}`,
-            total_sessions: order.sessions_count || 0,
-            sessions_used: 0,
-            document_status: order.document_status,
-            created_at: new Date().toISOString()
-          }))}
+          medicalOrderId={form.watch('medical_order_id')}
         />
       )}
     </div>
