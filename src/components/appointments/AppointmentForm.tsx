@@ -18,7 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { CalendarIcon, Plus, Search, X, Calendar as CalendarDays } from 'lucide-react';
 import { format, addDays, isSameDay, startOfWeek, addWeeks } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { cn, formatDateToISO } from '@/lib/utils';
+import { cn, formatDateToISO, validateAppointmentDate, validateDateIntegrity, logAppointmentDebug, parseDateOnly } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -769,6 +769,39 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       setIsSubmitting(true);
       setLoading(true);
 
+      // === VALIDACIONES PREVENTIVAS ===
+      
+      // 1. Validar rango de fechas
+      const dateValidation = validateAppointmentDate(values.appointment_date);
+      if (!dateValidation.isValid) {
+        toast({
+          title: "Fecha inválida",
+          description: dateValidation.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 2. Formatear fecha y validar integridad
+      const formattedDate = formatDateToISO(values.appointment_date);
+      const integrityCheck = validateDateIntegrity(values.appointment_date, formattedDate);
+      
+      // 3. Logging detallado para debugging
+      logAppointmentDebug('Creación de turno individual', {
+        selectedDate: values.appointment_date,
+        formattedDate: formattedDate,
+        appointmentTime: values.appointment_time,
+        patientId: values.patient_id,
+        doctorId: values.doctor_id,
+        organizationId: currentOrgId,
+      });
+
+      // 4. Alertar si hay discrepancias de fecha
+      if (!integrityCheck.isValid && integrityCheck.warning) {
+        console.warn(`⚠️ ${integrityCheck.warning}`);
+        // No bloqueamos el turno, solo alertamos para debugging
+      }
+
       const medicalOrderId = values.medical_order_id === 'none' ? null : values.medical_order_id;
 
       // Validar que el paciente tenga orden médica vigente con turnos disponibles
@@ -826,7 +859,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         .select('id')
         .eq('patient_id', values.patient_id)
         .eq('doctor_id', values.doctor_id)
-        .eq('appointment_date', formatDateToISO(values.appointment_date))
+        .eq('appointment_date', formattedDate)
         .eq('appointment_time', values.appointment_time)
         .neq('status', 'cancelled')
         .maybeSingle();
@@ -846,7 +879,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       const appointmentData = [{
         patient_id: values.patient_id,
         doctor_id: values.doctor_id,
-        appointment_date: formatDateToISO(values.appointment_date),
+        appointment_date: formattedDate,
         appointment_time: values.appointment_time,
         reason: values.reason,
         status: 'scheduled',

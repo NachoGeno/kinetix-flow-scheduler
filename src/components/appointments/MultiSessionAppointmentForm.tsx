@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { CalendarIcon, X, Check, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { cn, formatDateToISO } from '@/lib/utils';
+import { cn, formatDateToISO, validateAppointmentDate, validateDateIntegrity, logAppointmentDebug, parseDateOnly } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -376,10 +376,41 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
       return;
     }
 
+    // === VALIDACIONES PREVENTIVAS PARA SESIÓN INDIVIDUAL ===
+    
+    // 1. Validar rango de fecha
+    const dateValidation = validateAppointmentDate(selectedDate);
+    if (!dateValidation.isValid) {
+      toast({
+        title: "Fecha inválida",
+        description: dateValidation.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 2. Validar integridad de fecha
+    const formattedDate = formatDateToISO(selectedDate);
+    const integrityCheck = validateDateIntegrity(selectedDate, formattedDate);
+    
+    // 3. Logging para debugging
+    logAppointmentDebug('Agregando sesión individual', {
+      selectedDate: selectedDate,
+      formattedDate: formattedDate,
+      appointmentTime: selectedTime,
+      doctorId: form.watch('doctor_id'),
+      patientId: form.watch('patient_id'),
+    });
+
+    // 4. Alertar discrepancias
+    if (!integrityCheck.isValid && integrityCheck.warning) {
+      console.warn(`⚠️ ${integrityCheck.warning}`);
+    }
+
     // Verificar duplicados ANTES de agregar
     const patientId = form.watch('patient_id');
     const doctorId = form.watch('doctor_id');
-    const dateStr = formatDateToISO(selectedDate);
+    const dateStr = formattedDate; // Usar fecha ya validada
     
     // Verificar si ya existe esta sesión en lo programado
     const alreadyScheduled = scheduledSessions.some(session => 
@@ -480,15 +511,76 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
       setIsSubmitting(true);
       setLoading(true);
 
-      // Preparar datos para la RPC transaccional
-      const appointmentData = scheduledSessions.map((session) => ({
+      // === VALIDACIONES PREVENTIVAS PARA MÚLTIPLES SESIONES ===
+      
+      // 1. Validar todas las fechas y detectar anomalías
+      const appointmentValidations = scheduledSessions.map((session, index) => {
+        const dateValidation = validateAppointmentDate(session.date);
+        const formattedDate = formatDateToISO(session.date);
+        const integrityCheck = validateDateIntegrity(session.date, formattedDate);
+        
+        return {
+          sessionIndex: index + 1,
+          selectedDate: session.date,
+          finalDate: formattedDate,
+          time: session.time,
+          dateValidation,
+          integrityCheck
+        };
+      });
+
+      // 2. Verificar validaciones de fechas
+      const invalidDates = appointmentValidations.filter(v => !v.dateValidation.isValid);
+      if (invalidDates.length > 0) {
+        toast({
+          title: "Fechas inválidas",
+          description: `Sesión ${invalidDates[0].sessionIndex}: ${invalidDates[0].dateValidation.error}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 3. Logging detallado para debugging
+      logAppointmentDebug('Creación de turnos múltiples', {
+        patientId: values.patient_id,
+        doctorId: values.doctor_id,
+        organizationId: currentOrgId,
+      });
+
+      appointmentValidations.forEach((validation, index) => {
+        logAppointmentDebug(`Sesión ${validation.sessionIndex}`, {
+          selectedDate: validation.selectedDate,
+          formattedDate: validation.finalDate,
+          appointmentTime: validation.time,
+        });
+
+        // 4. Alertar discrepancias individuales
+        if (!validation.integrityCheck.isValid && validation.integrityCheck.warning) {
+          console.warn(`⚠️ Sesión ${validation.sessionIndex}: ${validation.integrityCheck.warning}`);
+        }
+      });
+
+      // 5. Detectar anomalías en el patrón completo de sesiones
+      const appointmentAnomalies = appointmentValidations.map(v => ({
+        selectedDate: v.selectedDate,
+        finalDate: v.finalDate,
+        patientId: values.patient_id
+      }));
+
+      const anomalies = require('@/lib/utils').detectAppointmentAnomalies(appointmentAnomalies);
+      if (anomalies.length > 0) {
+        console.warn('⚠️ ANOMALÍAS DETECTADAS EN SESIONES MÚLTIPLES:', anomalies);
+      }
+
+      // Preparar datos para la RPC transaccional usando fechas validadas
+      const appointmentData = appointmentValidations.map((validation, index) => ({
         patient_id: values.patient_id,
         doctor_id: values.doctor_id,
-        appointment_date: formatDateToISO(session.date),
-        appointment_time: session.time,
+        appointment_date: validation.finalDate, // Usar fecha ya validada
+        appointment_time: validation.time,
         reason: values.reason,
         status: 'scheduled',
-        notes: `Sesión ${session.sessionNumber} de ${values.sessions_count}`,
+        notes: `Sesión ${validation.sessionIndex} de ${values.sessions_count}`,
         duration_minutes: 30
       }));
 
