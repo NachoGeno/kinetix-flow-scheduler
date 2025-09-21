@@ -720,10 +720,20 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       organization_id_param: currentOrgId // FALLBACK para organización
     });
 
-    if (error) {
-      console.error('AUDIT_LOG: Error en create_appointments_with_order:', error);
-      throw error;
-    }
+      if (error) {
+        console.error('AUDIT_LOG: Error en create_appointments_with_order:', error);
+        
+        // Provide specific error messages based on error type
+        if (error.message?.includes('User organization not found')) {
+          throw new Error('Error de autenticación: No se pudo verificar su organización. Intente cerrar sesión y volver a entrar.');
+        } else if (error.message?.includes('ORDEN_REQUERIDA')) {
+          throw new Error('Error: Orden médica requerida para crear el turno.');
+        } else if (error.message?.includes('VALIDACION_FALLIDA')) {
+          throw new Error(error.message.replace('VALIDACION_FALLIDA: ', ''));
+        } else {
+          throw error;
+        }
+      }
 
     console.log('AUDIT_LOG: Resultado de creación:', results);
 
@@ -793,10 +803,20 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       organization_id_param: currentOrgId // FALLBACK para organización
     });
 
-    if (error) {
-      console.error('AUDIT_LOG: Error en create_appointments_with_order para recurrentes:', error);
-      throw error;
-    }
+      if (error) {
+        console.error('AUDIT_LOG: Error en create_appointments_with_order para recurrentes:', error);
+        
+        // Provide specific error messages based on error type
+        if (error.message?.includes('User organization not found')) {
+          throw new Error('Error de autenticación: No se pudo verificar su organización. Intente cerrar sesión y volver a entrar.');
+        } else if (error.message?.includes('ORDEN_REQUERIDA')) {
+          throw new Error('Error: Orden médica requerida para crear los turnos.');
+        } else if (error.message?.includes('VALIDACION_FALLIDA')) {
+          throw new Error(error.message.replace('VALIDACION_FALLIDA: ', ''));
+        } else {
+          throw error;
+        }
+      }
 
     console.log('AUDIT_LOG: Resultado de creación recurrente:', results);
 

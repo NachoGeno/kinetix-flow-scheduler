@@ -558,6 +558,25 @@ export default function MultiSessionAppointmentForm({ onSuccess, preselectedMedi
       return;
     }
 
+    // Check authentication and organization
+    if (!profile) {
+      toast({
+        title: "Error de autenticación",
+        description: "Usuario no autenticado. Intente cerrar sesión y volver a entrar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!currentOrgId) {
+      toast({
+        title: "Error de organización",
+        description: "Organización no encontrada. Contacte al administrador.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (scheduledSessions.length !== values.sessions_count) {
       toast({
         title: "Error",
@@ -677,7 +696,34 @@ export default function MultiSessionAppointmentForm({ onSuccess, preselectedMedi
 
       if (error) {
         console.error('AUDIT_LOG: Error en create_appointments_with_order para múltiples sesiones:', error);
-        throw error;
+        
+        // Provide specific error messages based on error type
+        if (error.message?.includes('User organization not found')) {
+          toast({
+            title: "Error de autenticación",
+            description: "No se pudo verificar su organización. Intente cerrar sesión y volver a entrar.",
+            variant: "destructive",
+          });
+        } else if (error.message?.includes('ORDEN_REQUERIDA')) {
+          toast({
+            title: "Error de orden médica",
+            description: "Orden médica requerida para crear los turnos.",
+            variant: "destructive",
+          });
+        } else if (error.message?.includes('VALIDACION_FALLIDA')) {
+          toast({
+            title: "Error de validación",
+            description: error.message.replace('VALIDACION_FALLIDA: ', ''),
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error creando turnos",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+        return;
       }
 
       console.log('AUDIT_LOG: Resultado de creación múltiple:', results);
