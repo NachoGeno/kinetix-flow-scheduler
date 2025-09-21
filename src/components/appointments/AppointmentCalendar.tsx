@@ -885,7 +885,7 @@ export default function AppointmentCalendar() {
 
     {/* New Appointment Dialog */}
     <Dialog open={isNewAppointmentOpen} onOpenChange={setIsNewAppointmentOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[95vw] max-w-md sm:max-w-lg lg:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nueva Cita</DialogTitle>
           <DialogDescription>
