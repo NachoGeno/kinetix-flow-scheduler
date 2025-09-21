@@ -1814,11 +1814,18 @@ export type Database = {
         Returns: boolean
       }
       create_appointments_with_order: {
-        Args: {
-          appointments_data: Json
-          assigned_by_param?: string
-          medical_order_id_param?: string
-        }
+        Args:
+          | {
+              appointments_data: Json
+              assigned_by_param?: string
+              medical_order_id_param?: string
+            }
+          | {
+              appointments_data: Json
+              assigned_by_param?: string
+              medical_order_id_param?: string
+              organization_id_param?: string
+            }
         Returns: {
           appointment_id: string
           conflict_reason: string

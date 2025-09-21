@@ -99,8 +99,8 @@ export default function MultiSessionAppointmentForm({ onSuccess, preselectedMedi
   }>({ isValidating: false });
   
   const { profile } = useAuth();
-  const { toast } = useToast();
   const { currentOrgId } = useOrganizationContext();
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -671,7 +671,8 @@ export default function MultiSessionAppointmentForm({ onSuccess, preselectedMedi
       const { data: results, error } = await supabase.rpc('create_appointments_with_order', {
         appointments_data: appointmentsData,
         medical_order_id_param: values.medical_order_id, // OBLIGATORIO
-        assigned_by_param: profile?.id
+        assigned_by_param: profile?.id,
+        organization_id_param: currentOrgId // FALLBACK para organización
       });
 
       if (error) {

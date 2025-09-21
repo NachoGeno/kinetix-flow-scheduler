@@ -21,8 +21,8 @@ import { es } from 'date-fns/locale';
 import { cn, formatDateToISO, validateAppointmentDate, validateDateIntegrity, logAppointmentDebug, parseDateOnly } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
 import { useOrganizationContext } from '@/hooks/useOrganizationContext';
+import { useToast } from '@/hooks/use-toast';
 import PatientForm from '@/components/patients/PatientForm';
 import MedicalOrderForm from './MedicalOrderForm';
 import PendingDocumentAlert from './PendingDocumentAlert';
@@ -115,8 +115,8 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   }>({ isValidating: false });
   
   const { profile } = useAuth();
-  const { toast } = useToast();
   const { currentOrgId } = useOrganizationContext();
+  const { toast } = useToast();
 
   const weekDays = [
     { key: 'monday', label: 'Lun', value: 1 },
@@ -716,7 +716,8 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     const { data: results, error } = await supabase.rpc('create_appointments_with_order', {
       appointments_data: [appointmentData],
       medical_order_id_param: values.medical_order_id, // OBLIGATORIO
-      assigned_by_param: profile?.id
+      assigned_by_param: profile?.id,
+      organization_id_param: currentOrgId // FALLBACK para organización
     });
 
     if (error) {
@@ -788,7 +789,8 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     const { data: results, error } = await supabase.rpc('create_appointments_with_order', {
       appointments_data: appointmentsData,
       medical_order_id_param: values.medical_order_id, // OBLIGATORIO
-      assigned_by_param: profile?.id
+      assigned_by_param: profile?.id,
+      organization_id_param: currentOrgId // FALLBACK para organización
     });
 
     if (error) {
