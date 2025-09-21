@@ -642,7 +642,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         console.error('Error preparing summary:', error);
         toast({
           title: "Error",
-          description: "Error al preparar el resumen",
+          description: (error as Error)?.message || "Error al preparar el resumen",
           variant: "destructive",
         });
       } finally {
@@ -667,7 +667,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       console.error('Error creating appointment:', error);
       toast({
         title: "Error",
-        description: "Error al crear la cita",
+        description: (error as Error)?.message || "Error al crear la cita",
         variant: "destructive",
       });
     } finally {
