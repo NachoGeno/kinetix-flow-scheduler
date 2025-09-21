@@ -23,7 +23,7 @@ import PendingDocumentAlert from './PendingDocumentAlert';
 
 const formSchema = z.object({
   patient_id: z.string().min(1, 'Selecciona un paciente'),
-  medical_order_id: z.string().optional(),
+  medical_order_id: z.string().min(1, 'Debe seleccionar una orden médica - Es obligatorio'), // OBLIGATORIO
   doctor_id: z.string().min(1, 'Selecciona un doctor'),
   reason: z.string().min(1, 'Describe el motivo de la consulta'),
   sessions_count: z.number().min(1, 'Debe tener al menos 1 sesión'),
@@ -60,6 +60,8 @@ interface MedicalOrder {
   description: string;
   instructions: string | null;
   sessions_count?: number;
+  sessions_remaining?: number;
+  urgent?: boolean;
   document_status: 'pendiente' | 'completa';
   doctor: {
     profile: {
@@ -77,10 +79,10 @@ interface ScheduledSession {
 
 interface MultiSessionAppointmentFormProps {
   onSuccess?: () => void;
-  selectedOrder?: MedicalOrder;
+  preselectedMedicalOrder?: MedicalOrder;
 }
 
-export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }: MultiSessionAppointmentFormProps) {
+export default function MultiSessionAppointmentForm({ onSuccess, preselectedMedicalOrder }: MultiSessionAppointmentFormProps) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [medicalOrders, setMedicalOrders] = useState<MedicalOrder[]>([]);
@@ -89,7 +91,13 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [scheduledSessions, setScheduledSessions] = useState<ScheduledSession[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Anti-doble submit
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<{
+    isValidating: boolean;
+    error?: string;
+    warning?: string;
+  }>({ isValidating: false });
+  
   const { profile } = useAuth();
   const { toast } = useToast();
   const { currentOrgId } = useOrganizationContext();
@@ -98,17 +106,16 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
     resolver: zodResolver(formSchema),
     defaultValues: {
       patient_id: '',
-      medical_order_id: selectedOrder?.id || 'none',
+      medical_order_id: preselectedMedicalOrder?.id || '', // ELIMINADO 'none' - debe ser obligatorio
       doctor_id: '',
-      reason: selectedOrder?.description || '',
-      sessions_count: selectedOrder?.sessions_count || 1,
+      reason: preselectedMedicalOrder?.description || '',
+      sessions_count: preselectedMedicalOrder?.sessions_count || 1,
     },
   });
 
   useEffect(() => {
     fetchDoctors();
     fetchPatients();
-    fetchMedicalOrders();
   }, []);
 
   useEffect(() => {
@@ -119,7 +126,7 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
 
   useEffect(() => {
     if (form.watch('patient_id')) {
-      fetchMedicalOrders();
+      fetchMedicalOrders(form.watch('patient_id'));
     }
   }, [form.watch('patient_id')]);
 
@@ -234,24 +241,33 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
     }
   };
 
-  const fetchMedicalOrders = async () => {
-    const patientId = form.watch('patient_id');
-    if (!patientId) {
-      setMedicalOrders([]);
-      return;
-    }
-
+  const fetchMedicalOrders = async (patientId: string) => {
     try {
-      // Use new function that only returns orders with available sessions
+      setValidationStatus({ isValidating: true });
+      
       const { data: ordersData, error: ordersError } = await supabase
         .rpc('get_medical_orders_with_availability', {
           patient_id_param: patientId
         });
 
-      if (ordersError) throw ordersError;
+      if (ordersError) {
+        console.error('Error fetching medical orders:', ordersError);
+        toast.error('Error al cargar las órdenes médicas');
+        setValidationStatus({ 
+          isValidating: false, 
+          error: 'Error al cargar las órdenes médicas' 
+        });
+        return;
+      }
+
+      console.log(`AUDIT_LOG: Medical orders for patient ${patientId}:`, ordersData);
 
       if (!ordersData || ordersData.length === 0) {
         setMedicalOrders([]);
+        setValidationStatus({ 
+          isValidating: false,
+          error: 'Este paciente no tiene órdenes médicas con sesiones disponibles para múltiples turnos'
+        });
         return;
       }
 
@@ -283,6 +299,8 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
           instructions: order.instructions || null,
           document_status: (order.document_status as 'pendiente' | 'completa') || 'pendiente',
           sessions_count: order.sessions_remaining, // Available sessions for scheduling
+          sessions_remaining: order.sessions_remaining,
+          urgent: order.urgent || false,
           doctor: {
             profile: {
               first_name: doctorInfo?.profile?.first_name || 'N/A',
@@ -293,12 +311,46 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
       });
 
       setMedicalOrders(transformedOrders);
+
+      // If there's a preselected order, ensure it's in the list and select it
+      if (preselectedMedicalOrder) {
+        const orderExists = transformedOrders?.find(order => order.id === preselectedMedicalOrder.id);
+        if (orderExists) {
+          form.setValue('medical_order_id', preselectedMedicalOrder.id);
+          console.log(`AUDIT_LOG: Preseleccionando orden ${preselectedMedicalOrder.id}`);
+          setValidationStatus({ 
+            isValidating: false,
+            warning: `Orden preseleccionada: ${orderExists.description} (${orderExists.sessions_remaining} sesiones disponibles)`
+          });
+        } else {
+          setValidationStatus({ 
+            isValidating: false,
+            error: 'La orden médica preseleccionada ya no está disponible'
+          });
+        }
+      } else {
+        // Auto-asignación inteligente para múltiples sesiones
+        if (transformedOrders && transformedOrders.length === 1) {
+          const singleOrder = transformedOrders[0];
+          form.setValue('medical_order_id', singleOrder.id);
+          console.log(`AUDIT_LOG: Auto-asignando orden única ${singleOrder.id} para múltiples sesiones`);
+          setValidationStatus({ 
+            isValidating: false,
+            warning: `Auto-asignado a orden: ${singleOrder.description} (${singleOrder.sessions_remaining} sesiones disponibles)`
+          });
+        } else if (transformedOrders && transformedOrders.length > 1) {
+          setValidationStatus({ 
+            isValidating: false,
+            warning: `Seleccione una de las ${transformedOrders.length} órdenes médicas con suficientes sesiones disponibles`
+          });
+        }
+      }
     } catch (error) {
       console.error('Error fetching medical orders:', error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar las órdenes médicas",
-        variant: "destructive",
+      toast.error('Error al cargar las órdenes médicas');
+      setValidationStatus({ 
+        isValidating: false, 
+        error: 'Error inesperado al cargar las órdenes médicas' 
       });
     }
   };
@@ -507,6 +559,41 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
       return;
     }
 
+    // VALIDACIÓN CRÍTICA: Orden médica es OBLIGATORIA
+    if (!values.medical_order_id) {
+      toast.error('Debe seleccionar una orden médica. Todos los turnos requieren una orden médica asociada.');
+      return;
+    }
+
+    // Validar capacidad usando la nueva función antes de crear
+    try {
+      const { data: validationResult, error: validationError } = await supabase.rpc(
+        'validate_order_assignment_capacity',
+        {
+          order_id_param: values.medical_order_id,
+          requested_sessions: scheduledSessions.length
+        }
+      );
+
+      if (validationError) {
+        console.error('AUDIT_LOG: Error validando capacidad para múltiples sesiones:', validationError);
+        toast.error('Error validando la capacidad de la orden médica');
+        return;
+      }
+
+      if (!validationResult.valid) {
+        console.warn(`AUDIT_LOG: Validación fallida para ${scheduledSessions.length} sesiones:`, validationResult);
+        toast.error(validationResult.message || 'La orden médica no tiene capacidad suficiente para todas las sesiones');
+        return;
+      }
+
+      console.log(`AUDIT_LOG: Validación exitosa para ${scheduledSessions.length} sesiones en orden ${values.medical_order_id}:`, validationResult);
+    } catch (error) {
+      console.error('AUDIT_LOG: Error inesperado validando capacidad múltiple:', error);
+      toast.error('Error validando la orden médica');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setLoading(true);
@@ -518,102 +605,72 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
         const dateValidation = validateAppointmentDate(session.date);
         const formattedDate = formatDateToISO(session.date);
         const integrityCheck = validateDateIntegrity(session.date, formattedDate);
-        
-        return {
-          sessionIndex: index + 1,
+
+        logAppointmentDebug(`Sesión múltiple ${index + 1}/${scheduledSessions.length}`, {
           selectedDate: session.date,
-          finalDate: formattedDate,
-          time: session.time,
+          formattedDate: formattedDate,
+          appointmentTime: session.time,
+          doctorId: values.doctor_id,
+          patientId: values.patient_id,
+          medicalOrderId: values.medical_order_id,
+          sessionNumber: session.sessionNumber,
+          dateValidation: dateValidation,
+          integrityCheck: integrityCheck,
+        });
+
+        if (!dateValidation.isValid) {
+          throw new Error(`Fecha inválida en sesión ${session.sessionNumber}: ${dateValidation.error}`);
+        }
+
+        if (!integrityCheck.isValid && integrityCheck.warning) {
+          console.warn(`⚠️ Sesión ${session.sessionNumber}: ${integrityCheck.warning}`);
+        }
+
+        return {
+          session,
+          formattedDate,
           dateValidation,
           integrityCheck
         };
       });
 
-      // 2. Verificar validaciones de fechas
-      const invalidDates = appointmentValidations.filter(v => !v.dateValidation.isValid);
-      if (invalidDates.length > 0) {
-        toast({
-          title: "Fechas inválidas",
-          description: `Sesión ${invalidDates[0].sessionIndex}: ${invalidDates[0].dateValidation.error}`,
-          variant: "destructive",
-        });
-        return;
-      }
+      console.log(`AUDIT_LOG: Creando ${scheduledSessions.length} sesiones múltiples con orden ${values.medical_order_id}`);
 
-      // 3. Logging detallado para debugging
-      logAppointmentDebug('Creación de turnos múltiples', {
-        patientId: values.patient_id,
-        doctorId: values.doctor_id,
-        organizationId: currentOrgId,
-      });
-
-      appointmentValidations.forEach((validation, index) => {
-        logAppointmentDebug(`Sesión ${validation.sessionIndex}`, {
-          selectedDate: validation.selectedDate,
-          formattedDate: validation.finalDate,
-          appointmentTime: validation.time,
-        });
-
-        // 4. Alertar discrepancias individuales
-        if (!validation.integrityCheck.isValid && validation.integrityCheck.warning) {
-          console.warn(`⚠️ Sesión ${validation.sessionIndex}: ${validation.integrityCheck.warning}`);
-        }
-      });
-
-      // 5. Detectar anomalías en el patrón completo de sesiones
-      const appointmentAnomalies = appointmentValidations.map(v => ({
-        selectedDate: v.selectedDate,
-        finalDate: v.finalDate,
-        patientId: values.patient_id
-      }));
-
-      const anomalies = require('@/lib/utils').detectAppointmentAnomalies(appointmentAnomalies);
-      if (anomalies.length > 0) {
-        console.warn('⚠️ ANOMALÍAS DETECTADAS EN SESIONES MÚLTIPLES:', anomalies);
-      }
-
-      // Preparar datos para la RPC transaccional usando fechas validadas
-      const appointmentData = appointmentValidations.map((validation, index) => ({
+      // Prepare appointments data with validated dates
+      const appointmentsData = appointmentValidations.map((validation) => ({
         patient_id: values.patient_id,
         doctor_id: values.doctor_id,
-        appointment_date: validation.finalDate, // Usar fecha ya validada
-        appointment_time: validation.time,
+        appointment_date: validation.formattedDate, // Usar fecha ya validada
+        appointment_time: validation.session.time,
         reason: values.reason,
         status: 'scheduled',
-        notes: `Sesión ${validation.sessionIndex} de ${values.sessions_count}`,
-        duration_minutes: 30
+        notes: `Sesión ${validation.session.sessionNumber} de ${scheduledSessions.length} - Orden: ${values.medical_order_id}`,
       }));
 
-      // Usar la nueva RPC transaccional
-      const medicalOrderId = values.medical_order_id !== 'none' ? values.medical_order_id : null;
-      const { data: results, error: rpcError } = await supabase
-        .rpc('create_appointments_with_order', {
-          appointments_data: appointmentData,
-          medical_order_id_param: medicalOrderId,
-          assigned_by_param: profile?.id || null
-        });
+      // Create all appointments using the strict RPC function
+      const { data: results, error } = await supabase.rpc('create_appointments_with_order', {
+        appointments_data: appointmentsData,
+        medical_order_id_param: values.medical_order_id, // OBLIGATORIO
+        assigned_by_param: profile?.id
+      });
 
-      if (rpcError) throw rpcError;
-
-      // Contar resultados exitosos y conflictos
-      const successful = results?.filter(r => r.was_created).length || 0;
-      const conflicts = results?.filter(r => !r.was_created).length || 0;
-
-      if (successful === 0) {
-        toast({
-          title: "Todas las citas ya existen",
-          description: "Todas las sesiones programadas ya estaban creadas previamente",
-          variant: "destructive",
-        });
-        return;
+      if (error) {
+        console.error('AUDIT_LOG: Error en create_appointments_with_order para múltiples sesiones:', error);
+        throw error;
       }
 
-      let message = `Se crearon ${successful} citas correctamente`;
-      if (conflicts > 0) {
-        message += ` (${conflicts} ya existían y se omitieron)`;
+      console.log('AUDIT_LOG: Resultado de creación múltiple:', results);
+
+      const createdCount = results?.filter(r => r.was_created).length || 0;
+      const failedCount = results?.filter(r => !r.was_created).length || 0;
+
+      if (createdCount === 0) {
+        throw new Error('No se pudo crear ninguna sesión');
       }
-      if (medicalOrderId) {
-        message += ' y se vincularon a la orden médica';
+
+      let message = `Se crearon ${createdCount} sesiones múltiples y se vincularon a la orden médica correctamente`;
+      if (failedCount > 0) {
+        message += `. ${failedCount} sesiones no se pudieron crear por conflictos`;
       }
 
       toast({
@@ -621,204 +678,240 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
         description: message,
       });
 
+      // Reset form and sessions
       form.reset();
       setScheduledSessions([]);
-      onSuccess?.();
+      setSelectedDate(undefined);
+      setSelectedTime('');
+      setAvailableSlots([]);
+
+      if (onSuccess) onSuccess();
     } catch (error) {
-      console.error('Error creating appointments:', error);
-      toast({
-        title: "Error",
-        description: "No se pudieron crear las citas",
-        variant: "destructive",
-      });
+      console.error('AUDIT_LOG: Error creando sesiones múltiples:', error);
+      toast.error(error.message || 'Error al crear las sesiones múltiples');
     } finally {
-      setLoading(false);
       setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
-  const sessionsRemaining = form.watch('sessions_count') - scheduledSessions.length;
-
   return (
     <div className="space-y-6">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="patient_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Paciente</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar paciente" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {patients.map((patient) => (
-                      <SelectItem key={patient.id} value={patient.id}>
-                        {patient.profile.first_name} {patient.profile.last_name}
-                        {patient.profile.dni && (
-                          <span className="text-sm text-muted-foreground ml-2">
-                            (DNI: {patient.profile.dni})
-                          </span>
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="medical_order_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Orden Médica</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar orden médica" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="none">Sin orden médica</SelectItem>
-                    {medicalOrders.map((order) => (
-                      <SelectItem key={order.id} value={order.id}>
-                        {order.description.substring(0, 50)}...
-                        <span className="text-sm text-muted-foreground ml-2">
-                          (Dr. {order.doctor.profile.first_name} {order.doctor.profile.last_name})
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Show pending document alert if selected order has pending status */}
-          {form.watch('medical_order_id') !== 'none' && (() => {
-            const selectedOrderId = form.watch('medical_order_id');
-            const selectedOrder = medicalOrders.find(o => o.id === selectedOrderId);
-            const selectedPatient = patients.find(p => p.id === form.watch('patient_id'));
-            
-            if (selectedOrder?.document_status === 'pendiente') {
-              return (
-                <PendingDocumentAlert
-                  medicalOrderId={selectedOrder.id}
-                  patientName={selectedPatient ? `${selectedPatient.profile.first_name} ${selectedPatient.profile.last_name}` : ''}
-                  orderDescription={selectedOrder.description}
-                  className="mb-4"
+      <Card>
+        <CardHeader>
+          <CardTitle>Programar Múltiples Sesiones</CardTitle>
+          <CardDescription>
+            Programa múltiples sesiones para un paciente con orden médica.
+            <span className="text-destructive font-medium"> * Todos los turnos requieren una orden médica asociada</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Patient Field */}
+                <FormField
+                  control={form.control}
+                  name="patient_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Paciente *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar paciente" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {patients.map((patient) => (
+                            <SelectItem key={patient.id} value={patient.id}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {patient.profile.first_name} {patient.profile.last_name}
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                  {patient.profile.dni ? `DNI: ${patient.profile.dni}` : 'Sin DNI'} • {patient.profile.email}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              );
-            }
-            return null;
-          })()}
 
-          <FormField
-            control={form.control}
-            name="sessions_count"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Cantidad de Sesiones Total</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="20"
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="doctor_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Doctor</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar doctor" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {doctors.map((doctor) => (
-                      <SelectItem key={doctor.id} value={doctor.id}>
-                        Dr. {doctor.profile.first_name} {doctor.profile.last_name}
-                        <span className="text-sm text-muted-foreground ml-2">
-                          ({doctor.specialty.name})
+                {/* Medical Order Field - OBLIGATORIO */}
+                <FormField
+                  control={form.control}
+                  name="medical_order_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-destructive">
+                        Orden Médica *
+                        <span className="text-sm font-normal text-muted-foreground ml-2">
+                          (Obligatorio - Verifique que tenga suficientes sesiones)
                         </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                      </FormLabel>
+                      
+                      {validationStatus.isValidating && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                          Validando órdenes disponibles...
+                        </div>
+                      )}
+                      
+                      {validationStatus.error && (
+                        <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
+                          {validationStatus.error}
+                        </div>
+                      )}
+                      
+                      {validationStatus.warning && (
+                        <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                          {validationStatus.warning}
+                        </div>
+                      )}
 
-          <FormField
-            control={form.control}
-            name="reason"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Motivo de la consulta</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder="Describe el motivo de la consulta..."
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || ""}
+                        disabled={validationStatus.isValidating || medicalOrders.length === 0}
+                      >
+                        <FormControl>
+                          <SelectTrigger className={medicalOrders.length === 0 ? "opacity-50" : ""}>
+                            <SelectValue placeholder={
+                              medicalOrders.length === 0 
+                                ? "No hay órdenes médicas con suficientes sesiones" 
+                                : "Seleccionar orden médica obligatoriamente"
+                            } />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {medicalOrders.map((order) => (
+                            <SelectItem key={order.id} value={order.id}>
+                              <div className="flex flex-col py-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{order.description}</span>
+                                  {order.urgent && (
+                                    <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">
+                                      URGENTE
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-sm text-muted-foreground">
+                                  Sesiones disponibles: {order.sessions_remaining}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  Doctor: {order.doctor.profile.first_name} {order.doctor.profile.last_name}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-          {/* Session Scheduling Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                Programar Sesiones
-                <Badge variant={sessionsRemaining === 0 ? "default" : "secondary"}>
-                  {scheduledSessions.length} / {form.watch('sessions_count')} sesiones
-                </Badge>
-              </CardTitle>
-              <CardDescription>
-                Selecciona las fechas y horarios específicos para cada sesión
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {sessionsRemaining > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg">
-                  <div>
-                    <label className="text-sm font-medium">Fecha</label>
+              {/* Sessions Count */}
+              <FormField
+                control={form.control}
+                name="sessions_count"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número de sesiones a programar *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="50"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Doctor Field */}
+              <FormField
+                control={form.control}
+                name="doctor_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Doctor *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar doctor" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {doctors.map((doctor) => (
+                          <SelectItem key={doctor.id} value={doctor.id}>
+                            <div className="flex items-center space-x-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: doctor.specialty.color }}
+                              />
+                              <span>
+                                Dr. {doctor.profile.first_name} {doctor.profile.last_name}
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                ({doctor.specialty.name})
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Reason Field */}
+              <FormField
+                control={form.control}
+                name="reason"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Motivo de la consulta *</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Describe el motivo de la consulta..."
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Session Scheduler */}
+              <div className="border rounded-lg p-4 space-y-4">
+                <h3 className="font-medium">Programar Sesiones Individuales</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Date Picker */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Fecha de la sesión</label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
-                          variant={"outline"}
+                          variant="outline"
                           className={cn(
-                            "w-full pl-3 text-left font-normal",
+                            "justify-start text-left font-normal",
                             !selectedDate && "text-muted-foreground"
                           )}
                         >
-                          {selectedDate ? (
-                            format(selectedDate, "PPP", { locale: es })
-                          ) : (
-                            <span>Seleccionar fecha</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {selectedDate ? format(selectedDate, "PPP", { locale: es }) : "Seleccionar fecha"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -829,14 +922,14 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
                           disabled={(date) => date < new Date() || date < new Date("1900-01-01")}
                           initialFocus
                           locale={es}
-                          className="pointer-events-auto"
                         />
                       </PopoverContent>
                     </Popover>
                   </div>
 
-                  <div>
-                    <label className="text-sm font-medium">Hora</label>
+                  {/* Time Picker */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Hora de la sesión</label>
                     <Select value={selectedTime} onValueChange={setSelectedTime}>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccionar hora" />
@@ -849,34 +942,43 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  <div className="flex items-end">
-                    <Button
-                      type="button"
-                      onClick={addSession}
-                      disabled={!selectedDate || !selectedTime}
-                      className="w-full"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Agregar Sesión
-                    </Button>
+                    {selectedDate && form.watch('doctor_id') && availableSlots.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        No hay horarios disponibles para esta fecha
+                      </p>
+                    )}
                   </div>
                 </div>
-              )}
 
-              {/* Scheduled Sessions List */}
+                <Button
+                  type="button"
+                  onClick={addSession}
+                  disabled={!selectedDate || !selectedTime || !form.watch('doctor_id')}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Agregar Sesión
+                </Button>
+              </div>
+
+              {/* Scheduled Sessions */}
               {scheduledSessions.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="font-medium">Sesiones Programadas:</h4>
-                  <div className="space-y-2">
+                <div className="space-y-4">
+                  <h3 className="font-medium">
+                    Sesiones Programadas ({scheduledSessions.length}/{form.watch('sessions_count')})
+                  </h3>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
                     {scheduledSessions.map((session, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <div>
-                          <span className="font-medium">Sesión {session.sessionNumber}</span>
-                          <span className="text-muted-foreground ml-2">
-                            {format(session.date, 'EEEE, dd/MM/yyyy', { locale: es })} a las {session.time.substring(0, 5)}
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 border rounded-lg bg-muted/50"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <Badge variant="outline">Sesión {session.sessionNumber}</Badge>
+                          <span className="font-medium">
+                            {format(session.date, 'dd/MM/yyyy')}
                           </span>
+                          <span>{session.time.substring(0, 5)}</span>
                         </div>
                         <Button
                           type="button"
@@ -891,18 +993,44 @@ export default function MultiSessionAppointmentForm({ onSuccess, selectedOrder }
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
 
-          <Button 
-            type="submit" 
-            className="w-full" 
-            disabled={loading || isSubmitting || scheduledSessions.length !== form.watch('sessions_count')}
-          >
-            {(loading || isSubmitting) ? 'Creando citas...' : `Crear ${scheduledSessions.length} Citas`}
-          </Button>
-        </form>
-      </Form>
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={() => {
+                  form.reset();
+                  setScheduledSessions([]);
+                  setSelectedDate(undefined);
+                  setSelectedTime('');
+                }}>
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={loading || isSubmitting || scheduledSessions.length === 0}
+                >
+                  {isSubmitting ? 'Creando...' : `Crear ${scheduledSessions.length} Sesiones`}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+
+      {/* Pending Document Alert */}
+      {form.watch('medical_order_id') && medicalOrders.length > 0 && (
+        <PendingDocumentAlert 
+          medicalOrderId={form.watch('medical_order_id')} 
+          medicalOrders={medicalOrders.map(order => ({
+            id: order.id,
+            description: order.description,
+            instructions: order.instructions,
+            doctor_name: `${order.doctor.profile.first_name} ${order.doctor.profile.last_name}`,
+            total_sessions: order.sessions_count || 0,
+            sessions_used: 0,
+            document_status: order.document_status,
+            created_at: new Date().toISOString()
+          }))}
+        />
+      )}
     </div>
   );
 }

@@ -2165,6 +2165,10 @@ export type Database = {
         Args: { additional_sessions?: number; order_id_param: string }
         Returns: boolean
       }
+      validate_order_assignment_capacity: {
+        Args: { order_id_param: string; requested_sessions?: number }
+        Returns: Json
+      }
     }
     Enums: {
       appointment_status:
