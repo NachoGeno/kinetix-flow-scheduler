@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { usePaginatedPresentations, type PresentationOrder } from "@/hooks/usePaginatedPresentations";
+import { usePaginatedPresentations, type PresentationOrder as OptimizedPresentationOrder } from "@/hooks/usePaginatedPresentations";
 import { 
   FileText, 
   CheckCircle2, 
@@ -34,11 +34,48 @@ import {
   Trash2,
   ExternalLink,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Plus,
+  Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+
+// Complete PresentationOrder interface with all document management
+interface PresentationOrder {
+  id: string;
+  description: string;
+  total_sessions: number;
+  sessions_used: number;
+  completed: boolean;
+  presentation_status: string;
+  patient: {
+    id: string;
+    profile: {
+      first_name: string;
+      last_name: string;
+      dni: string | null;
+    };
+  };
+  obra_social: {
+    id: string;
+    nombre: string;
+    tipo: string;
+  };
+  doctor_name: string | null;
+  created_at: string;
+  attachment_url: string | null;
+  attachment_name: string | null;
+  documents: {
+    medical_order: DocumentInfo | null;
+    clinical_evolution: DocumentInfo | null;
+    attendance_record: DocumentInfo | null;
+    social_work_authorization: DocumentInfo | null;
+  };
+  sessions_completed: boolean;
+  actual_completed_sessions?: number;
+}
 
 interface DocumentInfo {
   id: string;
@@ -54,7 +91,7 @@ interface FilterState {
   professional: string;
   date_from: string;
   date_to: string;
-  status: 'all' | 'ready' | 'pending' | 'submitted';
+  status: 'all' | 'ready_to_present' | 'in_preparation' | 'missing_attendance' | 'pdf_generated' | 'submitted';
   search_term: string;
   page: number;
 }
@@ -82,6 +119,7 @@ export default function Presentaciones() {
     search_term: '',
     page: 1
   });
+  
   const [selectedOrder, setSelectedOrder] = useState<PresentationOrder | null>(null);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
@@ -110,22 +148,167 @@ export default function Presentaciones() {
     }
   });
 
-  // Use the new paginated hook
-  const { data: presentationsData, isLoading, refetch } = usePaginatedPresentations({
-    searchTerm: filters.search_term,
-    obraSocialId: filters.obra_social_id === 'all' ? undefined : filters.obra_social_id,
-    professionalId: undefined, // Professional filter needs to be implemented in the DB function
-    status: filters.status === 'all' ? undefined : filters.status,
-    dateFrom: filters.date_from || undefined,
-    dateTo: filters.date_to || undefined,
-    page: filters.page,
-    limit: 50
+  // Enhanced presentation orders query with full document management
+  const { data: presentations, isLoading, refetch } = useQuery({
+    queryKey: ["presentations-enhanced", filters],
+    queryFn: async () => {
+      console.log("🔍 Cargando presentaciones con filtros optimizados:", filters);
+      
+      try {
+        // Use optimized query for base filtering
+        const { data: baseData, error: baseError } = await supabase.rpc('search_presentations_paginated', {
+          search_term: filters.search_term?.trim() || null,
+          obra_social_filter: filters.obra_social_id === 'all' ? null : filters.obra_social_id,
+          professional_filter: null, // Professional filter via text search for now
+          status_filter: filters.status === 'all' ? null : filters.status,
+          date_from: filters.date_from || null,
+          date_to: filters.date_to || null,
+          page_number: filters.page,
+          page_size: 50
+        });
+
+        if (baseError) throw baseError;
+
+        const optimizedOrders = baseData?.map((row: any) => row.presentation_data) || [];
+        const totalCount = baseData?.[0]?.total_count || 0;
+
+        console.log(`📋 Base optimized orders: ${optimizedOrders.length}`);
+
+        // Enhance each order with full document information
+        const enhancedOrders: PresentationOrder[] = await Promise.all(
+          optimizedOrders.map(async (order: OptimizedPresentationOrder) => {
+            // Get presentation documents
+            const { data: documents, error: docsError } = await supabase
+              .from("presentation_documents")
+              .select(`
+                id,
+                document_type,
+                file_url,
+                file_name,
+                uploaded_at,
+                uploaded_by,
+                uploader:profiles!presentation_documents_uploaded_by_fkey(first_name, last_name)
+              `)
+              .eq("medical_order_id", order.id);
+
+            if (docsError) {
+              console.error("Error fetching documents:", docsError);
+            }
+
+            // Organize documents by type
+            const documentsByType = {
+              medical_order: null as DocumentInfo | null,
+              clinical_evolution: null as DocumentInfo | null,
+              attendance_record: null as DocumentInfo | null,
+              social_work_authorization: null as DocumentInfo | null,
+            };
+
+            // Medical order document (from the order itself) - use optimized data
+            if (order.id) {
+              // Get attachment info from medical_orders table
+              const { data: orderData } = await supabase
+                .from('medical_orders')
+                .select('attachment_url, attachment_name, created_at')
+                .eq('id', order.id)
+                .single();
+
+              if (orderData?.attachment_url) {
+                documentsByType.medical_order = {
+                  id: 'medical_order',
+                  file_url: orderData.attachment_url,
+                  file_name: orderData.attachment_name || 'Orden médica',
+                  uploaded_by: 'system',
+                  uploaded_at: orderData.created_at,
+                  uploader_name: 'Sistema'
+                };
+              }
+            }
+
+            // Other documents from presentation_documents table
+            documents?.forEach((doc: any) => {
+              if (doc.document_type === 'clinical_evolution') {
+                documentsByType.clinical_evolution = {
+                  id: doc.id,
+                  file_url: doc.file_url,
+                  file_name: doc.file_name,
+                  uploaded_by: doc.uploaded_by,
+                  uploaded_at: doc.uploaded_at,
+                  uploader_name: `${doc.uploader?.first_name || ''} ${doc.uploader?.last_name || ''}`.trim()
+                };
+              } else if (doc.document_type === 'attendance_record') {
+                documentsByType.attendance_record = {
+                  id: doc.id,
+                  file_url: doc.file_url,
+                  file_name: doc.file_name,
+                  uploaded_by: doc.uploaded_by,
+                  uploaded_at: doc.uploaded_at,
+                  uploader_name: `${doc.uploader?.first_name || ''} ${doc.uploader?.last_name || ''}`.trim()
+                };
+              } else if (doc.document_type === 'social_work_authorization') {
+                documentsByType.social_work_authorization = {
+                  id: doc.id,
+                  file_url: doc.file_url,
+                  file_name: doc.file_name,
+                  uploaded_by: doc.uploaded_by,
+                  uploaded_at: doc.uploaded_at,
+                  uploader_name: `${doc.uploader?.first_name || ''} ${doc.uploader?.last_name || ''}`.trim()
+                };
+              }
+            });
+
+            // Convert optimized order to full PresentationOrder format
+            return {
+              id: order.id,
+              description: order.description,
+              total_sessions: order.total_sessions,
+              sessions_used: order.sessions_used,
+              completed: order.completed,
+              presentation_status: order.presentation_status || 'pending',
+              patient: {
+                id: order.patient_id,
+                profile: {
+                  first_name: order.patient_name?.split(' ')[0] || '',
+                  last_name: order.patient_name?.split(' ').slice(1).join(' ') || '',
+                  dni: order.patient_dni || null,
+                }
+              },
+              obra_social: {
+                id: order.obra_social_art_id || '',
+                nombre: order.obra_social_name || 'Sin obra social',
+                tipo: order.obra_social_type || 'particular'
+              },
+              doctor_name: order.professional_name,
+              created_at: order.created_at,
+              attachment_url: documentsByType.medical_order?.file_url || null,
+              attachment_name: documentsByType.medical_order?.file_name || null,
+              documents: documentsByType,
+              sessions_completed: order.sessions_completed,
+              actual_completed_sessions: order.completed_appointments_count
+            } as PresentationOrder;
+          })
+        );
+
+        console.log(`✅ Enhanced orders: ${enhancedOrders.length}`);
+        return { 
+          presentations: enhancedOrders, 
+          totalCount, 
+          totalPages: Math.ceil(totalCount / 50) 
+        };
+
+      } catch (error) {
+        console.error("❌ Error in enhanced presentations query:", error);
+        throw error;
+      }
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const presentations = presentationsData?.presentations || [];
-  const totalCount = presentationsData?.totalCount || 0;
-  const totalPages = presentationsData?.totalPages || 1;
+  const presentationOrders = presentations?.presentations || [];
+  const totalCount = presentations?.totalCount || 0;
+  const totalPages = presentations?.totalPages || 1;
 
+  // Document management functions - RESTORED COMPLETE FUNCTIONALITY
   const handleFileUpload = async (
     orderId: string, 
     documentTypes: ('clinical_evolution' | 'attendance_record' | 'social_work_authorization')[], 
@@ -204,7 +387,7 @@ export default function Presentaciones() {
   };
 
   const handleEditDocument = (orderId: string, docType: 'clinical_evolution' | 'attendance_record' | 'social_work_authorization') => {
-    setSelectedOrder(presentations.find(p => p.id === orderId) || null);
+    setSelectedOrder(presentationOrders.find(p => p.id === orderId) || null);
     setUploadType(docType);
     setEditMode(true);
     setIsUploadDialogOpen(true);
@@ -310,13 +493,11 @@ export default function Presentaciones() {
     }
   };
 
-  const refreshPresentationFiles = () => {
-    refetch();
-  };
-
   const validateDocumentsForPDF = (order: PresentationOrder) => {
-    // With the optimized structure, we use has_documents to check if documents exist
-    return order.has_documents && order.sessions_completed;
+    const docs = order.documents;
+    const hasAllDocs = docs.medical_order && docs.clinical_evolution && docs.attendance_record && docs.social_work_authorization;
+    const sessionsCompleted = order.sessions_completed;
+    return hasAllDocs && sessionsCompleted;
   };
 
   const generatePDF = async (order: PresentationOrder) => {
@@ -354,21 +535,22 @@ export default function Presentaciones() {
         color: rgb(0, 0, 0),
       });
 
-      titlePage.drawText(`Paciente: ${order.patient_name}`, {
+      const patientName = `${order.patient.profile.first_name} ${order.patient.profile.last_name}`;
+      titlePage.drawText(`Paciente: ${patientName}`, {
         x: 50,
         y: height - 150,
         size: 14,
         font: font,
       });
 
-      titlePage.drawText(`Obra Social: ${order.obra_social_name || 'N/A'}`, {
+      titlePage.drawText(`Obra Social: ${order.obra_social.nombre}`, {
         x: 50,
         y: height - 180,
         size: 14,
         font: font,
       });
 
-      titlePage.drawText(`Profesional: ${order.professional_name}`, {
+      titlePage.drawText(`Profesional: ${order.doctor_name || 'Sin asignar'}`, {
         x: 50,
         y: height - 210,
         size: 14,
@@ -382,7 +564,7 @@ export default function Presentaciones() {
         font: font,
       });
 
-      titlePage.drawText(`Sesiones: ${order.completed_appointments_count}/${order.total_sessions}`, {
+      titlePage.drawText(`Sesiones: ${order.actual_completed_sessions}/${order.total_sessions}`, {
         x: 50,
         y: height - 270,
         size: 14,
@@ -396,15 +578,30 @@ export default function Presentaciones() {
         font: font,
       });
 
-      // Add documents
+      // Add medical order document first
+      if (order.documents.medical_order) {
+        try {
+          const docData = await downloadDocument(order.documents.medical_order.file_url);
+          const docBytes = await docData.arrayBuffer();
+          
+          if (order.documents.medical_order.file_name.toLowerCase().endsWith('.pdf')) {
+            const embeddedPdf = await PDFDocument.load(docBytes);
+            const pages = await pdfDoc.copyPages(embeddedPdf, embeddedPdf.getPageIndices());
+            pages.forEach((page) => pdfDoc.addPage(page));
+          }
+        } catch (error) {
+          console.error(`Error embedding medical order:`, error);
+        }
+      }
+
+      // Add other documents
       for (const doc of documents || []) {
         try {
           const docData = await downloadDocument(doc.file_url);
           const docBytes = await docData.arrayBuffer();
-          const uint8Array = new Uint8Array(docBytes);
           
           if (doc.file_name.toLowerCase().endsWith('.pdf')) {
-            const embeddedPdf = await PDFDocument.load(uint8Array);
+            const embeddedPdf = await PDFDocument.load(docBytes);
             const pages = await pdfDoc.copyPages(embeddedPdf, embeddedPdf.getPageIndices());
             pages.forEach((page) => pdfDoc.addPage(page));
           }
@@ -413,14 +610,14 @@ export default function Presentaciones() {
         }
       }
 
-        // Save the PDF
-        const pdfBytes = await pdfDoc.save();
-        const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
+      // Save the PDF
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       
       const a = document.createElement('a');
       a.href = url;
-      a.download = `presentacion_${order.patient_name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      a.download = `presentacion_${patientName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -442,27 +639,27 @@ export default function Presentaciones() {
     }
   };
 
-  const getDocumentStatus = (order: PresentationOrder) => {
-    const totalSessions = order.total_sessions || 0;
-    const completedSessions = order.completed_appointments_count || 0;
-    const hasDocuments = order.has_documents;
-    const isOrderCompleted = order.completed;
-    const isSessionsCompleted = totalSessions > 0 && completedSessions >= totalSessions;
-
-    // Determinar si las sesiones están completas
-    const sessionsCompleted = isOrderCompleted || isSessionsCompleted;
+  const getDocumentStatus = (presentation: PresentationOrder) => {
+    const docs = presentation.documents;
+    const hasAllDocs = docs.medical_order && docs.clinical_evolution && docs.attendance_record && docs.social_work_authorization;
+    const sessionsCompleted = presentation.sessions_completed;
+    const actualCompletedSessions = presentation.actual_completed_sessions || 0;
+    
+    const docCount = [
+      docs.medical_order,
+      docs.clinical_evolution,
+      docs.attendance_record,
+      docs.social_work_authorization
+    ].filter(Boolean).length;
 
     return {
+      hasAllDocs,
       sessionsCompleted,
-      hasDocuments,
-      completedSessions,
-      totalSessions,
-      documentsCount: order.document_count || 0,
-      canGeneratePDF: sessionsCompleted && hasDocuments,
-      // Determinar el estado general
-      status: sessionsCompleted && hasDocuments ? 'ready' : 
-              sessionsCompleted && !hasDocuments ? 'missing-docs' :
-              !sessionsCompleted ? 'pending-sessions' : 'pending'
+      docCount,
+      totalDocs: 4,
+      canGeneratePDF: hasAllDocs && sessionsCompleted,
+      actualCompletedSessions,
+      totalSessions: presentation.total_sessions
     };
   };
 
@@ -476,12 +673,12 @@ export default function Presentaciones() {
           </div>
         </div>
 
-        {/* Filtros */}
+        {/* FILTROS OPTIMIZADOS */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Filter className="h-5 w-5" />
-              Filtros
+              Filtros Optimizados
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -490,7 +687,7 @@ export default function Presentaciones() {
                 <Label htmlFor="obra-social">Obra Social</Label>
                 <Select 
                   value={filters.obra_social_id} 
-                  onValueChange={(value) => setFilters(prev => ({ ...prev, obra_social_id: value === "all" ? "" : value, page: 1 }))}
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, obra_social_id: value, page: 1 }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todas" />
@@ -527,8 +724,10 @@ export default function Presentaciones() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="ready">Listo para presentar</SelectItem>
-                    <SelectItem value="pending">En preparación</SelectItem>
+                    <SelectItem value="ready_to_present">Listo para presentar</SelectItem>
+                    <SelectItem value="in_preparation">En preparación</SelectItem>
+                    <SelectItem value="missing_attendance">Falta planilla</SelectItem>
+                    <SelectItem value="pdf_generated">PDF generado</SelectItem>
                     <SelectItem value="submitted">Presentado</SelectItem>
                   </SelectContent>
                 </Select>
@@ -555,7 +754,7 @@ export default function Presentaciones() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="search">Buscar</Label>
+                <Label htmlFor="search">Buscar (Optimizado)</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -571,7 +770,7 @@ export default function Presentaciones() {
           </CardContent>
         </Card>
 
-        {/* Results Counter and Pagination Info */}
+        {/* PAGINACIÓN INFO */}
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm text-muted-foreground">
             {isLoading ? (
@@ -606,14 +805,14 @@ export default function Presentaciones() {
           )}
         </div>
 
-        {/* Resultados */}
+        {/* RESULTADOS */}
         <div className="space-y-4">
           {isLoading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <Loader2 className="h-8 w-8 animate-spin mx-auto" />
               <p className="mt-2 text-muted-foreground">Cargando presentaciones...</p>
             </div>
-          ) : presentations.length === 0 ? (
+          ) : presentationOrders.length === 0 ? (
             <Card>
               <CardContent className="text-center py-8">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -622,11 +821,11 @@ export default function Presentaciones() {
               </CardContent>
             </Card>
           ) : (
-            presentations.map((order) => {
+            presentationOrders.map((order) => {
               const status = getDocumentStatus(order);
-              const patientName = order.patient_name || 'Sin nombre';
-              const professionalName = order.professional_name || 'Sin asignar';
-              const obraSocialName = order.obra_social_name || 'Sin obra social';
+              const patientName = `${order.patient.profile.first_name} ${order.patient.profile.last_name}`.trim();
+              const professionalName = order.doctor_name || 'Sin asignar';
+              const obraSocialName = order.obra_social.nombre;
 
               return (
                 <Card key={order.id} className="hover:shadow-md transition-shadow">
@@ -635,12 +834,6 @@ export default function Presentaciones() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <CardTitle className="text-lg">{patientName}</CardTitle>
-                          {order.urgent && (
-                            <Badge variant="destructive" className="text-xs">
-                              <AlertCircle className="h-3 w-3 mr-1" />
-                              Urgente
-                            </Badge>
-                          )}
                           {order.presentation_status === 'submitted' && (
                             <Badge variant="secondary" className="text-xs">
                               <Send className="h-3 w-3 mr-1" />
@@ -661,20 +854,20 @@ export default function Presentaciones() {
                         ) : (
                           <Badge variant="secondary" className="text-xs">
                             <Clock className="h-3 w-3 mr-1" />
-                            {status.completedSessions}/{status.totalSessions} sesiones
+                            {status.actualCompletedSessions}/{status.totalSessions} sesiones
                           </Badge>
                         )}
 
                         {/* Estado de documentos */}
-                        {status.hasDocuments ? (
+                        {status.hasAllDocs ? (
                           <Badge variant="default" className="text-xs">
                             <FileText className="h-3 w-3 mr-1" />
-                            {status.documentsCount} documentos
+                            {status.docCount}/4 documentos
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-xs">
                             <XCircle className="h-3 w-3 mr-1" />
-                            Sin documentos
+                            {status.docCount}/4 documentos
                           </Badge>
                         )}
                       </div>
@@ -699,7 +892,7 @@ export default function Presentaciones() {
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <span className="text-muted-foreground">Fecha:</span>
                         <span className="font-medium">
-                          {new Date(order.order_date).toLocaleDateString('es-AR')}
+                          {new Date(order.created_at).toLocaleDateString('es-AR')}
                         </span>
                       </div>
                     </div>
@@ -722,7 +915,11 @@ export default function Presentaciones() {
                             onClick={() => generatePDF(order)}
                             disabled={generatingPdf === order.id}
                           >
-                            <Download className="h-4 w-4 mr-1" />
+                            {generatingPdf === order.id ? (
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4 mr-1" />
+                            )}
                             {generatingPdf === order.id ? 'Generando...' : 'Generar PDF'}
                           </Button>
                         )}
@@ -746,7 +943,7 @@ export default function Presentaciones() {
           )}
         </div>
 
-        {/* Bottom Pagination */}
+        {/* PAGINACIÓN */}
         {totalPages > 1 && (
           <div className="flex items-center justify-center mt-6">
             <div className="flex items-center gap-2">
@@ -773,41 +970,332 @@ export default function Presentaciones() {
           </div>
         )}
 
-        {/* Document Management Dialog - Simplified for now */}
+        {/* GESTIÓN DE DOCUMENTOS - DIÁLOGO COMPLETO RESTAURADO */}
         <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                Gestionar Documentos - {selectedOrder?.patient_name}
+                Gestionar Documentos - {selectedOrder && `${selectedOrder.patient.profile.first_name} ${selectedOrder.patient.profile.last_name}`}
+              </DialogTitle>
+            </DialogHeader>
+            
+            {selectedOrder && (
+              <div className="space-y-6">
+                {/* Estado de la presentación */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 border rounded-lg">
+                    <h3 className="font-medium mb-2">Estado de Sesiones</h3>
+                    <div className="flex items-center gap-2">
+                      {selectedOrder.sessions_completed ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <Clock className="h-5 w-5 text-yellow-500" />
+                      )}
+                      <span>
+                        {selectedOrder.actual_completed_sessions || 0}/{selectedOrder.total_sessions} sesiones completadas
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg">
+                    <h3 className="font-medium mb-2">Estado General</h3>
+                    <div className="flex items-center gap-2">
+                      {getDocumentStatus(selectedOrder).canGeneratePDF ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <AlertCircle className="h-5 w-5 text-yellow-500" />
+                      )}
+                      <span>
+                        {getDocumentStatus(selectedOrder).canGeneratePDF ? 'Lista para presentar' : 'Faltan documentos o sesiones'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Documentos */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Documentos de la Presentación</h3>
+                  
+                  {/* Orden médica */}
+                  <div className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">📄 Orden Médica</h4>
+                      {selectedOrder.documents.medical_order ? (
+                        <Badge variant="default">Subido</Badge>
+                      ) : (
+                        <Badge variant="outline">Pendiente</Badge>
+                      )}
+                    </div>
+                    
+                    {selectedOrder.documents.medical_order ? (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm">{selectedOrder.documents.medical_order.file_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Subido por {selectedOrder.documents.medical_order.uploader_name} - {format(new Date(selectedOrder.documents.medical_order.uploaded_at), "dd/MM/yyyy HH:mm", { locale: es })}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleViewDocument(selectedOrder.documents.medical_order!.file_url, selectedOrder.documents.medical_order!.file_name)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleDownloadDocument(selectedOrder.documents.medical_order!.file_url, selectedOrder.documents.medical_order!.file_name)}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No hay orden médica cargada</p>
+                    )}
+                  </div>
+
+                  {/* Evolución clínica */}
+                  <div className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">📋 Evolución Clínica</h4>
+                      {selectedOrder.documents.clinical_evolution ? (
+                        <Badge variant="default">Subido</Badge>
+                      ) : (
+                        <Badge variant="outline">Pendiente</Badge>
+                      )}
+                    </div>
+                    
+                    {selectedOrder.documents.clinical_evolution ? (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm">{selectedOrder.documents.clinical_evolution.file_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Subido por {selectedOrder.documents.clinical_evolution.uploader_name} - {format(new Date(selectedOrder.documents.clinical_evolution.uploaded_at), "dd/MM/yyyy HH:mm", { locale: es })}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleViewDocument(selectedOrder.documents.clinical_evolution!.file_url, selectedOrder.documents.clinical_evolution!.file_name)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleDownloadDocument(selectedOrder.documents.clinical_evolution!.file_url, selectedOrder.documents.clinical_evolution!.file_name)}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleEditDocument(selectedOrder.id, 'clinical_evolution')}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => confirmDeleteDocument(selectedOrder.id, 'clinical_evolution', selectedOrder.documents.clinical_evolution!.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">No hay evolución clínica</p>
+                        <Button size="sm" onClick={() => {
+                          setUploadType('clinical_evolution');
+                          setIsMultiUpload(false);
+                          setIsUploadDialogOpen(true);
+                        }}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Subir
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Planilla de asistencia */}
+                  <div className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">📊 Planilla de Asistencia</h4>
+                      {selectedOrder.documents.attendance_record ? (
+                        <Badge variant="default">Subido</Badge>
+                      ) : (
+                        <Badge variant="outline">Pendiente</Badge>
+                      )}
+                    </div>
+                    
+                    {selectedOrder.documents.attendance_record ? (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm">{selectedOrder.documents.attendance_record.file_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Subido por {selectedOrder.documents.attendance_record.uploader_name} - {format(new Date(selectedOrder.documents.attendance_record.uploaded_at), "dd/MM/yyyy HH:mm", { locale: es })}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleViewDocument(selectedOrder.documents.attendance_record!.file_url, selectedOrder.documents.attendance_record!.file_name)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleDownloadDocument(selectedOrder.documents.attendance_record!.file_url, selectedOrder.documents.attendance_record!.file_name)}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleEditDocument(selectedOrder.id, 'attendance_record')}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => confirmDeleteDocument(selectedOrder.id, 'attendance_record', selectedOrder.documents.attendance_record!.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">No hay planilla de asistencia</p>
+                        <Button size="sm" onClick={() => {
+                          setUploadType('attendance_record');
+                          setIsMultiUpload(false);
+                          setIsUploadDialogOpen(true);
+                        }}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Subir
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Autorización obra social */}
+                  <div className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">🏥 Autorización Obra Social</h4>
+                      {selectedOrder.documents.social_work_authorization ? (
+                        <Badge variant="default">Subido</Badge>
+                      ) : (
+                        <Badge variant="outline">Pendiente</Badge>
+                      )}
+                    </div>
+                    
+                    {selectedOrder.documents.social_work_authorization ? (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm">{selectedOrder.documents.social_work_authorization.file_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Subido por {selectedOrder.documents.social_work_authorization.uploader_name} - {format(new Date(selectedOrder.documents.social_work_authorization.uploaded_at), "dd/MM/yyyy HH:mm", { locale: es })}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleViewDocument(selectedOrder.documents.social_work_authorization!.file_url, selectedOrder.documents.social_work_authorization!.file_name)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleDownloadDocument(selectedOrder.documents.social_work_authorization!.file_url, selectedOrder.documents.social_work_authorization!.file_name)}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleEditDocument(selectedOrder.id, 'social_work_authorization')}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => confirmDeleteDocument(selectedOrder.id, 'social_work_authorization', selectedOrder.documents.social_work_authorization!.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">No hay autorización de obra social</p>
+                        <Button size="sm" onClick={() => {
+                          setUploadType('social_work_authorization');
+                          setIsMultiUpload(false);
+                          setIsUploadDialogOpen(true);
+                        }}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Subir
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Opciones adicionales */}
+                  <div className="flex gap-2 pt-4">
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => {
+                        setIsMultiUpload(true);
+                        setSelectedDocumentTypes([]);
+                        setIsUploadDialogOpen(true);
+                      }}
+                    >
+                      <Upload className="h-4 w-4 mr-1" />
+                      Subida Múltiple
+                    </Button>
+                    
+                    {getDocumentStatus(selectedOrder).canGeneratePDF && (
+                      <Button onClick={() => generatePDF(selectedOrder)} disabled={generatingPdf === selectedOrder.id}>
+                        {generatingPdf === selectedOrder.id ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <FileDown className="h-4 w-4 mr-1" />
+                        )}
+                        {generatingPdf === selectedOrder.id ? 'Generando...' : 'Generar PDF Consolidado'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* DIÁLOGO DE SUBIDA DE ARCHIVOS */}
+        <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {editMode ? 'Editar Documento' : isMultiUpload ? 'Subida Múltiple' : 'Subir Documento'}
               </DialogTitle>
             </DialogHeader>
             
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Los documentos de presentación para esta orden médica se gestionan a través del sistema optimizado.
-                Para una gestión completa de documentos, use la interfaz específica de cada orden.
-              </p>
+              {isMultiUpload && (
+                <div className="space-y-2">
+                  <Label>Selecciona los tipos de documento:</Label>
+                  <div className="space-y-2">
+                    {(['clinical_evolution', 'attendance_record', 'social_work_authorization'] as const).map((type) => (
+                      <div key={type} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={type}
+                          checked={selectedDocumentTypes.includes(type)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedDocumentTypes(prev => [...prev, type]);
+                            } else {
+                              setSelectedDocumentTypes(prev => prev.filter(t => t !== type));
+                            }
+                          }}
+                        />
+                        <Label htmlFor={type} className="text-sm">
+                          {type === 'clinical_evolution' ? 'Evolución Clínica' :
+                           type === 'attendance_record' ? 'Planilla de Asistencia' :
+                           'Autorización Obra Social'}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-medium">Estado de Sesiones</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedOrder?.completed_appointments_count || 0}/{selectedOrder?.total_sessions || 0} completadas
-                  </p>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-medium">Documentos</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedOrder?.document_count || 0} documentos cargados
-                  </p>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="file">Seleccionar archivo</Label>
+                <Input
+                  id="file"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file && selectedOrder) {
+                      if (isMultiUpload && selectedDocumentTypes.length > 0) {
+                        handleFileUpload(selectedOrder.id, selectedDocumentTypes, file);
+                      } else if (uploadType) {
+                        handleSingleFileUpload(selectedOrder.id, uploadType, file);
+                      }
+                    }
+                  }}
+                  disabled={!!uploadingDoc}
+                />
               </div>
+              
+              {uploadingDoc && (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">Subiendo archivo...</span>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
 
-        {/* Document Viewer Dialog */}
+        {/* VISUALIZADOR DE DOCUMENTOS */}
         <Dialog open={documentViewerOpen} onOpenChange={setDocumentViewerOpen}>
           <DialogContent className="max-w-6xl max-h-[90vh]">
             <DialogHeader>
@@ -826,7 +1314,7 @@ export default function Presentaciones() {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation Dialog */}
+        {/* CONFIRMACIÓN DE ELIMINACIÓN */}
         <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
