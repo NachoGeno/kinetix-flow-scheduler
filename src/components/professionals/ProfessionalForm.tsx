@@ -123,16 +123,18 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
   // Cargar datos del doctor si estamos editando
   useEffect(() => {
     if (doctorData && specialties.length > 0) {
-      const specialty = specialties.find(s => s.name === doctorData.specialty.name);
+      const specialty = doctorData.specialty && doctorData.specialty.name 
+        ? specialties.find(s => s.name === doctorData.specialty.name)
+        : null;
       
       form.reset({
-        first_name: doctorData.profile.first_name,
-        last_name: doctorData.profile.last_name,
-        email: doctorData.profile.email,
-        phone: doctorData.profile.phone || '',
+        first_name: doctorData.profile?.first_name || '',
+        last_name: doctorData.profile?.last_name || '',
+        email: doctorData.profile?.email || '',
+        phone: doctorData.profile?.phone || '',
         dni: '', // No tenemos este dato en la interface actual
         specialty_id: specialty?.id || '',
-        license_number: doctorData.license_number,
+        license_number: doctorData.license_number || '',
         years_experience: doctorData.years_experience || 0,
         consultation_fee: doctorData.consultation_fee || 0,
         bio: doctorData.bio || '',
