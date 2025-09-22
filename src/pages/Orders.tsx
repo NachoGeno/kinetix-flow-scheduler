@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, FileText, User, Calendar, Clock, CalendarPlus, Download, Eye, CalendarIcon, FileWarning } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, FileText, User, Calendar, Clock, CalendarPlus, Download, Eye, CalendarIcon, FileWarning, X, Filter } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,9 +11,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganizationContext } from '@/hooks/useOrganizationContext';
+import { useDoctors } from '@/hooks/useDoctors';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn, parseDateOnly } from '@/lib/utils';
 import MedicalOrderForm from '@/components/appointments/MedicalOrderForm';
@@ -47,6 +48,7 @@ interface MedicalOrder {
     };
   } | null;
   doctor: {
+    id: string;
     profile: {
       first_name: string;
       last_name: string;
@@ -78,6 +80,7 @@ export default function Orders() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [doctorFilter, setDoctorFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState<Date>(new Date());
   const [showAllDates, setShowAllDates] = useState(false);
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
@@ -89,6 +92,7 @@ export default function Orders() {
   const { profile } = useAuth();
   const { currentOrgId } = useOrganizationContext();
   const { toast } = useToast();
+  const { data: doctors = [], isLoading: doctorsLoading } = useDoctors();
 
   useEffect(() => {
     fetchOrders();
@@ -108,6 +112,7 @@ export default function Orders() {
             profile:profiles!inner(first_name, last_name, dni)
           ),
           doctor:doctors(
+            id,
             profile:profiles(first_name, last_name),
             specialty:specialties(name, color)
           )
@@ -348,10 +353,41 @@ export default function Orders() {
     }
   };
 
-  const filteredOrders = orders.filter(order => {
-    // Add safety checks for filtering
-    console.log('Filtering order:', order.id, 'has patient:', !!order.patient);
+  // Quick date filter functions
+  const setQuickDateFilter = (type: 'today' | 'week' | 'month') => {
+    const today = new Date();
     
+    switch (type) {
+      case 'today':
+        setDateFilter(today);
+        setShowAllDates(false);
+        break;
+      case 'week':
+        setDateFilter(startOfWeek(today, { weekStartsOn: 1 }));
+        setShowAllDates(true);
+        break;
+      case 'month':
+        setDateFilter(startOfMonth(today));
+        setShowAllDates(true);
+        break;
+    }
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setDoctorFilter('all');
+    setDateFilter(new Date());
+    setShowAllDates(false);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = searchTerm || statusFilter !== 'all' || typeFilter !== 'all' || 
+                          doctorFilter !== 'all' || showAllDates;
+
+  const filteredOrders = orders.filter(order => {
     const matchesSearch = order.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (order.patient?.profile?.first_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                          (order.patient?.profile?.last_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -365,7 +401,10 @@ export default function Orders() {
     
     const matchesType = typeFilter === 'all' || order.order_type === typeFilter;
     
-    return matchesSearch && matchesStatus && matchesType;
+    const matchesDoctor = doctorFilter === 'all' || 
+                         (order.doctor?.id === doctorFilter);
+    
+    return matchesSearch && matchesStatus && matchesType && matchesDoctor;
   });
 
   if (loading) {
@@ -405,18 +444,72 @@ export default function Orders() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar órdenes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+      <div className="space-y-4">
+        {/* Search and Results Counter */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar órdenes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-muted-foreground">
+              <Filter className="inline h-4 w-4 mr-1" />
+              {filteredOrders.length} de {orders.length} órdenes
+            </div>
+            
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearAllFilters}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Limpiar filtros
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Date Filters */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setQuickDateFilter('today')}
+            className={cn(
+              "text-sm",
+              !showAllDates && format(dateFilter, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && "bg-primary/10"
+            )}
+          >
+            Hoy
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setQuickDateFilter('week')}
+            className="text-sm"
+          >
+            Esta semana
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setQuickDateFilter('month')}
+            className="text-sm"
+          >
+            Este mes
+          </Button>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-4">
+        {/* Main Filters */}
+        <div className="flex flex-col lg:flex-row gap-4">
           {/* Date Filter */}
           <div className="flex gap-2">
             <Popover>
@@ -452,30 +545,46 @@ export default function Orders() {
             </Button>
           </div>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los estados</SelectItem>
-              <SelectItem value="pending">Pendientes</SelectItem>
-              <SelectItem value="completed">Completadas</SelectItem>
-              <SelectItem value="pending_document">Pendientes de documento</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los tipos</SelectItem>
-              <SelectItem value="laboratory">Laboratorio</SelectItem>
-              <SelectItem value="imaging">Imagenología</SelectItem>
-              <SelectItem value="prescription">Prescripción</SelectItem>
-              <SelectItem value="referral">Derivación</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col sm:flex-row gap-4 flex-1">
+            <Select value={doctorFilter} onValueChange={setDoctorFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Médico" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los médicos</SelectItem>
+                {Array.isArray(doctors) && doctors.map((doctor: any) => (
+                  <SelectItem key={doctor.id} value={doctor.id}>
+                    {doctor.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="pending">Pendientes</SelectItem>
+                <SelectItem value="completed">Completadas</SelectItem>
+                <SelectItem value="pending_document">Pendientes de documento</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                <SelectItem value="laboratory">Laboratorio</SelectItem>
+                <SelectItem value="imaging">Imagenología</SelectItem>
+                <SelectItem value="prescription">Prescripción</SelectItem>
+                <SelectItem value="referral">Derivación</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
