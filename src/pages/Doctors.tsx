@@ -35,6 +35,7 @@ interface Doctor {
     avatar_url: string;
   };
   specialty: {
+    id: string;
     name: string;
     color: string;
   };
@@ -83,6 +84,7 @@ export default function Doctors() {
             avatar_url
           ),
           specialty:specialties(
+            id,
             name,
             color
           )
@@ -149,28 +151,12 @@ export default function Doctors() {
         return;
       }
 
-      console.log('All database queries failed, using hardcoded specialties with real UUIDs from migrations...');
-      
-      // Usar UUIDs que probablemente existan basados en las migraciones
-      const knownSpecialties: Specialty[] = [
-        { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Kinesiología y Fisioterapia', color: '#3B82F6' },
-        { id: '550e8400-e29b-41d4-a716-446655440002', name: 'Medicina General', color: '#10B981' },
-        { id: '550e8400-e29b-41d4-a716-446655440003', name: 'Traumatología', color: '#F59E0B' },
-        { id: '550e8400-e29b-41d4-a716-446655440004', name: 'Neurología', color: '#8B5CF6' }
-      ];
-      
-      console.log('Using known specialties:', knownSpecialties);
-      setSpecialties(knownSpecialties);
+      console.log('No specialties found in database');
+      setSpecialties([]);
       
     } catch (error) {
       console.error('Error with specialties:', error);
-      
-      // Último recurso con UUIDs más probables
-      const emergencySpecialties: Specialty[] = [
-        { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Kinesiología y Fisioterapia', color: '#3B82F6' },
-        { id: '550e8400-e29b-41d4-a716-446655440002', name: 'Medicina General', color: '#10B981' }
-      ];
-      setSpecialties(emergencySpecialties);
+      setSpecialties([]);
     }
   };
 

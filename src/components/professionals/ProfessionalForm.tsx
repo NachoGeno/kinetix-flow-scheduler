@@ -68,6 +68,7 @@ interface Doctor {
     avatar_url: string;
   };
   specialty: {
+    id: string;
     name: string;
     color: string;
   };
@@ -123,12 +124,11 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
   // Cargar datos del doctor si estamos editando
   useEffect(() => {
     if (doctorData && specialties.length > 0) {
-      const specialty = doctorData.specialty && doctorData.specialty.name 
-        ? specialties.find(s => s.name === doctorData.specialty.name)
-        : null;
+      // Usar specialty.id directamente de doctorData para evitar errores
+      const specialty_id = doctorData.specialty?.id || '';
       
       console.log('Loading doctor data for edit:', doctorData);
-      console.log('Found specialty:', specialty);
+      console.log('Using specialty_id directly:', specialty_id);
       
       const formData = {
         first_name: doctorData.profile?.first_name || '',
@@ -136,7 +136,7 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
         email: doctorData.profile?.email || '',
         phone: doctorData.profile?.phone || '',
         dni: '', // DNI no disponible en modo edición
-        specialty_id: specialty?.id || '',
+        specialty_id: specialty_id,
         license_number: doctorData.license_number || '',
         years_experience: doctorData.years_experience || 0,
         consultation_fee: doctorData.consultation_fee || 0,
