@@ -75,7 +75,7 @@ export default function Presentaciones() {
   };
   
   const [filters, setFilters] = useState<FilterState>({
-    obra_social_id: '',
+    obra_social_id: 'all',
     professional: '',
     ...getDefaultDates(),
     status: 'all',
@@ -113,7 +113,7 @@ export default function Presentaciones() {
   // Use the new paginated hook
   const { data: presentationsData, isLoading, refetch } = usePaginatedPresentations({
     searchTerm: filters.search_term,
-    obraSocialId: filters.obra_social_id || undefined,
+    obraSocialId: filters.obra_social_id === 'all' ? undefined : filters.obra_social_id,
     professionalId: undefined, // Professional filter needs to be implemented in the DB function
     status: filters.status === 'all' ? undefined : filters.status,
     dateFrom: filters.date_from || undefined,
@@ -413,9 +413,9 @@ export default function Presentaciones() {
         }
       }
 
-      // Save the PDF
-      const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        // Save the PDF
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       
       const a = document.createElement('a');
@@ -490,13 +490,13 @@ export default function Presentaciones() {
                 <Label htmlFor="obra-social">Obra Social</Label>
                 <Select 
                   value={filters.obra_social_id} 
-                  onValueChange={(value) => setFilters(prev => ({ ...prev, obra_social_id: value, page: 1 }))}
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, obra_social_id: value === "all" ? "" : value, page: 1 }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas</SelectItem>
+                    <SelectItem value="all">Todas</SelectItem>
                     {obrasSociales?.map((os) => (
                       <SelectItem key={os.id} value={os.id}>
                         {os.nombre}
