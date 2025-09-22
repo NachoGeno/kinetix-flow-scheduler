@@ -2168,6 +2168,22 @@ export type Database = {
           total_count: number
         }[]
       }
+      search_presentations_paginated: {
+        Args: {
+          date_from?: string
+          date_to?: string
+          obra_social_filter?: string
+          page_number?: number
+          page_size?: number
+          professional_filter?: string
+          search_term?: string
+          status_filter?: string
+        }
+        Returns: {
+          presentation_data: Json
+          total_count: number
+        }[]
+      }
       validate_appointment_assignment_capacity: {
         Args: { additional_sessions?: number; order_id_param: string }
         Returns: boolean
