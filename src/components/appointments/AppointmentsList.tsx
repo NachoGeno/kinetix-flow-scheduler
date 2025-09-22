@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX, RotateCcw, ArrowRight, Info, Edit, CalendarIcon, X, LogOut, Undo2 } from 'lucide-react';
+import { Calendar, Clock, Search, Plus, Filter, Trash2, CheckCircle, UserCheck, UserX, RotateCcw, ArrowRight, Info, Edit, CalendarIcon, X, LogOut, Undo2, CalendarDays, CalendarClock, Users, Target, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -212,7 +212,7 @@ export default function AppointmentsList() {
   };
 
   // Debounce search term to avoid excessive API calls
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
   
   const pageSize = 50;
 
@@ -429,12 +429,12 @@ export default function AppointmentsList() {
     <TooltipProvider>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Lista de Citas</h1>
-            <p className="text-muted-foreground">
-              {totalCount} citas encontradas
-            </p>
-          </div>
+            <div>
+              <h1 className="text-3xl font-bold">Lista de Citas</h1>
+              <p className="text-muted-foreground mt-1">
+                Gestiona y visualiza las citas médicas
+              </p>
+            </div>
           {profile?.role === 'patient' && (
             <Dialog open={showNewAppointmentDialog} onOpenChange={setShowNewAppointmentDialog}>
               <DialogTrigger asChild>
@@ -458,20 +458,104 @@ export default function AppointmentsList() {
           <CardHeader className="pb-4">
             <CardTitle className="text-lg flex items-center gap-2">
               <Filter className="h-5 w-5" />
-              Filtros
+              Filtros y Búsqueda
             </CardTitle>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Target className="h-4 w-4" />
+                {totalCount} resultado{totalCount !== 1 ? 's' : ''} encontrado{totalCount !== 1 ? 's' : ''}
+              </span>
+              {(searchTerm || selectedStatus !== 'all' || selectedDateFrom || selectedDateTo) && (
+                <span className="text-primary">Filtros activos</span>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
+            {/* Quick Filters */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Accesos Rápidos</label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={!selectedDateFrom && !selectedDateTo && selectedStatus === 'all' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedDateFrom(undefined);
+                    setSelectedDateTo(undefined);
+                    setSelectedStatus('all');
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs"
+                >
+                  <CalendarDays className="h-3 w-3 mr-1" />
+                  Todos
+                </Button>
+                <Button
+                  variant={selectedDateFrom && isSameDay(selectedDateFrom, new Date()) ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    const today = new Date();
+                    setSelectedDateFrom(today);
+                    setSelectedDateTo(today);
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs"
+                >
+                  <CalendarClock className="h-3 w-3 mr-1" />
+                  Hoy
+                </Button>
+                <Button
+                  variant={selectedStatus === 'scheduled' || selectedStatus === 'confirmed' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedStatus(selectedStatus === 'confirmed' ? 'scheduled' : 'confirmed');
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs"
+                >
+                  <Users className="h-3 w-3 mr-1" />
+                  Pendientes
+                </Button>
+                <Button
+                  variant={selectedStatus === 'completed' && selectedDateFrom && isSameDay(selectedDateFrom, new Date()) ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    const today = new Date();
+                    setSelectedDateFrom(today);
+                    setSelectedDateTo(today);
+                    setSelectedStatus('completed');
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs"
+                >
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Completadas Hoy
+                </Button>
+              </div>
+            </div>
+
             {/* Search and Status Filters */}
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por paciente, doctor o motivo..."
+                  placeholder="Buscar por paciente, doctor, especialidad o motivo..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 pr-10"
                 />
+                {isLoading && (
+                  <Loader2 className="absolute right-8 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-transparent"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger className="w-full sm:w-48">
@@ -493,64 +577,128 @@ export default function AppointmentsList() {
               </Select>
             </div>
 
-            {/* Date Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-2 block">Desde</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !selectedDateFrom && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDateFrom ? format(selectedDateFrom, "PPP", { locale: es }) : "Fecha inicio"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={selectedDateFrom}
-                      onSelect={setSelectedDateFrom}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+            {/* Date Filters with Presets */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Filtro por Fechas</label>
+              
+              {/* Date Presets */}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    setSelectedDateFrom(yesterday);
+                    setSelectedDateTo(yesterday);
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs"
+                >
+                  Ayer
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const today = new Date();
+                    const startOfWeek = new Date(today);
+                    startOfWeek.setDate(today.getDate() - today.getDay());
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setDate(startOfWeek.getDate() + 6);
+                    setSelectedDateFrom(startOfWeek);
+                    setSelectedDateTo(endOfWeek);
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs"
+                >
+                  Esta Semana
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const today = new Date();
+                    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                    setSelectedDateFrom(startOfMonth);
+                    setSelectedDateTo(endOfMonth);
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs"
+                >
+                  Este Mes
+                </Button>
               </div>
+              
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-2 block">Desde</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !selectedDateFrom && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDateFrom ? format(selectedDateFrom, "PPP", { locale: es }) : "Fecha inicio"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={selectedDateFrom}
+                        onSelect={setSelectedDateFrom}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-2 block">Hasta</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !selectedDateTo && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDateTo ? format(selectedDateTo, "PPP", { locale: es }) : "Fecha fin"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={selectedDateTo}
-                      onSelect={setSelectedDateTo}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-2 block">Hasta</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !selectedDateTo && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDateTo ? format(selectedDateTo, "PPP", { locale: es }) : "Fecha fin"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={selectedDateTo}
+                        onSelect={setSelectedDateTo}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
+              
+              {/* Date validation warning */}
+              {selectedDateFrom && selectedDateTo && isAfter(selectedDateFrom, selectedDateTo) && (
+                <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-200">
+                  ⚠️ La fecha "desde" no puede ser posterior a la fecha "hasta"
+                </div>
+              )}
             </div>
 
             {/* Clear Filters */}
             {(searchTerm || selectedStatus !== 'all' || selectedDateFrom || selectedDateTo) && (
-              <div className="flex justify-end">
+              <div className="flex justify-between items-center pt-4 border-t">
+                <span className="text-sm text-muted-foreground">
+                  Mostrando {appointments.length} de {totalCount} resultados
+                </span>
                 <Button
                   variant="outline"
                   size="sm"
