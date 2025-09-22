@@ -26,7 +26,7 @@ const professionalFormSchema = z.object({
   email: z.string().email('Email inválido'),
   phone: z.string().min(10, 'El teléfono debe tener al menos 10 dígitos'),
   dni: z.string().optional(), // DNI opcional para modo edición
-  specialty_id: z.string().min(1, 'Debe seleccionar una especialidad'),
+  specialty_id: z.string().optional(), // Especialidad predeterminada
   license_number: z.string().min(1, 'El número de licencia es requerido'),
   years_experience: z.number().min(0, 'Los años de experiencia no pueden ser negativos'),
   consultation_fee: z.number().min(0, 'La tarifa no puede ser negativa'),
@@ -80,7 +80,6 @@ interface ProfessionalFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   doctorData?: Doctor | null;
-  specialties: Specialty[];
 }
 
 const workDaysOptions = [
@@ -93,7 +92,7 @@ const workDaysOptions = [
   { id: 'sunday', label: 'Domingo' },
 ];
 
-export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties }: ProfessionalFormProps) {
+export function ProfessionalForm({ onSuccess, onCancel, doctorData }: ProfessionalFormProps) {
   const [loading, setLoading] = useState(false);
   const [workDays, setWorkDays] = useState<string[]>(['monday', 'tuesday', 'wednesday', 'thursday', 'friday']);
   const { toast } = useToast();
@@ -108,7 +107,7 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
       email: '',
       phone: '',
       dni: '',
-      specialty_id: '',
+      specialty_id: '31dc5727-99c1-4c92-922d-2992befdd513', // Kinesiología y Fisioterapia
       license_number: '',
       years_experience: 0,
       consultation_fee: 0,
@@ -155,7 +154,7 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
       
       form.reset(formData);
     }
-  }, [doctorData, specialties, form]);
+  }, [doctorData, form]);
 
   const handleWorkDayChange = (dayId: string, checked: boolean) => {
     const updatedDays = checked 
@@ -217,7 +216,7 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
         const { error: doctorError } = await supabase
           .from('doctors')
           .update({
-            specialty_id: data.specialty_id,
+            specialty_id: '31dc5727-99c1-4c92-922d-2992befdd513', // Kinesiología y Fisioterapia
             license_number: data.license_number,
             years_experience: data.years_experience,
             consultation_fee: data.consultation_fee,
@@ -285,15 +284,8 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
 
         console.log('Profile created successfully:', profileData);
 
-        // Obtener el nombre de la especialidad seleccionada
-        const selectedSpecialty = specialties.find(s => s.id === data.specialty_id);
-        const specialtyName = selectedSpecialty ? selectedSpecialty.name : 'Medicina General';
-        
-        console.log('Creating specialty first, then doctor...');
-        
-        // Usar la especialidad Kinesiología y Fisioterapia existente
+        // Usar la especialidad Kinesiología y Fisioterapia predeterminada
         const kinesiologySpecialtyId = '31dc5727-99c1-4c92-922d-2992befdd513';
-        
         console.log('Usando especialidad Kinesiología y Fisioterapia:', kinesiologySpecialtyId);
         
         const { error: doctorError } = await supabase
@@ -304,7 +296,7 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
             license_number: data.license_number,
             years_experience: data.years_experience,
             consultation_fee: data.consultation_fee,
-            bio: data.bio || `Profesional especializado en ${specialtyName}`,
+            bio: data.bio || 'Profesional especializado en Kinesiología y Fisioterapia',
             hire_date: format(data.hire_date, 'yyyy-MM-dd'),
             work_days: data.work_days,
             work_start_time: data.work_start_time,
@@ -484,26 +476,11 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="specialty_id">Especialidad *</Label>
-                <Select 
-                  value={form.watch('specialty_id')} 
-                  onValueChange={(value) => form.setValue('specialty_id', value)} 
-                  disabled={loading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar especialidad" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {specialties.map((specialty) => (
-                      <SelectItem key={specialty.id} value={specialty.id}>
-                        {specialty.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {form.formState.errors.specialty_id && (
-                  <p className="text-sm text-destructive">{form.formState.errors.specialty_id.message}</p>
-                )}
+                <Label className="text-sm text-muted-foreground">Especialidad</Label>
+                <div className="p-3 bg-muted/50 rounded-md border">
+                  <span className="text-sm font-medium">Kinesiología y Fisioterapia</span>
+                  <p className="text-xs text-muted-foreground mt-1">Especialidad predeterminada para todos los profesionales</p>
+                </div>
               </div>
 
               <div className="space-y-2">
