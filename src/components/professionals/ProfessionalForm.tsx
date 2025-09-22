@@ -25,7 +25,7 @@ const professionalFormSchema = z.object({
   last_name: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
   email: z.string().email('Email inválido'),
   phone: z.string().min(10, 'El teléfono debe tener al menos 10 dígitos'),
-  dni: z.string().min(7, 'El DNI debe tener al menos 7 dígitos'),
+  dni: z.string().optional(), // DNI opcional para modo edición
   specialty_id: z.string().min(1, 'Debe seleccionar una especialidad'),
   license_number: z.string().min(1, 'El número de licencia es requerido'),
   years_experience: z.number().min(0, 'Los años de experiencia no pueden ser negativos'),
@@ -127,12 +127,15 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
         ? specialties.find(s => s.name === doctorData.specialty.name)
         : null;
       
-      form.reset({
+      console.log('Loading doctor data for edit:', doctorData);
+      console.log('Found specialty:', specialty);
+      
+      const formData = {
         first_name: doctorData.profile?.first_name || '',
         last_name: doctorData.profile?.last_name || '',
         email: doctorData.profile?.email || '',
         phone: doctorData.profile?.phone || '',
-        dni: '', // No tenemos este dato en la interface actual
+        dni: '', // DNI no disponible en modo edición
         specialty_id: specialty?.id || '',
         license_number: doctorData.license_number || '',
         years_experience: doctorData.years_experience || 0,
@@ -143,7 +146,14 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
         work_start_time: doctorData.work_start_time ? doctorData.work_start_time.substring(0, 5) : '08:00',
         work_end_time: doctorData.work_end_time ? doctorData.work_end_time.substring(0, 5) : '17:00',
         appointment_duration: doctorData.appointment_duration || 30,
-      });
+      };
+      
+      console.log('Setting form data:', formData);
+      
+      // Actualizar workDays state
+      setWorkDays(formData.work_days);
+      
+      form.reset(formData);
     }
   }, [doctorData, specialties, form]);
 
@@ -159,6 +169,8 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
   const onSubmit = async (data: ProfessionalFormData) => {
     try {
       setLoading(true);
+      console.log('Form submission data:', data);
+      console.log('Form validation errors:', form.formState.errors);
 
       if (doctorData) {
         // Modo edición - actualizar datos existentes
@@ -387,7 +399,7 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="dni">DNI *</Label>
+                <Label htmlFor="dni">DNI {!doctorData && '*'}</Label>
                 <Input
                   id="dni"
                   placeholder="Número de documento"
@@ -473,7 +485,11 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="specialty_id">Especialidad *</Label>
-                <Select onValueChange={(value) => form.setValue('specialty_id', value)} disabled={loading}>
+                <Select 
+                  value={form.watch('specialty_id')} 
+                  onValueChange={(value) => form.setValue('specialty_id', value)} 
+                  disabled={loading}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar especialidad" />
                   </SelectTrigger>
@@ -607,6 +623,7 @@ export function ProfessionalForm({ onSuccess, onCancel, doctorData, specialties 
                 <div className="space-y-2">
                   <Label htmlFor="appointment_duration">Duración de Cita (minutos) *</Label>
                   <Select 
+                    value={form.watch('appointment_duration')?.toString()} 
                     onValueChange={(value) => form.setValue('appointment_duration', parseInt(value))} 
                     disabled={loading}
                   >
