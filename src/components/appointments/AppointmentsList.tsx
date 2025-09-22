@@ -271,7 +271,7 @@ export default function AppointmentsList() {
     }
   };
 
-  const handleMarkAttendance = async (appointmentId: string, status: 'in_progress') => {
+  const handleMarkAttendance = async (appointmentId: string, status: 'completed') => {
     if (!profile) return;
 
     try {
@@ -314,7 +314,7 @@ export default function AppointmentsList() {
 
       toast({
         title: "Éxito",
-        description: 'Paciente marcado como asistido - Historia clínica unificada creada',
+        description: 'Paciente marcado como asistido y sesión completada',
       });
 
       refetchAppointments();
@@ -790,10 +790,10 @@ export default function AppointmentsList() {
                                     variant="outline"
                                     size="sm"
                                     className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
-                                     onClick={() => {
-                                       console.log('🎯 Intentando marcar presente:', appointment.patient?.profile?.first_name || 'N/A', appointment.patient?.profile?.last_name || 'N/A', appointment.appointment_date, appointment.appointment_time);
-                                       handleMarkAttendance(appointment.id, 'in_progress');
-                                     }}
+                                       onClick={() => {
+                                         console.log('🎯 Intentando marcar presente:', appointment.patient?.profile?.first_name || 'N/A', appointment.patient?.profile?.last_name || 'N/A', appointment.appointment_date, appointment.appointment_time);
+                                         handleMarkAttendance(appointment.id, 'completed');
+                                       }}
                                   >
                                    <UserCheck className="h-4 w-4" />
                                  </Button>
