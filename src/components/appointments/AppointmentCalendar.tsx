@@ -782,24 +782,6 @@ export default function AppointmentCalendar() {
                                                              <p>Marcar como asistido</p>
                                                            </TooltipContent>
                                                          </Tooltip>
-                                                         <Tooltip>
-                                                           <TooltipTrigger asChild>
-                                                             <Button
-                                                               variant="ghost"
-                                                               size="sm"
-                                                               className="w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                               onClick={(e) => {
-                                                                 e.stopPropagation();
-                                                                 handleStatusUpdate(appointment.id, 'no_show');
-                                                               }}
-                                                             >
-                                                               <XCircle className="h-4 w-4" />
-                                                             </Button>
-                                                           </TooltipTrigger>
-                                                           <TooltipContent>
-                                                             <p>Marcar como ausente</p>
-                                                           </TooltipContent>
-                                                         </Tooltip>
                                                        </>
                                                      ) : (
                                                        <Tooltip>
