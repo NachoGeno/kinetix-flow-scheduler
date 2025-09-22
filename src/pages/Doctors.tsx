@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/hooks/useAuth';
+import { useRolePermissions } from '@/hooks/useRolePermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ProfessionalForm } from '@/components/professionals/ProfessionalForm';
@@ -56,6 +57,7 @@ export default function Doctors() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const { profile } = useAuth();
+  const { canAccessAdminOnlyModules } = useRolePermissions();
   const { toast } = useToast();
   const { currentOrgId } = useOrganizationContext();
 
@@ -255,7 +257,7 @@ export default function Doctors() {
             Total: {filteredDoctors.length} profesionales activos
           </p>
         </div>
-        {profile?.role === 'admin' && (
+        {canAccessAdminOnlyModules() && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -390,7 +392,7 @@ export default function Doctors() {
                   <Button variant="outline" size="sm" onClick={() => handleViewProfile(doctor)}>
                     Ver Perfil
                   </Button>
-                  {profile?.role === 'admin' && (
+                  {canAccessAdminOnlyModules() && (
                     <>
                       <Button variant="outline" size="sm" onClick={() => handleEditDoctor(doctor)}>
                         Editar
