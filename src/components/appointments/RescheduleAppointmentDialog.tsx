@@ -225,71 +225,97 @@ export function RescheduleAppointmentDialog({
     console.log("Selected time input value:", data.appointment_time);
     console.log("Selected doctor ID:", data.doctor_id || appointment.doctor_id);
 
-    // Verify the date is being processed correctly
-    const selectedDate = new Date(data.appointment_date + 'T00:00:00');
-    console.log("Parsed selected date:", selectedDate);
-    console.log("Selected date ISO string:", selectedDate.toISOString());
-    console.log("Selected date local date string:", selectedDate.toLocaleDateString());
-
     setIsSubmitting(true);
 
     try {
-      // Create the new rescheduled appointment
-      console.log("Creating new appointment...");
-      const appointmentData = {
-        appointment_date: data.appointment_date,
-        appointment_time: data.appointment_time,
-        patient_id: appointment.patient_id,
-        doctor_id: data.doctor_id || appointment.doctor_id,
-        reason: appointment.reason,
-        status: 'scheduled' as const,
-        rescheduled_from_id: appointment.id,
-        rescheduled_by: profile.id,
-        reschedule_reason: data.reschedule_reason,
-        duration_minutes: appointment.duration_minutes || 30,
-        organization_id: currentOrgId,
-      };
-      
-      console.log("Appointment data being sent to DB:", appointmentData);
-      
-      const { data: newAppointment, error: insertError } = await supabase
-        .from("appointments")
-        .insert(appointmentData)
-        .select()
-        .single();
+      // Check if this is a no_show_rescheduled appointment that should be updated instead of creating new
+      if (appointment.status === 'no_show_rescheduled') {
+        console.log("Appointment is no_show_rescheduled - updating existing appointment");
+        
+        // Update the existing appointment with new date/time instead of creating a new one
+        const { error: updateError } = await supabase
+          .from("appointments")
+          .update({
+            appointment_date: data.appointment_date,
+            appointment_time: data.appointment_time,
+            doctor_id: data.doctor_id || appointment.doctor_id,
+            status: 'scheduled',
+            reschedule_reason: data.reschedule_reason,
+            rescheduled_at: new Date().toISOString(),
+            rescheduled_by: profile.id,
+          })
+          .eq('id', appointment.id);
 
-      if (insertError) {
-        console.error("Error creating rescheduled appointment:", insertError);
-        throw insertError;
+        if (updateError) {
+          console.error("Error updating no_show_rescheduled appointment:", updateError);
+          throw updateError;
+        }
+
+        console.log("No_show_rescheduled appointment updated successfully");
+
+        toast({
+          title: "¡Éxito!",
+          description: `Turno ausente reprogramado correctamente para el ${data.appointment_date} a las ${data.appointment_time}. La sesión se reutilizó.`,
+        });
+      } else {
+        // Original behavior: Create new appointment for other statuses
+        console.log("Creating new appointment for status:", appointment.status);
+        const appointmentData = {
+          appointment_date: data.appointment_date,
+          appointment_time: data.appointment_time,
+          patient_id: appointment.patient_id,
+          doctor_id: data.doctor_id || appointment.doctor_id,
+          reason: appointment.reason,
+          status: 'scheduled' as const,
+          rescheduled_from_id: appointment.id,
+          rescheduled_by: profile.id,
+          reschedule_reason: data.reschedule_reason,
+          duration_minutes: appointment.duration_minutes || 30,
+          organization_id: currentOrgId,
+        };
+        
+        console.log("Appointment data being sent to DB:", appointmentData);
+        
+        const { data: newAppointment, error: insertError } = await supabase
+          .from("appointments")
+          .insert(appointmentData)
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error("Error creating rescheduled appointment:", insertError);
+          throw insertError;
+        }
+
+        console.log("New appointment created successfully:", newAppointment);
+
+        // Update the original appointment as rescheduled
+        console.log("Updating original appointment...");
+        const { error: updateError } = await supabase
+          .from("appointments")
+          .update({
+            status: 'rescheduled',
+            rescheduled_to_id: newAppointment.id,
+            rescheduled_at: new Date().toISOString(),
+          })
+          .eq('id', appointment.id);
+
+        if (updateError) {
+          console.error("Error updating original appointment:", updateError);
+          // If updating original fails, delete the new one to maintain consistency
+          await supabase.from("appointments").delete().eq('id', newAppointment.id);
+          throw updateError;
+        }
+
+        console.log("Original appointment updated successfully");
+
+        toast({
+          title: "¡Éxito!",
+          description: `Turno reprogramado correctamente para el ${data.appointment_date} a las ${data.appointment_time}. El turno original ha sido liberado.`,
+        });
       }
 
-      console.log("New appointment created successfully:", newAppointment);
-
-      // Now manually update the original appointment since the trigger might not be working
-      console.log("Updating original appointment...");
-      const { error: updateError } = await supabase
-        .from("appointments")
-        .update({
-          status: 'rescheduled',
-          rescheduled_to_id: newAppointment.id,
-          rescheduled_at: new Date().toISOString(),
-        })
-        .eq('id', appointment.id);
-
-      if (updateError) {
-        console.error("Error updating original appointment:", updateError);
-        // If updating original fails, delete the new one to maintain consistency
-        await supabase.from("appointments").delete().eq('id', newAppointment.id);
-        throw updateError;
-      }
-
-      console.log("Original appointment updated successfully");
       console.log("=== RESCHEDULE SUCCESS ===");
-
-      toast({
-        title: "¡Éxito!",
-        description: `Turno reprogramado correctamente para el ${data.appointment_date} a las ${data.appointment_time}. El turno original ha sido liberado.`,
-      });
 
       reset();
       onSuccess();
