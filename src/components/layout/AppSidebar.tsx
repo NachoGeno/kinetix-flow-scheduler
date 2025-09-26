@@ -108,6 +108,13 @@ const navigationItems = [
     icon: BarChart3,
     description: "Reportes y estadísticas",
     roles: ['admin']
+  },
+  {
+    title: "Reportes Gerenciales",
+    url: "/reports-manager",
+    icon: BarChart3,
+    description: "Dashboard ejecutivo y KPIs",
+    roles: ['admin', 'super_admin', 'reports_manager']
   }
 ];
 

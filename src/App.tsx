@@ -21,6 +21,7 @@ import MedicalRecords from "./pages/MedicalRecords";
 import Novedades from "./pages/Novedades";
 import Configuration from "./pages/Configuration";
 import Reports from "./pages/Reports";
+import ReportsManager from "./pages/ReportsManager";
 import NotFound from "./pages/NotFound";
 
 // Ruta de inicio: si el usuario es super_admin, redirigir al panel de administración
@@ -121,6 +122,11 @@ const App = () => (
       <Route path="/reports" element={
         <ProtectedRoute requiredModule="reports" adminOnly={true}>
           <Layout><Reports /></Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/reports-manager" element={
+        <ProtectedRoute requiredModule="reports-manager">
+          <Layout><ReportsManager /></Layout>
         </ProtectedRoute>
       } />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

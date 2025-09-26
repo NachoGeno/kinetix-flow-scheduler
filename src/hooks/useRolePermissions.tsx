@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 
-export type UserRole = 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria';
+export type UserRole = 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'reports_manager';
 
 interface RolePermissions {
   canAccessModule: (module: string) => boolean;
@@ -12,6 +12,7 @@ interface RolePermissions {
   isPatient: () => boolean;
   isReception: () => boolean;
   isSuperAdmin: () => boolean;
+  isReportsManager: () => boolean;
   getCurrentRole: () => UserRole | null;
 }
 
@@ -24,19 +25,20 @@ export const useRolePermissions = (): RolePermissions => {
 
     // Definir qué roles pueden acceder a cada módulo
     const modulePermissions: Record<string, UserRole[]> = {
-      dashboard: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin'],
-      appointments: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin'],
-      patients: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin'],
-      doctors: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin'],
-      orders: ['admin', 'doctor', 'secretaria', 'reception', 'super_admin'],
-      'obras-sociales': ['admin', 'doctor', 'secretaria', 'reception', 'super_admin'],
-      presentaciones: ['admin', 'doctor', 'secretaria', 'reception', 'super_admin'],
+      dashboard: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
+      appointments: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
+      patients: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
+      doctors: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
+      orders: ['admin', 'doctor', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
+      'obras-sociales': ['admin', 'doctor', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
+      presentaciones: ['admin', 'doctor', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
       billing: ['admin', 'super_admin'], // Solo administradores
-      'plus-payments': ['admin', 'reception', 'secretaria', 'super_admin'],
-      'cash-management': ['admin', 'reception', 'secretaria', 'super_admin'],
-      'medical-records': ['admin', 'doctor', 'patient', 'secretaria', 'super_admin'], // Agregado secretaria
-      novedades: ['admin', 'doctor', 'reception', 'secretaria', 'super_admin'],
-      reports: ['admin', 'super_admin'], // Solo administradores
+      'plus-payments': ['admin', 'reception', 'secretaria', 'super_admin', 'reports_manager'],
+      'cash-management': ['admin', 'reception', 'secretaria', 'super_admin', 'reports_manager'],
+      'medical-records': ['admin', 'doctor', 'patient', 'secretaria', 'super_admin', 'reports_manager'],
+      novedades: ['admin', 'doctor', 'reception', 'secretaria', 'super_admin', 'reports_manager'],
+      reports: ['admin', 'super_admin'], // Solo administradores (módulo actual)
+      'reports-manager': ['admin', 'super_admin', 'reports_manager'], // Nuevo módulo
       configuration: ['admin', 'super_admin'], // Solo administradores
       configuracion: ['admin', 'super_admin'], // Solo administradores
       'saas-admin': ['super_admin']
@@ -78,6 +80,10 @@ export const useRolePermissions = (): RolePermissions => {
     return currentRole === 'super_admin';
   };
 
+  const isReportsManager = (): boolean => {
+    return currentRole === 'reports_manager';
+  };
+
   const getCurrentRole = (): UserRole | null => {
     return currentRole;
   };
@@ -92,6 +98,7 @@ export const useRolePermissions = (): RolePermissions => {
     isPatient,
     isReception,
     isSuperAdmin,
+    isReportsManager,
     getCurrentRole,
   };
 };

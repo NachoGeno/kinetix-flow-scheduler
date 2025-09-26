@@ -19,7 +19,7 @@ interface UserProfile {
   first_name: string;
   last_name: string;
   email: string;
-  role: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria';
+  role: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'reports_manager';
   phone: string | null;
   created_at: string;
   avatar_url: string | null;
@@ -31,7 +31,7 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [newRole, setNewRole] = useState<'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria'>('patient');
+  const [newRole, setNewRole] = useState<'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'reports_manager'>('patient');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function UserManagement() {
     }
   };
 
-  const updateUserRole = async (userId: string, newRole: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria') => {
+  const updateUserRole = async (userId: string, newRole: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'reports_manager') => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -124,6 +124,8 @@ export default function UserManagement() {
         return 'outline'; 
       case 'secretaria':
         return 'outline';
+      case 'reports_manager':
+        return 'default';
       default:
         return 'outline';
     }
@@ -141,6 +143,8 @@ export default function UserManagement() {
         return 'Recepción';
       case 'secretaria':
         return 'Secretaria';
+      case 'reports_manager':
+        return 'Gerente de Reportes';
       case 'super_admin':
         return 'Super Admin';
       default:
