@@ -38,7 +38,7 @@ export const useRolePermissions = (): RolePermissions => {
       'medical-records': ['admin', 'doctor', 'patient', 'secretaria', 'super_admin', 'reports_manager'],
       novedades: ['admin', 'doctor', 'reception', 'secretaria', 'super_admin', 'reports_manager'],
       reports: ['admin', 'super_admin'], // Solo administradores (módulo actual)
-      'reports-manager': ['admin', 'super_admin', 'reports_manager'], // Nuevo módulo
+      'reports-manager': ['super_admin', 'reports_manager'], // Nuevo módulo
       configuration: ['admin', 'super_admin'], // Solo administradores
       configuracion: ['admin', 'super_admin'], // Solo administradores
       'saas-admin': ['super_admin']

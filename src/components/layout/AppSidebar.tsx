@@ -114,7 +114,7 @@ const navigationItems = [
     url: "/reports-manager",
     icon: BarChart3,
     description: "Dashboard ejecutivo y KPIs",
-    roles: ['admin', 'super_admin', 'reports_manager']
+    roles: ['super_admin', 'reports_manager']
   }
 ];
 
