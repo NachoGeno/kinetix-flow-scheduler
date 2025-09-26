@@ -1801,6 +1801,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      can_access_reports: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       can_access_secretaria_modules: {
         Args: Record<PropertyKey, never>
         Returns: boolean
