@@ -55,7 +55,8 @@ export function BillingFormUpdated() {
     getCompletedPresentations, 
     createBillingInvoice,
     validatePresentationDocuments,
-    generateBillingPackage
+    generateBillingPackage,
+    cancelBillingInvoice
   } = useBilling();
 
   const form = useForm<FormData>({
@@ -228,8 +229,36 @@ export function BillingFormUpdated() {
       console.error('Error generating package:', error);
       toast({
         title: "Error al generar paquete",
-        description: "Hubo un problema al generar el paquete completo",
+        description: "Hubo un problema. Puede cancelar esta factura y reintentar.",
         variant: "destructive",
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={async () => {
+              try {
+                await cancelBillingInvoice(createdInvoiceId);
+                setCreatedInvoiceId(null);
+                form.reset();
+                setSelectedPresentations([]);
+                setAvailablePresentations([]);
+                setDocumentValidations({});
+                toast({ 
+                  title: "Factura cancelada",
+                  description: "Las presentaciones están disponibles nuevamente"
+                });
+              } catch (err) {
+                toast({
+                  title: "Error",
+                  description: "No se pudo cancelar la factura",
+                  variant: "destructive"
+                });
+              }
+            }}
+          >
+            Cancelar Factura
+          </Button>
+        )
       });
     }
   };

@@ -167,15 +167,8 @@ export function useBilling() {
 
       if (itemsError) throw itemsError;
 
-      // Mark medical orders as sent to obra social
-      const { error: updateError } = await supabase
-        .from("medical_orders")
-        .update({ enviado_a_os: true })
-        .eq("organization_id", currentOrgId)
-        .in("id", data.selectedPresentations);
-
-      if (updateError) throw updateError;
-
+      // DON'T mark orders as sent yet - will be done after package generation succeeds
+      
       return invoice;
     } catch (error) {
       console.error("Error creating billing invoice:", error);
@@ -701,6 +694,43 @@ export function useBilling() {
     }
   };
 
+  const cancelBillingInvoice = async (invoiceId: string) => {
+    try {
+      // Get invoice items to get order IDs
+      const { data: items } = await supabase
+        .from('billing_invoice_items')
+        .select('medical_order_id')
+        .eq('billing_invoice_id', invoiceId);
+
+      // Update invoice status to cancelled
+      const { error: invoiceError } = await supabase
+        .from('billing_invoices')
+        .update({ 
+          status: 'cancelled', 
+          package_status: 'error' 
+        })
+        .eq('id', invoiceId);
+
+      if (invoiceError) throw invoiceError;
+
+      // Revert enviado_a_os flag for associated orders
+      if (items && items.length > 0) {
+        const orderIds = items.map(item => item.medical_order_id);
+        const { error: ordersError } = await supabase
+          .from('medical_orders')
+          .update({ enviado_a_os: false })
+          .in('id', orderIds);
+
+        if (ordersError) throw ordersError;
+      }
+
+      console.log('Invoice cancelled and orders reverted successfully');
+    } catch (error) {
+      console.error('Error cancelling invoice:', error);
+      throw error;
+    }
+  };
+
   return {
     obrasSociales,
     invoices,
@@ -723,5 +753,6 @@ export function useBilling() {
     getPackageDocuments,
     markInvoiceAsSent,
     downloadExcelOnly,
+    cancelBillingInvoice,
   };
 }

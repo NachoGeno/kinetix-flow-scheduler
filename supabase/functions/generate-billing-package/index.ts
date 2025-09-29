@@ -124,8 +124,16 @@ serve(async (req) => {
         });
     }
 
-    // STEP 6: Update billing invoice
-    console.log('🔄 Step 6: Updating invoice record...');
+    // STEP 6: Mark medical orders as sent (ONLY after successful package generation)
+    console.log('✅ Step 6: Marking orders as sent to OS...');
+    const orderIds = presentations.map(p => p.orderId);
+    await supabaseClient
+      .from('medical_orders')
+      .update({ enviado_a_os: true })
+      .in('id', orderIds);
+
+    // STEP 7: Update billing invoice
+    console.log('🔄 Step 7: Updating invoice record...');
     
     const { data: currentInvoice } = await supabaseClient
       .from('billing_invoices')
@@ -357,27 +365,11 @@ async function generateConsolidatedPDF(
     }
   }
 
-  // Store metadata for client-side PDF consolidation
+  // Simply return a reference path for tracking - no file upload needed
   const filename = `${presentation.patientLastName}_${presentation.patientName}_${presentation.orderDate}.pdf`;
-  const metadataPath = `packages/${invoiceId}/metadata/${filename}.json`;
+  const referencePath = `packages/${invoiceId}/pdfs/${filename}`;
   
-  const metadata = {
-    patientName: `${presentation.patientLastName} ${presentation.patientName}`,
-    orderDate: presentation.orderDate,
-    obraSocialName,
-    documents: documentPaths,
-    filename
-  };
-
-  const { error } = await supabaseClient.storage
-    .from('billing-packages')
-    .upload(metadataPath, JSON.stringify(metadata), {
-      contentType: 'text/plain',
-      upsert: true
-    });
-
-  if (error) throw error;
-  return metadataPath;
+  return referencePath;
 }
 
 async function createZipPackage(
@@ -387,30 +379,8 @@ async function createZipPackage(
   consolidatedPdfs: Array<{ patientName: string; path: string }>,
   obraSocialName: string
 ): Promise<string> {
-  // Note: Deno's standard library doesn't have built-in ZIP support
-  // For now, we'll just return a path indicating the package location
-  // In production, you might want to use a ZIP library or create the ZIP client-side
-  
-  // For this implementation, we'll store metadata about the package
-  // The actual ZIP creation can be done client-side when downloading
-  
-  const packagePath = `packages/${invoiceId}/package_info.json`;
-  const packageInfo = {
-    invoiceId,
-    excelPath,
-    pdfPaths: consolidatedPdfs,
-    obraSocialName,
-    createdAt: new Date().toISOString()
-  };
-
-  const { error } = await supabaseClient.storage
-    .from('billing-packages')
-    .upload(packagePath, JSON.stringify(packageInfo), {
-      contentType: 'text/plain',
-      upsert: true
-    });
-
-  if (error) throw error;
-  
+  // Return the base package path - all files are already uploaded to storage
+  // The frontend can access Excel and PDFs separately from storage
+  const packagePath = `packages/${invoiceId}`;
   return packagePath;
 }
