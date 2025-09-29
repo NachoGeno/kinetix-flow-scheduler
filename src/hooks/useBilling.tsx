@@ -572,53 +572,68 @@ export function useBilling() {
     try {
       const { data: invoice } = await supabase
         .from('billing_invoices')
-        .select('package_url')
+        .select(`
+          package_url,
+          period_end,
+          obras_sociales_art (
+            nombre
+          )
+        `)
         .eq('id', invoiceId)
         .single();
 
       if (!invoice?.package_url) throw new Error('No package available');
 
-      // Get package info
-      const { data: packageInfo } = await supabase.storage
-        .from('billing-packages')
-        .download(invoice.package_url);
+      // Get all documents from the database
+      const { data: documents } = await supabase
+        .from('billing_package_documents')
+        .select('*')
+        .eq('billing_invoice_id', invoiceId)
+        .order('patient_name');
 
-      if (!packageInfo) throw new Error('Could not download package info');
-
-      const info = JSON.parse(await packageInfo.text());
-
-      // Download all files and create ZIP client-side
       const files = [];
 
       // Download Excel
+      const obraSocialName = (invoice.obras_sociales_art as any)?.nombre || 'OS';
+      const timestamp = invoice.period_end || new Date().toISOString().split('T')[0];
+      const excelFilename = `Factura_${obraSocialName.replace(/\s+/g, '_')}_${timestamp}.xlsx`;
+      const excelPath = `${invoice.package_url}/excel/${excelFilename}`;
+
       const { data: excelData } = await supabase.storage
         .from('billing-packages')
-        .download(info.excelPath);
+        .download(excelPath);
       
       if (excelData) {
-        files.push({ name: info.excelPath.split('/').pop(), data: excelData });
+        files.push({ name: excelFilename, data: excelData });
       }
 
       // Download PDFs
-      for (const pdf of info.pdfPaths) {
-        const { data: pdfData } = await supabase.storage
-          .from('billing-packages')
-          .download(pdf.path);
-        
-        if (pdfData) {
-          files.push({ name: `${pdf.patientName}_${pdf.orderDate}.pdf`, data: pdfData });
+      if (documents) {
+        for (const doc of documents) {
+          const { data: pdfData } = await supabase.storage
+            .from('billing-packages')
+            .download(doc.consolidated_pdf_url);
+          
+          if (pdfData) {
+            files.push({ name: doc.consolidated_pdf_name, data: pdfData });
+          }
         }
       }
 
-      // Create a simple download of the first file for now
-      // In production, you'd want to use a ZIP library client-side
+      // Download all files individually (browser limitation: can't create ZIP client-side easily)
+      // Download Excel first, then show toast for the PDFs
       if (files.length > 0) {
-        const url = window.URL.createObjectURL(files[0].data);
+        // Download Excel
+        const excelFile = files[0];
+        const url = window.URL.createObjectURL(excelFile.data);
         const a = document.createElement('a');
         a.href = url;
-        a.download = fileName;
+        a.download = excelFile.name;
         a.click();
         window.URL.revokeObjectURL(url);
+
+        // Note: Downloading multiple files requires user interaction for each
+        // In production, consider using a ZIP library or server-side ZIP generation
       }
 
     } catch (error) {
@@ -661,30 +676,36 @@ export function useBilling() {
     try {
       const { data: invoice } = await supabase
         .from('billing_invoices')
-        .select('package_url')
+        .select(`
+          package_url,
+          period_end,
+          obras_sociales_art (
+            nombre
+          )
+        `)
         .eq('id', invoiceId)
         .single();
 
       if (!invoice?.package_url) throw new Error('No package available');
 
-      const { data: packageInfo } = await supabase.storage
+      // Construct Excel path: packages/{invoiceId}/excel/Factura_{obraSocialName}_{date}.xlsx
+      const obraSocialName = (invoice.obras_sociales_art as any)?.nombre || 'OS';
+      const timestamp = invoice.period_end || new Date().toISOString().split('T')[0];
+      const filename = `Factura_${obraSocialName.replace(/\s+/g, '_')}_${timestamp}.xlsx`;
+      const excelPath = `${invoice.package_url}/excel/${filename}`;
+
+      const { data: excelData, error: downloadError } = await supabase.storage
         .from('billing-packages')
-        .download(invoice.package_url);
+        .download(excelPath);
 
-      if (!packageInfo) throw new Error('Could not download package info');
-
-      const info = JSON.parse(await packageInfo.text());
-
-      const { data: excelData } = await supabase.storage
-        .from('billing-packages')
-        .download(info.excelPath);
-
-      if (!excelData) throw new Error('Excel file not found');
+      if (downloadError || !excelData) {
+        throw new Error('Excel file not found');
+      }
 
       const url = window.URL.createObjectURL(excelData);
       const a = document.createElement('a');
       a.href = url;
-      a.download = info.excelPath.split('/').pop() || 'factura.xlsx';
+      a.download = filename;
       a.click();
       window.URL.revokeObjectURL(url);
 
