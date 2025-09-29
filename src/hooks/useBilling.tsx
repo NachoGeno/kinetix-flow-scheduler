@@ -573,67 +573,77 @@ export function useBilling() {
       const { data: invoice } = await supabase
         .from('billing_invoices')
         .select(`
-          package_url,
-          period_end,
-          obras_sociales_art (
-            nombre
-          )
+          package_url
         `)
         .eq('id', invoiceId)
         .single();
 
       if (!invoice?.package_url) throw new Error('No package available');
 
-      // Get all documents from the database
+      // Prefer downloading a generated ZIP if present
+      const { data: rootList } = await supabase.storage
+        .from('billing-packages')
+        .list(invoice.package_url);
+
+      const zipEntry = rootList?.find((f: any) => f.name?.toLowerCase?.().endsWith('.zip'));
+      if (zipEntry) {
+        const zipPath = `${invoice.package_url}/${zipEntry.name}`;
+        const { data: zipData } = await supabase.storage
+          .from('billing-packages')
+          .download(zipPath);
+        if (zipData) {
+          const url = window.URL.createObjectURL(zipData);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName || zipEntry.name;
+          a.click();
+          window.URL.revokeObjectURL(url);
+          return;
+        }
+      }
+
+      // Fallback: download Excel file and PDFs individually
+      const files: Array<{ name: string; data: Blob }> = [];
+
+      // Find Excel inside the excel folder
+      const excelDir = `${invoice.package_url}/excel`;
+      const { data: excelList } = await supabase.storage
+        .from('billing-packages')
+        .list(excelDir);
+      const excelFile = excelList?.find((f: any) => f.name?.toLowerCase?.().endsWith('.xlsx'));
+      if (excelFile) {
+        const excelPath = `${excelDir}/${excelFile.name}`;
+        const { data: excelData } = await supabase.storage
+          .from('billing-packages')
+          .download(excelPath);
+        if (excelData) files.push({ name: excelFile.name, data: excelData });
+      }
+
+      // PDFs from DB records
       const { data: documents } = await supabase
         .from('billing_package_documents')
         .select('*')
         .eq('billing_invoice_id', invoiceId)
         .order('patient_name');
-
-      const files = [];
-
-      // Download Excel
-      const obraSocialName = (invoice.obras_sociales_art as any)?.nombre || 'OS';
-      const timestamp = invoice.period_end || new Date().toISOString().split('T')[0];
-      const excelFilename = `Factura_${obraSocialName.replace(/\s+/g, '_')}_${timestamp}.xlsx`;
-      const excelPath = `${invoice.package_url}/excel/${excelFilename}`;
-
-      const { data: excelData } = await supabase.storage
-        .from('billing-packages')
-        .download(excelPath);
-      
-      if (excelData) {
-        files.push({ name: excelFilename, data: excelData });
-      }
-
-      // Download PDFs
       if (documents) {
-        for (const doc of documents) {
+        for (const doc of documents as any[]) {
           const { data: pdfData } = await supabase.storage
             .from('billing-packages')
             .download(doc.consolidated_pdf_url);
-          
-          if (pdfData) {
-            files.push({ name: doc.consolidated_pdf_name, data: pdfData });
-          }
+          if (pdfData) files.push({ name: doc.consolidated_pdf_name, data: pdfData });
         }
       }
 
-      // Download all files individually (browser limitation: can't create ZIP client-side easily)
-      // Download Excel first, then show toast for the PDFs
       if (files.length > 0) {
-        // Download Excel
-        const excelFile = files[0];
-        const url = window.URL.createObjectURL(excelFile.data);
+        const first = files[0];
+        const url = window.URL.createObjectURL(first.data);
         const a = document.createElement('a');
         a.href = url;
-        a.download = excelFile.name;
+        a.download = first.name;
         a.click();
         window.URL.revokeObjectURL(url);
-
-        // Note: Downloading multiple files requires user interaction for each
-        // In production, consider using a ZIP library or server-side ZIP generation
+      } else {
+        throw new Error('No downloadable files found');
       }
 
     } catch (error) {
@@ -677,23 +687,25 @@ export function useBilling() {
       const { data: invoice } = await supabase
         .from('billing_invoices')
         .select(`
-          package_url,
-          period_end,
-          obras_sociales_art (
-            nombre
-          )
+          package_url
         `)
         .eq('id', invoiceId)
         .single();
 
       if (!invoice?.package_url) throw new Error('No package available');
 
-      // Construct Excel path: packages/{invoiceId}/excel/Factura_{obraSocialName}_{date}.xlsx
-      const obraSocialName = (invoice.obras_sociales_art as any)?.nombre || 'OS';
-      const timestamp = invoice.period_end || new Date().toISOString().split('T')[0];
-      const filename = `Factura_${obraSocialName.replace(/\s+/g, '_')}_${timestamp}.xlsx`;
-      const excelPath = `${invoice.package_url}/excel/${filename}`;
+      const excelDir = `${invoice.package_url}/excel`;
+      // List files in the excel directory to find the generated Excel name
+      const { data: entries, error: listError } = await supabase.storage
+        .from('billing-packages')
+        .list(excelDir);
 
+      if (listError) throw listError;
+      const excelEntry = entries?.find((e: any) => e.name?.toLowerCase?.().endsWith('.xlsx'));
+
+      if (!excelEntry) throw new Error('Excel file not found');
+
+      const excelPath = `${excelDir}/${excelEntry.name}`;
       const { data: excelData, error: downloadError } = await supabase.storage
         .from('billing-packages')
         .download(excelPath);
@@ -705,7 +717,7 @@ export function useBilling() {
       const url = window.URL.createObjectURL(excelData);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = excelEntry.name;
       a.click();
       window.URL.revokeObjectURL(url);
 
