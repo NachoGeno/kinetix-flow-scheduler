@@ -94,7 +94,7 @@ serve(async (req) => {
       .single();
 
     // Create workbook
-    const wb = XLSX.utils.book_new();
+    const wb: any = { SheetNames: [], Sheets: {} };
     const ws = XLSX.utils.json_to_sheet(excelData);
 
     // Auto-size columns
@@ -103,7 +103,8 @@ serve(async (req) => {
 
     // Add worksheet to workbook
     const sheetName = `Facturación ${obraSocial?.nombre || 'OS'}`;
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    wb.SheetNames.push(sheetName);
+    wb.Sheets[sheetName] = ws;
 
     // Generate Excel buffer
     const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -159,7 +160,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: (error as Error).message 
       }),
       {
         status: 500,

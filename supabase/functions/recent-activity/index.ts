@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     }
 
     // Transform appointments into activity format
-    const activities = appointments?.map(appointment => {
+    const activities = appointments?.map((appointment: any) => {
       const patientName = appointment.patient?.profile 
         ? `${appointment.patient.profile.first_name || ''} ${appointment.patient.profile.last_name || ''}`.trim()
         : 'Paciente no disponible';

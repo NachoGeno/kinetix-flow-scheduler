@@ -178,7 +178,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: (error as Error).message 
       }),
       {
         status: 500,
@@ -290,12 +290,14 @@ async function generateExcel(
     return row;
   });
 
-  const wb = XLSX.utils.book_new();
+  const wb: any = { SheetNames: [], Sheets: {} };
   const ws = XLSX.utils.json_to_sheet(excelData);
   const cols = columns.map(() => ({ wch: 20 }));
   ws['!cols'] = cols;
 
-  XLSX.utils.book_append_sheet(wb, ws, `Facturación ${obraSocialName}`);
+  const sheetName = `Facturación ${obraSocialName}`;
+  wb.SheetNames.push(sheetName);
+  wb.Sheets[sheetName] = ws;
   const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 
   const timestamp = new Date().toISOString().split('T')[0];
