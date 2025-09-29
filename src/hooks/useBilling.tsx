@@ -437,6 +437,270 @@ export function useBilling() {
     }
   };
 
+  const validatePresentationDocuments = async (orderIds: string[]) => {
+    try {
+      const validationResults = [];
+
+      for (const orderId of orderIds) {
+        const missingDocuments: string[] = [];
+        const documentsStatus = {
+          medical_order: false,
+          clinical_evolution: false,
+          attendance_record: false,
+          social_work_authorization: false
+        };
+
+        // Check medical order attachment
+        const { data: medicalOrder } = await supabase
+          .from('medical_orders')
+          .select('attachment_url, patients:patient_id(profiles:profile_id(first_name, last_name))')
+          .eq('id', orderId)
+          .single();
+
+        documentsStatus.medical_order = !!medicalOrder?.attachment_url;
+        if (!medicalOrder?.attachment_url) {
+          missingDocuments.push('medical_order');
+        }
+
+        // Check presentation documents
+        const { data: documents } = await supabase
+          .from('presentation_documents')
+          .select('document_type')
+          .eq('medical_order_id', orderId);
+
+        const documentTypes = new Set(documents?.map((d: any) => d.document_type) || []);
+
+        documentsStatus.clinical_evolution = documentTypes.has('clinical_evolution');
+        documentsStatus.attendance_record = documentTypes.has('attendance_record');
+        documentsStatus.social_work_authorization = documentTypes.has('social_work_authorization');
+
+        if (!documentsStatus.clinical_evolution) missingDocuments.push('clinical_evolution');
+        if (!documentsStatus.attendance_record) missingDocuments.push('attendance_record');
+        if (!documentsStatus.social_work_authorization) missingDocuments.push('social_work_authorization');
+
+        const patientName = medicalOrder?.patients?.profiles 
+          ? `${medicalOrder.patients.profiles.first_name} ${medicalOrder.patients.profiles.last_name}`
+          : 'Desconocido';
+
+        validationResults.push({
+          orderId,
+          patientName,
+          isComplete: missingDocuments.length === 0,
+          missingDocuments,
+          documentsStatus
+        });
+      }
+
+      return validationResults;
+    } catch (error) {
+      console.error('Error validating documents:', error);
+      throw error;
+    }
+  };
+
+  const generateBillingPackage = async (invoiceId: string, isRegeneration: boolean = false) => {
+    try {
+      setIsGenerating(true);
+
+      // Get invoice and presentations data
+      const { data: invoice } = await supabase
+        .from('billing_invoices')
+        .select('obra_social_art_id')
+        .eq('id', invoiceId)
+        .single();
+      
+      const { data: obraSocial } = await supabase
+        .from('obras_sociales_art')
+        .select('nombre')
+        .eq('id', invoice?.obra_social_art_id)
+        .single();
+
+      const { data: invoiceItems } = await supabase
+        .from('billing_invoice_items')
+        .select(`
+          medical_order_id,
+          medical_orders!inner(
+            id,
+            order_date,
+            total_sessions,
+            sessions_used,
+            doctor_name,
+            patients!inner(
+              profiles!inner(first_name, last_name, dni)
+            )
+          )
+        `)
+        .eq('billing_invoice_id', invoiceId);
+
+      const presentations = invoiceItems?.map((item: any) => ({
+        orderId: item.medical_orders.id,
+        patientName: item.medical_orders.patients.profiles.first_name,
+        patientLastName: item.medical_orders.patients.profiles.last_name,
+        patientDni: item.medical_orders.patients.profiles.dni,
+        orderDate: item.medical_orders.order_date,
+        totalSessions: item.medical_orders.total_sessions,
+        sessionsUsed: item.medical_orders.sessions_used,
+        doctorName: item.medical_orders.doctor_name
+      })) || [];
+
+      // Get organization info
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id, organizations!inner(logo_url)')
+        .eq('user_id', user?.id)
+        .single();
+
+      const { data: result, error } = await supabase.functions.invoke('generate-billing-package', {
+        body: {
+          invoiceId,
+          obraSocialId: invoice?.obra_social_art_id,
+          obraSocialName: obraSocial?.nombre,
+          organizationLogoUrl: profile?.organizations?.logo_url,
+          presentations,
+          isRegeneration
+        }
+      });
+
+      if (error) throw error;
+      if (!result.success) throw new Error(result.error);
+
+      console.log('Package generated successfully:', result);
+      return result;
+
+    } catch (error) {
+      console.error('Error generating package:', error);
+      throw error;
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const downloadFullPackage = async (invoiceId: string, fileName: string) => {
+    try {
+      const { data: invoice } = await supabase
+        .from('billing_invoices')
+        .select('package_url')
+        .eq('id', invoiceId)
+        .single();
+
+      if (!invoice?.package_url) throw new Error('No package available');
+
+      // Get package info
+      const { data: packageInfo } = await supabase.storage
+        .from('billing-packages')
+        .download(invoice.package_url);
+
+      if (!packageInfo) throw new Error('Could not download package info');
+
+      const info = JSON.parse(await packageInfo.text());
+
+      // Download all files and create ZIP client-side
+      const files = [];
+
+      // Download Excel
+      const { data: excelData } = await supabase.storage
+        .from('billing-packages')
+        .download(info.excelPath);
+      
+      if (excelData) {
+        files.push({ name: info.excelPath.split('/').pop(), data: excelData });
+      }
+
+      // Download PDFs
+      for (const pdf of info.pdfPaths) {
+        const { data: pdfData } = await supabase.storage
+          .from('billing-packages')
+          .download(pdf.path);
+        
+        if (pdfData) {
+          files.push({ name: `${pdf.patientName}_${pdf.orderDate}.pdf`, data: pdfData });
+        }
+      }
+
+      // Create a simple download of the first file for now
+      // In production, you'd want to use a ZIP library client-side
+      if (files.length > 0) {
+        const url = window.URL.createObjectURL(files[0].data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+
+    } catch (error) {
+      console.error('Error downloading package:', error);
+      throw error;
+    }
+  };
+
+  const getPackageDocuments = async (invoiceId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('billing_package_documents')
+        .select('*')
+        .eq('billing_invoice_id', invoiceId)
+        .order('patient_name');
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error getting package documents:', error);
+      throw error;
+    }
+  };
+
+  const markInvoiceAsSent = async (invoiceId: string) => {
+    try {
+      const { error } = await supabase
+        .from('billing_invoices')
+        .update({ package_status: 'sent' })
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error marking invoice as sent:', error);
+      throw error;
+    }
+  };
+
+  const downloadExcelOnly = async (invoiceId: string) => {
+    try {
+      const { data: invoice } = await supabase
+        .from('billing_invoices')
+        .select('package_url')
+        .eq('id', invoiceId)
+        .single();
+
+      if (!invoice?.package_url) throw new Error('No package available');
+
+      const { data: packageInfo } = await supabase.storage
+        .from('billing-packages')
+        .download(invoice.package_url);
+
+      if (!packageInfo) throw new Error('Could not download package info');
+
+      const info = JSON.parse(await packageInfo.text());
+
+      const { data: excelData } = await supabase.storage
+        .from('billing-packages')
+        .download(info.excelPath);
+
+      if (!excelData) throw new Error('Excel file not found');
+
+      const url = window.URL.createObjectURL(excelData);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = info.excelPath.split('/').pop() || 'factura.xlsx';
+      a.click();
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('Error downloading Excel:', error);
+      throw error;
+    }
+  };
+
   return {
     obrasSociales,
     invoices,
@@ -452,5 +716,12 @@ export function useBilling() {
     createExportTemplate,
     updateExportTemplate,
     deleteExportTemplate,
+    // New functions for package management
+    validatePresentationDocuments,
+    generateBillingPackage,
+    downloadFullPackage,
+    getPackageDocuments,
+    markInvoiceAsSent,
+    downloadExcelOnly,
   };
 }

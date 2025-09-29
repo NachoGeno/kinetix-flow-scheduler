@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Download, Eye, FileText, Search } from "lucide-react";
+import { Download, Eye, FileText, Search, Package, RefreshCw, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useBilling } from "@/hooks/useBilling";
 import { useToast } from "@/hooks/use-toast";
 
@@ -15,8 +16,15 @@ export function BillingHistory() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [regenerateInvoiceId, setRegenerateInvoiceId] = useState<string | null>(null);
   
-  const { getBillingHistory, downloadInvoiceFile } = useBilling();
+  const { 
+    getBillingHistory, 
+    downloadFullPackage, 
+    downloadExcelOnly,
+    generateBillingPackage,
+    markInvoiceAsSent 
+  } = useBilling();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -39,19 +47,35 @@ export function BillingHistory() {
     }
   };
 
-  const handleDownload = async (invoiceId: string, fileName: string) => {
+  const handleDownloadPackage = async (invoiceId: string) => {
     try {
-      await downloadInvoiceFile(invoiceId, fileName);
-      toast({
-        title: "Descarga iniciada",
-        description: "El archivo se está descargando",
-      });
+      await downloadFullPackage(invoiceId, `package_${invoiceId}.zip`);
+      toast({ title: "Descarga iniciada" });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Error al descargar el archivo",
-        variant: "destructive",
-      });
+      toast({ title: "Error al descargar", variant: "destructive" });
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (!regenerateInvoiceId) return;
+    try {
+      await generateBillingPackage(regenerateInvoiceId, true);
+      toast({ title: "Paquete regenerado exitosamente" });
+      loadHistory();
+    } catch (error) {
+      toast({ title: "Error al regenerar", variant: "destructive" });
+    } finally {
+      setRegenerateInvoiceId(null);
+    }
+  };
+
+  const handleMarkAsSent = async (invoiceId: string) => {
+    try {
+      await markInvoiceAsSent(invoiceId);
+      toast({ title: "Marcado como enviado" });
+      loadHistory();
+    } catch (error) {
+      toast({ title: "Error", variant: "destructive" });
     }
   };
 
@@ -116,10 +140,8 @@ export function BillingHistory() {
                 <TableHead>Factura</TableHead>
                 <TableHead>Obra Social</TableHead>
                 <TableHead>Período</TableHead>
-                <TableHead>Presentaciones</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Enviado</TableHead>
-                <TableHead>Estado</TableHead>
+                <TableHead>Estado Paquete</TableHead>
+                <TableHead>Regenerado</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -148,51 +170,42 @@ export function BillingHistory() {
                     
                     <TableCell>
                       <div className="text-sm">
-                        <p>{format(new Date(invoice.period_start), "dd/MM/yyyy")}</p>
-                        <p className="text-muted-foreground">
-                          {format(new Date(invoice.period_end), "dd/MM/yyyy")}
-                        </p>
+                        {format(new Date(invoice.period_start), "dd/MM")} - {format(new Date(invoice.period_end), "dd/MM/yyyy")}
                       </div>
                     </TableCell>
                     
-                    <TableCell>{invoice.total_presentations}</TableCell>
-                    
                     <TableCell>
-                      {invoice.total_amount ? 
-                        `$${Number(invoice.total_amount).toLocaleString()}` : 
-                        "-"
-                      }
-                    </TableCell>
-                    
-                    <TableCell>
-                      {format(new Date(invoice.sent_at), "dd/MM/yyyy HH:mm")}
-                    </TableCell>
-                    
-                    <TableCell>
-                      <Badge variant={invoice.status === 'sent' ? 'default' : 'secondary'}>
-                        {invoice.status === 'sent' ? 'Enviado' : 'Pendiente'}
+                      <Badge variant={
+                        invoice.package_status === 'ready' ? 'default' :
+                        invoice.package_status === 'sent' ? 'secondary' : 'outline'
+                      }>
+                        {invoice.package_status === 'ready' ? '🟢 Listo' :
+                         invoice.package_status === 'sent' ? '🔵 Enviado' : '🟡 Preparando'}
                       </Badge>
+                    </TableCell>
+
+                    <TableCell>
+                      {invoice.regeneration_count > 0 && (
+                        <Badge variant="outline">⚠️ {invoice.regeneration_count}x</Badge>
+                      )}
                     </TableCell>
                     
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {/* TODO: View details */}}
-                        >
-                          <Eye className="h-4 w-4" />
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => handleDownloadPackage(invoice.id)} title="Descargar Paquete">
+                          <Package className="h-4 w-4" />
                         </Button>
-                        
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDownload(invoice.id, invoice.file_name)}
-                          disabled={!invoice.file_name}
-                          title={invoice.file_name ? "Descargar Excel" : "Excel no disponible"}
-                        >
+                        <Button size="sm" variant="ghost" onClick={() => downloadExcelOnly(invoice.id)} title="Excel">
                           <Download className="h-4 w-4" />
                         </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setRegenerateInvoiceId(invoice.id)} title="Regenerar">
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                        {invoice.package_status !== 'sent' && (
+                          <Button size="sm" variant="ghost" onClick={() => handleMarkAsSent(invoice.id)} title="Marcar Enviado">
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -201,6 +214,21 @@ export function BillingHistory() {
             </TableBody>
           </Table>
         </div>
+
+        <AlertDialog open={!!regenerateInvoiceId} onOpenChange={() => setRegenerateInvoiceId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>⚠️ Re-generar Paquete</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta factura ya fue generada. ¿Está seguro de que desea re-generar el paquete?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleRegenerate}>Re-generar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );

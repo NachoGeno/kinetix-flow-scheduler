@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BillingForm } from "@/components/billing/BillingForm";
+import { BillingFormUpdated } from "@/components/billing/BillingFormUpdated";
 import { BillingHistory } from "@/components/billing/BillingHistory";
 import { ExportTemplateManager } from "@/components/billing/ExportTemplateManager";
 
@@ -24,7 +24,7 @@ export default function Billing() {
         </TabsList>
 
         <TabsContent value="new" className="space-y-6">
-          <BillingForm />
+          <BillingFormUpdated />
         </TabsContent>
 
         <TabsContent value="history" className="space-y-6">

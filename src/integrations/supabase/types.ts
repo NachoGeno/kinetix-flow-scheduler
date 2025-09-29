@@ -444,9 +444,15 @@ export type Database = {
           file_url: string | null
           id: string
           invoice_number: string
+          last_regenerated_at: string | null
+          last_regenerated_by: string | null
           obra_social_art_id: string
+          package_generated_at: string | null
+          package_status: string | null
+          package_url: string | null
           period_end: string
           period_start: string
+          regeneration_count: number | null
           sent_at: string
           status: string
           total_amount: number | null
@@ -460,9 +466,15 @@ export type Database = {
           file_url?: string | null
           id?: string
           invoice_number: string
+          last_regenerated_at?: string | null
+          last_regenerated_by?: string | null
           obra_social_art_id: string
+          package_generated_at?: string | null
+          package_status?: string | null
+          package_url?: string | null
           period_end: string
           period_start: string
+          regeneration_count?: number | null
           sent_at?: string
           status?: string
           total_amount?: number | null
@@ -476,16 +488,78 @@ export type Database = {
           file_url?: string | null
           id?: string
           invoice_number?: string
+          last_regenerated_at?: string | null
+          last_regenerated_by?: string | null
           obra_social_art_id?: string
+          package_generated_at?: string | null
+          package_status?: string | null
+          package_url?: string | null
           period_end?: string
           period_start?: string
+          regeneration_count?: number | null
           sent_at?: string
           status?: string
           total_amount?: number | null
           total_presentations?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "billing_invoices_last_regenerated_by_fkey"
+            columns: ["last_regenerated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_package_documents: {
+        Row: {
+          billing_invoice_id: string
+          consolidated_pdf_name: string
+          consolidated_pdf_url: string
+          created_at: string | null
+          id: string
+          medical_order_id: string
+          order_date: string
+          patient_name: string
+        }
+        Insert: {
+          billing_invoice_id: string
+          consolidated_pdf_name: string
+          consolidated_pdf_url: string
+          created_at?: string | null
+          id?: string
+          medical_order_id: string
+          order_date: string
+          patient_name: string
+        }
+        Update: {
+          billing_invoice_id?: string
+          consolidated_pdf_name?: string
+          consolidated_pdf_url?: string
+          created_at?: string | null
+          id?: string
+          medical_order_id?: string
+          order_date?: string
+          patient_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_package_documents_billing_invoice_id_fkey"
+            columns: ["billing_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_package_documents_medical_order_id_fkey"
+            columns: ["medical_order_id"]
+            isOneToOne: false
+            referencedRelation: "medical_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cash_reconciliation: {
         Row: {
