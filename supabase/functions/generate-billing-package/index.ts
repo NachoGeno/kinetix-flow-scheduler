@@ -25,6 +25,36 @@ function sanitizeFileName(name: string): string {
     .replace(/^_|_$/g, '');                   // Trim _ al inicio/fin
 }
 
+/**
+ * Resuelve una storage key desde diferentes formatos de URL
+ * Maneja:
+ * - URLs completas (https://...)
+ * - Rutas relativas (medical-documents/...)
+ * - Rutas con /object/public/ o /object/
+ */
+function resolveStorageKey(url: string): string {
+  if (!url) return '';
+  
+  // Si ya es una ruta relativa, devolverla
+  if (!url.includes('://') && !url.startsWith('http')) {
+    return url;
+  }
+  
+  // Extraer el path después de /object/public/ o /object/
+  const patterns = [
+    /\/object\/public\/[^\/]+\/(.*)/,
+    /\/object\/[^\/]+\/(.*)/,
+    /\/storage\/v1\/object\/public\/[^\/]+\/(.*)/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  
+  return url;
+}
+
 interface BillingPackageData {
   invoiceId: string;
   obraSocialId: string;
@@ -306,7 +336,7 @@ async function validatePresentationsDocuments(
   for (const presentation of presentations) {
     const missingDocuments: string[] = [];
 
-    // Check medical order attachment
+    // Check medical order attachment (verificar existencia física)
     const { data: medicalOrder } = await supabaseClient
       .from('medical_orders')
       .select('attachment_url')
@@ -314,25 +344,53 @@ async function validatePresentationsDocuments(
       .single();
 
     if (!medicalOrder?.attachment_url) {
-      missingDocuments.push('Orden Médica');
+      missingDocuments.push('Orden Médica (no registrada)');
+    } else {
+      // Verificar que el archivo existe en Storage
+      const storageKey = resolveStorageKey(medicalOrder.attachment_url);
+      const { data: fileCheck, error: checkError } = await supabaseClient.storage
+        .from('medical-documents')
+        .download(storageKey);
+      
+      if (checkError || !fileCheck) {
+        console.error(`❌ Orden Médica no existe en Storage: ${storageKey}`, checkError);
+        missingDocuments.push(`Orden Médica (archivo no encontrado en Storage: ${storageKey})`);
+      }
     }
 
-    // Check presentation documents
+    // Check presentation documents (verificar existencia física)
     const { data: documents } = await supabaseClient
       .from('presentation_documents')
-      .select('document_type')
+      .select('document_type, file_url')
       .eq('medical_order_id', presentation.orderId);
 
     const documentTypes = new Set(documents?.map((d: any) => d.document_type) || []);
+    
+    // Validar existencia física de cada documento
+    const docTypesToCheck = [
+      { type: 'clinical_evolution', label: 'Evolución Clínica' },
+      { type: 'attendance_record', label: 'Planilla de Asistencia' },
+      { type: 'social_work_authorization', label: 'Autorización Obra Social' }
+    ];
 
-    if (!documentTypes.has('clinical_evolution')) {
-      missingDocuments.push('Evolución Clínica');
-    }
-    if (!documentTypes.has('attendance_record')) {
-      missingDocuments.push('Planilla de Asistencia');
-    }
-    if (!documentTypes.has('social_work_authorization')) {
-      missingDocuments.push('Autorización Obra Social');
+    for (const docType of docTypesToCheck) {
+      if (!documentTypes.has(docType.type)) {
+        missingDocuments.push(`${docType.label} (no registrado)`);
+      } else {
+        // Encontrar el documento y verificar su existencia en Storage
+        const doc = documents.find((d: any) => d.document_type === docType.type);
+        if (doc?.file_url) {
+          const storageKey = resolveStorageKey(doc.file_url);
+          const { data: fileCheck, error: checkError } = await supabaseClient.storage
+            .from('medical-documents')
+            .download(storageKey);
+          
+          if (checkError || !fileCheck) {
+            console.error(`❌ ${docType.label} no existe en Storage: ${storageKey}`, checkError);
+            missingDocuments.push(`${docType.label} (archivo no encontrado en Storage: ${storageKey})`);
+          }
+        }
+      }
     }
 
     results.push({
@@ -441,6 +499,7 @@ async function generateConsolidatedPDF(
 
   // Create merged PDF document
   const mergedPdf = await PDFDocument.create();
+  let pagesAdded = 0;
   
   for (const docType of documentTypes) {
     try {
@@ -465,18 +524,29 @@ async function generateConsolidatedPDF(
       }
 
       if (!pdfUrl) {
-        console.warn(`⚠️ Document ${docType.type} not found for order ${presentation.orderId}`);
-        continue;
+        const errorMsg = `Document ${docType.type} not found for order ${presentation.orderId}`;
+        console.error(`❌ ${errorMsg}`);
+        throw new Error(errorMsg);
       }
 
-      // Download PDF from storage
+      // Resolver storage key para manejar diferentes formatos de URL
+      const storageKey = resolveStorageKey(pdfUrl);
+
+      // Download PDF from storage usando la key resuelta
       const { data: fileData, error: downloadError } = await supabaseClient.storage
         .from(storageBucket)
-        .download(pdfUrl);
+        .download(storageKey);
       
       if (downloadError) {
-        console.error(`Error downloading ${docType.type}:`, downloadError);
-        continue;
+        const errorMsg = `Failed to download ${docType.type} from Storage (${storageKey}): ${downloadError.message}`;
+        console.error(`❌ ${errorMsg}`);
+        throw new Error(errorMsg);
+      }
+
+      if (!fileData) {
+        const errorMsg = `No data returned for ${docType.type} (${storageKey})`;
+        console.error(`❌ ${errorMsg}`);
+        throw new Error(errorMsg);
       }
       
       // Convert blob to array buffer
@@ -487,13 +557,26 @@ async function generateConsolidatedPDF(
       
       // Copy all pages from this PDF to the merged PDF
       const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-      copiedPages.forEach((page) => mergedPdf.addPage(page));
+      copiedPages.forEach((page) => {
+        mergedPdf.addPage(page);
+        pagesAdded++;
+      });
       
-      console.log(`✅ Added ${docType.type} to consolidated PDF`);
+      console.log(`✅ Added ${docType.type} to consolidated PDF (${copiedPages.length} pages)`);
     } catch (error) {
-      console.error(`Error processing ${docType.type}:`, error);
+      console.error(`❌ CRITICAL: Error processing ${docType.type}:`, error);
+      throw error; // Propagar error para prevenir PDFs vacíos
     }
   }
+
+  // VALIDACIÓN CRÍTICA: Prevenir PDFs vacíos
+  if (pagesAdded === 0) {
+    const errorMsg = `No pages added to consolidated PDF for ${presentation.patientName}. Cannot create empty PDF.`;
+    console.error(`❌ ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+
+  console.log(`✅ Consolidated PDF has ${pagesAdded} pages total`);
   
   // Save the merged PDF
   const pdfBytes = await mergedPdf.save();

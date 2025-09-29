@@ -580,7 +580,31 @@ export function useBilling() {
 
       if (!invoice?.package_url) throw new Error('No package available');
 
-      // Prefer downloading a generated ZIP if present
+      // CASO 1: Si package_url termina en .zip, descarga directa (paquetes nuevos)
+      if (invoice.package_url.endsWith('.zip')) {
+        console.log('📦 Downloading ZIP directly:', invoice.package_url);
+        const { data: zipData, error: zipError } = await supabase.storage
+          .from('billing-packages')
+          .download(invoice.package_url);
+        
+        if (zipError) {
+          console.error('Error downloading ZIP:', zipError);
+          throw new Error(`No se pudo descargar el paquete ZIP: ${zipError.message}`);
+        }
+
+        if (zipData) {
+          const url = window.URL.createObjectURL(zipData);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName || 'factura.zip';
+          a.click();
+          window.URL.revokeObjectURL(url);
+          return;
+        }
+      }
+
+      // CASO 2: Backward compatibility - package_url es un directorio (paquetes antiguos)
+      console.log('📂 Attempting directory-based download for backward compatibility');
       const { data: rootList } = await supabase.storage
         .from('billing-packages')
         .list(invoice.package_url);
@@ -602,7 +626,8 @@ export function useBilling() {
         }
       }
 
-      // Fallback: download Excel file and PDFs individually
+      // CASO 3: Fallback - download Excel file and PDFs individually (muy antiguos)
+      console.log('📄 Fallback: downloading individual files');
       const files: Array<{ name: string; data: Blob }> = [];
 
       // Find Excel inside the excel folder
