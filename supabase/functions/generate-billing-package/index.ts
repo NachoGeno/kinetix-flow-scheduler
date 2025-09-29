@@ -9,6 +9,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+/**
+ * Sanitiza nombres de archivo para Supabase Storage
+ * - Remueve diacríticos (ñ → n, á → a)
+ * - Reemplaza caracteres no alfanuméricos con _
+ * - Compacta múltiples _ consecutivos
+ */
+function sanitizeFileName(name: string): string {
+  return name
+    .normalize('NFD')                          // Descompone caracteres con diacríticos
+    .replace(/[\u0300-\u036f]/g, '')          // Remueve marcas diacríticas
+    .replace(/ñ/gi, 'n')                      // Ñ → n (específico)
+    .replace(/[^a-zA-Z0-9._-]/g, '_')         // Solo permite: letras, números, . _ -
+    .replace(/_+/g, '_')                      // Compacta _____ → _
+    .replace(/^_|_$/g, '');                   // Trim _ al inicio/fin
+}
+
 interface BillingPackageData {
   invoiceId: string;
   obraSocialId: string;
@@ -394,7 +410,8 @@ async function generateExcel(
   const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 
   const timestamp = new Date().toISOString().split('T')[0];
-  const filename = `Factura_${obraSocialName.replace(/\s+/g, '_')}_${timestamp}.xlsx`;
+  const filename = sanitizeFileName(`Factura_${obraSocialName}_${timestamp}.xlsx`);
+  console.log(`📊 Excel filename sanitized: ${filename}`);
   const path = `packages/${invoiceId}/excel/${filename}`;
 
   const { error } = await supabaseClient.storage
@@ -482,7 +499,10 @@ async function generateConsolidatedPDF(
   const pdfBytes = await mergedPdf.save();
   
   // Upload consolidated PDF to storage
-  const filename = `${presentation.patientLastName}_${presentation.patientName}_${presentation.orderDate}.pdf`;
+  const filename = sanitizeFileName(
+    `${presentation.patientLastName}_${presentation.patientName}_${presentation.orderDate}.pdf`
+  );
+  console.log(`📄 PDF filename sanitized: ${filename}`);
   const consolidatedPath = `packages/${invoiceId}/pdfs/${filename}`;
   
   const { error: uploadError } = await supabaseClient.storage
@@ -552,7 +572,8 @@ async function createZipPackage(
   
   // Upload ZIP to storage
   const today = new Date().toISOString().split('T')[0];
-  const zipFileName = `Factura_${obraSocialName.replace(/\s+/g, '_')}_${today}.zip`;
+  const zipFileName = sanitizeFileName(`Factura_${obraSocialName}_${today}.zip`);
+  console.log(`📦 ZIP filename sanitized: ${zipFileName}`);
   const zipPath = `packages/${invoiceId}/${zipFileName}`;
   
   const { error: uploadError } = await supabaseClient.storage

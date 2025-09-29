@@ -14,6 +14,22 @@ interface BillingData {
   columnConfig?: any[];
 }
 
+/**
+ * Sanitiza nombres de archivo para Supabase Storage
+ * - Remueve diacríticos (ñ → n, á → a)
+ * - Reemplaza caracteres no alfanuméricos con _
+ * - Compacta múltiples _ consecutivos
+ */
+function sanitizeFileName(name: string): string {
+  return name
+    .normalize('NFD')                          // Descompone caracteres con diacríticos
+    .replace(/[\u0300-\u036f]/g, '')          // Remueve marcas diacríticas
+    .replace(/ñ/gi, 'n')                      // Ñ → n (específico)
+    .replace(/[^a-zA-Z0-9._-]/g, '_')         // Solo permite: letras, números, . _ -
+    .replace(/_+/g, '_')                      // Compacta _____ → _
+    .replace(/^_|_$/g, '');                   // Trim _ al inicio/fin
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -111,7 +127,10 @@ serve(async (req) => {
 
     // Generate filename
     const timestamp = new Date().toISOString().split('T')[0];
-    const filename = `facturacion_${obraSocial?.nombre?.replace(/\s+/g, '_') || 'OS'}_${timestamp}.xlsx`;
+    const filename = sanitizeFileName(
+      `facturacion_${obraSocial?.nombre || 'OS'}_${timestamp}.xlsx`
+    );
+    console.log(`📊 Excel filename sanitized: ${filename}`);
 
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabaseClient.storage
