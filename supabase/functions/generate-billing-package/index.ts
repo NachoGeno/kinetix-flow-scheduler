@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as XLSX from 'https://deno.land/x/sheetjs@v0.18.3/xlsx.mjs';
+import { PDFDocument } from 'https://esm.sh/pdf-lib@1.17.1';
+import JSZip from 'https://esm.sh/jszip@3.10.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,11 +55,60 @@ serve(async (req) => {
     );
 
     const requestData: BillingPackageData = await req.json();
-    const { invoiceId, obraSocialId, obraSocialName, organizationLogoUrl, presentations, isRegeneration } = requestData;
+    const { invoiceId, obraSocialId, obraSocialName, organizationLogoUrl, isRegeneration } = requestData;
 
     console.log('📦 Starting package generation for invoice:', invoiceId);
-    console.log('🔢 Total presentations:', presentations.length);
     console.log('🔄 Is regeneration:', isRegeneration);
+
+    // STEP 0: Fetch presentations from database (source of truth)
+    console.log('🔍 Step 0: Fetching presentations from database...');
+    const { data: invoiceItems, error: itemsError } = await supabaseClient
+      .from('billing_invoice_items')
+      .select(`
+        medical_order_id,
+        medical_orders (
+          id,
+          order_date,
+          patient_id,
+          doctor_name,
+          total_sessions,
+          sessions_used,
+          patients (
+            id,
+            profiles (
+              first_name,
+              last_name,
+              dni
+            )
+          )
+        )
+      `)
+      .eq('billing_invoice_id', invoiceId);
+
+    if (itemsError) throw new Error(`Error fetching invoice items: ${itemsError.message}`);
+    if (!invoiceItems || invoiceItems.length === 0) {
+      throw new Error('No se pueden generar paquetes sin presentaciones');
+    }
+
+    // Build presentations array from database
+    const presentations: PresentationData[] = invoiceItems.map((item: any) => {
+      const order = item.medical_orders;
+      const patient = order.patients;
+      const profile = patient.profiles;
+      
+      return {
+        orderId: order.id,
+        patientName: profile.first_name,
+        patientLastName: profile.last_name,
+        patientDni: profile.dni,
+        orderDate: order.order_date,
+        doctorName: order.doctor_name,
+        totalSessions: order.total_sessions,
+        sessionsUsed: order.sessions_used
+      };
+    });
+
+    console.log('✅ Loaded presentations from database:', presentations.length);
 
     // STEP 1: Validate all presentations have required documents
     console.log('✅ Step 1: Validating documents...');
@@ -84,8 +135,6 @@ serve(async (req) => {
       const pdfPath = await generateConsolidatedPDF(
         supabaseClient,
         presentation,
-        obraSocialName,
-        organizationLogoUrl,
         invoiceId
       );
       
@@ -132,7 +181,7 @@ serve(async (req) => {
       .update({ enviado_a_os: true })
       .in('id', orderIds);
 
-    // STEP 7: Update billing invoice
+    // STEP 7: Update billing invoice with ZIP path
     console.log('🔄 Step 7: Updating invoice record...');
     
     const { data: currentInvoice } = await supabaseClient
@@ -148,7 +197,7 @@ serve(async (req) => {
       .single();
 
     const updateData: any = {
-      package_url: zipPath,
+      package_url: zipPath, // Now points to actual ZIP file
       package_status: 'ready',
       package_generated_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -236,7 +285,7 @@ async function validatePresentationsDocuments(
 
     results.push({
       orderId: presentation.orderId,
-      patientName: presentation.patientName,
+      patientName: `${presentation.patientName} ${presentation.patientLastName}`,
       isComplete: missingDocuments.length === 0,
       missingDocuments
     });
@@ -326,50 +375,93 @@ async function generateExcel(
 async function generateConsolidatedPDF(
   supabaseClient: any,
   presentation: PresentationData,
-  obraSocialName: string,
-  organizationLogoUrl: string | undefined,
   invoiceId: string
 ): Promise<string> {
-  // Store document paths for client-side consolidation
-  const documentPaths = [];
-
+  console.log(`📄 Generating consolidated PDF for ${presentation.patientName}...`);
+  
   const documentTypes = [
-    { type: 'medical_order', label: 'Orden Médica', useMedicalOrderAttachment: true },
-    { type: 'clinical_evolution', label: 'Evolución Clínica', useMedicalOrderAttachment: false },
-    { type: 'attendance_record', label: 'Planilla de Asistencia', useMedicalOrderAttachment: false },
-    { type: 'social_work_authorization', label: 'Autorización Obra Social', useMedicalOrderAttachment: false }
+    { type: 'medical_order', useMedicalOrderAttachment: true },
+    { type: 'clinical_evolution', useMedicalOrderAttachment: false },
+    { type: 'attendance_record', useMedicalOrderAttachment: false },
+    { type: 'social_work_authorization', useMedicalOrderAttachment: false }
   ];
 
+  // Create merged PDF document
+  const mergedPdf = await PDFDocument.create();
+  
   for (const docType of documentTypes) {
-    let pdfUrl: string | null = null;
+    try {
+      let pdfUrl: string | null = null;
+      let storageBucket = 'medical-documents';
 
-    if (docType.useMedicalOrderAttachment) {
-      const { data: order } = await supabaseClient
-        .from('medical_orders')
-        .select('attachment_url')
-        .eq('id', presentation.orderId)
-        .single();
-      pdfUrl = order?.attachment_url;
-    } else {
-      const { data: doc } = await supabaseClient
-        .from('presentation_documents')
-        .select('file_url')
-        .eq('medical_order_id', presentation.orderId)
-        .eq('document_type', docType.type)
-        .single();
-      pdfUrl = doc?.file_url;
-    }
+      if (docType.useMedicalOrderAttachment) {
+        const { data: order } = await supabaseClient
+          .from('medical_orders')
+          .select('attachment_url')
+          .eq('id', presentation.orderId)
+          .single();
+        pdfUrl = order?.attachment_url;
+      } else {
+        const { data: doc } = await supabaseClient
+          .from('presentation_documents')
+          .select('file_url')
+          .eq('medical_order_id', presentation.orderId)
+          .eq('document_type', docType.type)
+          .single();
+        pdfUrl = doc?.file_url;
+      }
 
-    if (pdfUrl) {
-      documentPaths.push({ type: docType.type, path: pdfUrl, label: docType.label });
+      if (!pdfUrl) {
+        console.warn(`⚠️ Document ${docType.type} not found for order ${presentation.orderId}`);
+        continue;
+      }
+
+      // Download PDF from storage
+      const { data: fileData, error: downloadError } = await supabaseClient.storage
+        .from(storageBucket)
+        .download(pdfUrl);
+      
+      if (downloadError) {
+        console.error(`Error downloading ${docType.type}:`, downloadError);
+        continue;
+      }
+      
+      // Convert blob to array buffer
+      const arrayBuffer = await fileData.arrayBuffer();
+      
+      // Load the PDF
+      const pdf = await PDFDocument.load(arrayBuffer);
+      
+      // Copy all pages from this PDF to the merged PDF
+      const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+      copiedPages.forEach((page) => mergedPdf.addPage(page));
+      
+      console.log(`✅ Added ${docType.type} to consolidated PDF`);
+    } catch (error) {
+      console.error(`Error processing ${docType.type}:`, error);
     }
   }
-
-  // Simply return a reference path for tracking - no file upload needed
-  const filename = `${presentation.patientLastName}_${presentation.patientName}_${presentation.orderDate}.pdf`;
-  const referencePath = `packages/${invoiceId}/pdfs/${filename}`;
   
-  return referencePath;
+  // Save the merged PDF
+  const pdfBytes = await mergedPdf.save();
+  
+  // Upload consolidated PDF to storage
+  const filename = `${presentation.patientLastName}_${presentation.patientName}_${presentation.orderDate}.pdf`;
+  const consolidatedPath = `packages/${invoiceId}/pdfs/${filename}`;
+  
+  const { error: uploadError } = await supabaseClient.storage
+    .from('billing-packages')
+    .upload(consolidatedPath, pdfBytes, {
+      contentType: 'application/pdf',
+      upsert: true
+    });
+  
+  if (uploadError) {
+    throw new Error(`Error uploading consolidated PDF: ${uploadError.message}`);
+  }
+  
+  console.log(`✅ Consolidated PDF uploaded: ${consolidatedPath}`);
+  return consolidatedPath;
 }
 
 async function createZipPackage(
@@ -379,8 +471,63 @@ async function createZipPackage(
   consolidatedPdfs: Array<{ patientName: string; path: string }>,
   obraSocialName: string
 ): Promise<string> {
-  // Return the base package path - all files are already uploaded to storage
-  // The frontend can access Excel and PDFs separately from storage
-  const packagePath = `packages/${invoiceId}`;
-  return packagePath;
+  console.log(`📦 Creating ZIP package with Excel + ${consolidatedPdfs.length} PDFs...`);
+  
+  const zip = new JSZip();
+  
+  // Download and add Excel file to ZIP
+  const { data: excelData, error: excelError } = await supabaseClient.storage
+    .from('billing-packages')
+    .download(excelPath);
+  
+  if (excelError) throw new Error(`Error downloading Excel: ${excelError.message}`);
+  
+  const excelBuffer = await excelData.arrayBuffer();
+  const excelFileName = excelPath.split('/').pop() || 'factura.xlsx';
+  zip.file(excelFileName, excelBuffer);
+  console.log(`✅ Added Excel to ZIP`);
+  
+  // Create PDFs folder in ZIP
+  const pdfsFolder = zip.folder('PDFs');
+  
+  // Download and add each PDF to ZIP
+  for (const pdfRef of consolidatedPdfs) {
+    try {
+      const { data: pdfData, error: pdfError } = await supabaseClient.storage
+        .from('billing-packages')
+        .download(pdfRef.path);
+      
+      if (pdfError) {
+        console.error(`Error downloading PDF ${pdfRef.patientName}:`, pdfError);
+        continue;
+      }
+      
+      const pdfBuffer = await pdfData.arrayBuffer();
+      const pdfFileName = pdfRef.path.split('/').pop() || `${pdfRef.patientName}.pdf`;
+      pdfsFolder?.file(pdfFileName, pdfBuffer);
+      console.log(`✅ Added ${pdfFileName} to ZIP`);
+    } catch (error) {
+      console.error(`Error processing PDF ${pdfRef.patientName}:`, error);
+    }
+  }
+  
+  // Generate ZIP file
+  const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
+  
+  // Upload ZIP to storage
+  const today = new Date().toISOString().split('T')[0];
+  const zipFileName = `Factura_${obraSocialName.replace(/\s+/g, '_')}_${today}.zip`;
+  const zipPath = `packages/${invoiceId}/${zipFileName}`;
+  
+  const { error: uploadError } = await supabaseClient.storage
+    .from('billing-packages')
+    .upload(zipPath, zipBuffer, {
+      contentType: 'application/zip',
+      upsert: true
+    });
+  
+  if (uploadError) throw new Error(`Error uploading ZIP: ${uploadError.message}`);
+  
+  console.log(`✅ ZIP package uploaded: ${zipPath}`);
+  return zipPath;
 }
