@@ -370,7 +370,7 @@ async function generateConsolidatedPDF(
   const { error } = await supabaseClient.storage
     .from('billing-packages')
     .upload(metadataPath, JSON.stringify(metadata), {
-      contentType: 'application/json',
+      contentType: 'text/plain',
       upsert: true
     });
 
@@ -404,7 +404,7 @@ async function createZipPackage(
   const { error } = await supabaseClient.storage
     .from('billing-packages')
     .upload(packagePath, JSON.stringify(packageInfo), {
-      contentType: 'application/json',
+      contentType: 'text/plain',
       upsert: true
     });
 
