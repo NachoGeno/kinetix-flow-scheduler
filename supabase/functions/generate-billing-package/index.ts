@@ -62,37 +62,57 @@ serve(async (req) => {
 
     // STEP 0: Fetch presentations from database (source of truth)
     console.log('🔍 Step 0: Fetching presentations from database...');
+    
+    // Paso 1: Obtener los IDs de las órdenes médicas desde billing_invoice_items
     const { data: invoiceItems, error: itemsError } = await supabaseClient
       .from('billing_invoice_items')
-      .select(`
-        medical_order_id,
-        medical_orders (
-          id,
-          order_date,
-          patient_id,
-          doctor_name,
-          total_sessions,
-          sessions_used,
-          patients (
-            id,
-            profiles (
-              first_name,
-              last_name,
-              dni
-            )
-          )
-        )
-      `)
+      .select('medical_order_id')
       .eq('billing_invoice_id', invoiceId);
 
-    if (itemsError) throw new Error(`Error fetching invoice items: ${itemsError.message}`);
+    if (itemsError) {
+      throw new Error(`Error fetching invoice items: ${itemsError.message}`);
+    }
+
     if (!invoiceItems || invoiceItems.length === 0) {
       throw new Error('No se pueden generar paquetes sin presentaciones');
     }
 
-    // Build presentations array from database
-    const presentations: PresentationData[] = invoiceItems.map((item: any) => {
-      const order = item.medical_orders;
+    // Extraer array de IDs
+    const orderIds = invoiceItems.map((item: any) => item.medical_order_id);
+    console.log(`📋 Found ${orderIds.length} orders in invoice`);
+
+    // Paso 2: Obtener las medical_orders con sus relaciones usando los IDs
+    const { data: orders, error: ordersError } = await supabaseClient
+      .from('medical_orders')
+      .select(`
+        id,
+        order_date,
+        doctor_name,
+        total_sessions,
+        sessions_used,
+        patient_id,
+        patients!inner (
+          id,
+          profile_id,
+          profiles!inner (
+            first_name,
+            last_name,
+            dni
+          )
+        )
+      `)
+      .in('id', orderIds);
+
+    if (ordersError) {
+      throw new Error(`Error fetching medical orders: ${ordersError.message}`);
+    }
+
+    if (!orders || orders.length === 0) {
+      throw new Error('No se encontraron órdenes médicas válidas');
+    }
+
+    // Paso 3: Transformar a formato presentations
+    const presentations: PresentationData[] = orders.map((order: any) => {
       const patient = order.patients;
       const profile = patient.profiles;
       
