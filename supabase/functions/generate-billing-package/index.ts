@@ -70,16 +70,18 @@ serve(async (req) => {
       .eq('billing_invoice_id', invoiceId);
 
     if (itemsError) {
+      console.error('❌ Error fetching invoice items:', itemsError);
       throw new Error(`Error fetching invoice items: ${itemsError.message}`);
     }
 
     if (!invoiceItems || invoiceItems.length === 0) {
+      console.error('❌ No invoice items found for invoice:', invoiceId);
       throw new Error('No se pueden generar paquetes sin presentaciones');
     }
 
     // Extraer array de IDs
-    const orderIds = invoiceItems.map((item: any) => item.medical_order_id);
-    console.log(`📋 Found ${orderIds.length} orders in invoice`);
+    const medicalOrderIds = invoiceItems.map((item: any) => item.medical_order_id);
+    console.log(`📋 Found ${medicalOrderIds.length} orders in invoice:`, medicalOrderIds);
 
     // Paso 2: Obtener las medical_orders con sus relaciones usando los IDs
     const { data: orders, error: ordersError } = await supabaseClient
@@ -101,31 +103,45 @@ serve(async (req) => {
           )
         )
       `)
-      .in('id', orderIds);
+      .in('id', medicalOrderIds);
 
     if (ordersError) {
+      console.error('❌ Error fetching medical orders:', ordersError);
       throw new Error(`Error fetching medical orders: ${ordersError.message}`);
     }
 
     if (!orders || orders.length === 0) {
+      console.error('❌ No medical orders found for IDs:', medicalOrderIds);
       throw new Error('No se encontraron órdenes médicas válidas');
     }
 
+    console.log(`✅ Found ${orders.length} medical orders with patient data`);
+
     // Paso 3: Transformar a formato presentations
     const presentations: PresentationData[] = orders.map((order: any) => {
-      const patient = order.patients;
-      const profile = patient.profiles;
-      
-      return {
-        orderId: order.id,
-        patientName: profile.first_name,
-        patientLastName: profile.last_name,
-        patientDni: profile.dni,
-        orderDate: order.order_date,
-        doctorName: order.doctor_name,
-        totalSessions: order.total_sessions,
-        sessionsUsed: order.sessions_used
-      };
+      try {
+        const patient = order.patients;
+        const profile = patient.profiles;
+        
+        if (!patient || !profile) {
+          console.error('❌ Missing patient or profile data for order:', order.id);
+          throw new Error(`Missing patient data for order ${order.id}`);
+        }
+        
+        return {
+          orderId: order.id,
+          patientName: profile.first_name,
+          patientLastName: profile.last_name,
+          patientDni: profile.dni,
+          orderDate: order.order_date,
+          doctorName: order.doctor_name,
+          totalSessions: order.total_sessions,
+          sessionsUsed: order.sessions_used
+        };
+      } catch (mappingError) {
+        console.error('❌ Error mapping order:', order.id, mappingError);
+        throw mappingError;
+      }
     });
 
     console.log('✅ Loaded presentations from database:', presentations.length);
