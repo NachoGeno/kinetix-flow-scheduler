@@ -28,6 +28,7 @@ export interface PresentationOrder {
   organization_id: string;
   document_status: string;
   presentation_status?: string;
+  early_discharge: boolean;
   created_at: string;
   updated_at: string;
   patient_name: string;

@@ -51,6 +51,7 @@ interface PresentationOrder {
   completed: boolean;
   presentation_status: string;
   enviado_a_os: boolean;
+  early_discharge: boolean;
   patient: {
     id: string;
     profile: {
@@ -999,14 +1000,33 @@ export default function Presentaciones() {
                   <div className="p-4 border rounded-lg">
                     <h3 className="font-medium mb-2">Estado de Sesiones</h3>
                     <div className="flex items-center gap-2">
-                      {selectedOrder.sessions_completed ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      {selectedOrder.early_discharge && selectedOrder.completed ? (
+                        <>
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          <div className="flex items-center gap-2">
+                            <span>
+                              {selectedOrder.actual_completed_sessions || 0}/{selectedOrder.total_sessions} sesiones
+                            </span>
+                            <Badge variant="default" className="bg-blue-500">
+                              ALTA TEMPRANA
+                            </Badge>
+                          </div>
+                        </>
+                      ) : selectedOrder.sessions_completed ? (
+                        <>
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          <span>
+                            {selectedOrder.actual_completed_sessions || 0}/{selectedOrder.total_sessions} sesiones completadas
+                          </span>
+                        </>
                       ) : (
-                        <Clock className="h-5 w-5 text-yellow-500" />
+                        <>
+                          <Clock className="h-5 w-5 text-yellow-500" />
+                          <span>
+                            {selectedOrder.actual_completed_sessions || 0}/{selectedOrder.total_sessions} sesiones completadas
+                          </span>
+                        </>
                       )}
-                      <span>
-                        {selectedOrder.actual_completed_sessions || 0}/{selectedOrder.total_sessions} sesiones completadas
-                      </span>
                     </div>
                   </div>
                   
