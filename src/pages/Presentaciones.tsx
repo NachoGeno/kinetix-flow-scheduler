@@ -50,6 +50,7 @@ interface PresentationOrder {
   sessions_used: number;
   completed: boolean;
   presentation_status: string;
+  enviado_a_os: boolean;
   patient: {
     id: string;
     profile: {
@@ -203,14 +204,19 @@ export default function Presentaciones() {
               social_work_authorization: null as DocumentInfo | null,
             };
 
+            // Get order data including enviado_a_os field
+            let orderData: any = null;
+
             // Medical order document (from the order itself) - use optimized data
             if (order.id) {
               // Get attachment info from medical_orders table
-              const { data: orderData } = await supabase
+              const { data } = await supabase
                 .from('medical_orders')
-                .select('attachment_url, attachment_name, created_at')
+                .select('attachment_url, attachment_name, created_at, enviado_a_os')
                 .eq('id', order.id)
                 .single();
+              
+              orderData = data;
 
               if (orderData?.attachment_url) {
                 documentsByType.medical_order = {
@@ -264,6 +270,7 @@ export default function Presentaciones() {
               sessions_used: order.sessions_used,
               completed: order.completed,
               presentation_status: order.presentation_status || 'pending',
+              enviado_a_os: orderData?.enviado_a_os || false,
               patient: {
                 id: order.patient_id,
                 profile: {
@@ -838,6 +845,12 @@ export default function Presentaciones() {
                             <Badge variant="secondary" className="text-xs">
                               <Send className="h-3 w-3 mr-1" />
                               Presentado
+                            </Badge>
+                          )}
+                          {order.enviado_a_os && (
+                            <Badge variant="success" className="text-xs">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Facturado
                             </Badge>
                           )}
                         </div>
