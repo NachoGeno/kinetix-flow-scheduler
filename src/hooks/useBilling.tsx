@@ -78,6 +78,7 @@ export function useBilling() {
           sessions_used,
           completed_at,
           enviado_a_os,
+          attachment_url,
           patients:patient_id (
             id,
             profiles:profile_id (
@@ -92,6 +93,10 @@ export function useBilling() {
               first_name,
               last_name
             )
+          ),
+          presentation_documents (
+            document_type,
+            file_url
           )
         `)
         .eq("completed", true)
@@ -102,11 +107,28 @@ export function useBilling() {
 
       if (error) throw error;
 
-      // Filter by obra social and format data
+      // Required document types
+      const requiredDocTypes = ['clinical_evolution', 'attendance_record', 'social_work_authorization'];
+
+      // Filter by obra social, complete documentation and format data
       const presentations = (data || [])
-        .filter((order: any) => 
-          order.patients?.obra_social_art_id === obraSocialId
-        )
+        .filter((order: any) => {
+          // Must belong to the selected obra social
+          if (order.patients?.obra_social_art_id !== obraSocialId) return false;
+          
+          // Must have medical order attachment (base document)
+          if (!order.attachment_url) return false;
+          
+          // Must have all 3 required presentation documents
+          const presentationDocs = order.presentation_documents || [];
+          const docTypes = presentationDocs
+            .filter((doc: any) => doc.file_url) // Only count documents with files
+            .map((doc: any) => doc.document_type);
+          
+          const hasAllDocs = requiredDocTypes.every(type => docTypes.includes(type));
+          
+          return hasAllDocs;
+        })
         .map((order: any) => ({
           id: order.id,
           patient_name: `${order.patients?.profiles?.first_name} ${order.patients?.profiles?.last_name}`,
