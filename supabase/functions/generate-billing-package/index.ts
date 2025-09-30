@@ -348,8 +348,9 @@ async function validatePresentationsDocuments(
     } else {
       // Verificar que el archivo existe en Storage
       const storageKey = resolveStorageKey(medicalOrder.attachment_url);
+      console.log(`🔍 Validando Orden Médica desde bucket: medical-orders, key: ${storageKey}`);
       const { data: fileCheck, error: checkError } = await supabaseClient.storage
-        .from('medical-documents')
+        .from('medical-orders')
         .download(storageKey);
       
       if (checkError || !fileCheck) {
@@ -381,8 +382,9 @@ async function validatePresentationsDocuments(
         const doc = documents.find((d: any) => d.document_type === docType.type);
         if (doc?.file_url) {
           const storageKey = resolveStorageKey(doc.file_url);
+          console.log(`🔍 Validando ${docType.label} desde bucket: medical-orders, key: ${storageKey}`);
           const { data: fileCheck, error: checkError } = await supabaseClient.storage
-            .from('medical-documents')
+            .from('medical-orders')
             .download(storageKey);
           
           if (checkError || !fileCheck) {
@@ -504,7 +506,7 @@ async function generateConsolidatedPDF(
   for (const docType of documentTypes) {
     try {
       let pdfUrl: string | null = null;
-      let storageBucket = 'medical-documents';
+      let storageBucket = 'medical-orders';
 
       if (docType.useMedicalOrderAttachment) {
         const { data: order } = await supabaseClient
@@ -531,6 +533,7 @@ async function generateConsolidatedPDF(
 
       // Resolver storage key para manejar diferentes formatos de URL
       const storageKey = resolveStorageKey(pdfUrl);
+      console.log(`📥 Descargando ${docType.type} desde bucket: ${storageBucket}, key: ${storageKey}`);
 
       // Download PDF from storage usando la key resuelta
       const { data: fileData, error: downloadError } = await supabaseClient.storage
