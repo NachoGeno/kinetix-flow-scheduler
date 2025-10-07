@@ -1,6 +1,34 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+// ==========================================
+// SECURITY - Organization Isolation Helper
+// ==========================================
+
+/**
+ * CRITICAL: Obtiene el organization_id del usuario autenticado
+ * Garantiza aislamiento organizacional en todas las consultas
+ */
+const getCurrentUserOrgId = async (): Promise<string> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('Usuario no autenticado');
+  }
+
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('organization_id')
+    .eq('user_id', user.id)
+    .single();
+  
+  if (error || !profile?.organization_id) {
+    throw new Error('Usuario sin organización asignada');
+  }
+  
+  return profile.organization_id;
+};
+
 // Types para las vistas de reporting
 export interface AttendanceDaily {
   appointment_date: string;
@@ -60,46 +88,52 @@ export const useKPICore = () => {
   return useQuery({
     queryKey: ['reports-manager', 'kpi-core'],
     queryFn: async () => {
+      const userOrgId = await getCurrentUserOrgId();
       const today = new Date().toISOString().split('T')[0];
       const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
-      // Citas de hoy
+      // Citas de hoy (FILTRADO POR ORGANIZACIÓN)
       const { data: todayAppointments, error: apptError } = await supabase
         .from('appointments')
         .select('status')
-        .eq('appointment_date', today);
+        .eq('appointment_date', today)
+        .eq('organization_id', userOrgId);
 
       if (apptError) throw apptError;
 
-      // Órdenes activas
+      // Órdenes activas (FILTRADO POR ORGANIZACIÓN)
       const { count: activeOrdersCount, error: ordersError } = await supabase
         .from('medical_orders')
         .select('*', { count: 'exact', head: true })
-        .eq('completed', false);
+        .eq('completed', false)
+        .eq('organization_id', userOrgId);
 
       if (ordersError) throw ordersError;
 
-      // Documentos pendientes
+      // Documentos pendientes (FILTRADO POR ORGANIZACIÓN)
       const { count: pendingDocsCount, error: docsError } = await supabase
         .from('medical_orders')
         .select('*', { count: 'exact', head: true })
-        .eq('document_status', 'pendiente');
+        .eq('document_status', 'pendiente')
+        .eq('organization_id', userOrgId);
 
       if (docsError) throw docsError;
 
-      // Pacientes activos
+      // Pacientes activos (FILTRADO POR ORGANIZACIÓN)
       const { count: activePatientsCount, error: patientsError } = await supabase
         .from('patients')
         .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('organization_id', userOrgId);
 
       if (patientsError) throw patientsError;
 
-      // Nuevos pacientes este mes
+      // Nuevos pacientes este mes (FILTRADO POR ORGANIZACIÓN)
       const { count: newPatientsCount, error: newPatientsError } = await supabase
         .from('patients')
         .select('*', { count: 'exact', head: true })
-        .gte('created_at', firstDayOfMonth);
+        .gte('created_at', firstDayOfMonth)
+        .eq('organization_id', userOrgId);
 
       if (newPatientsError) throw newPatientsError;
 
@@ -135,6 +169,7 @@ export const useAttendanceDaily = (days: number = 30) => {
   return useQuery({
     queryKey: ['reports-manager', 'attendance-daily', days],
     queryFn: async () => {
+      const userOrgId = await getCurrentUserOrgId();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
       const startDateStr = startDate.toISOString().split('T')[0];
@@ -143,6 +178,7 @@ export const useAttendanceDaily = (days: number = 30) => {
         .from('appointments')
         .select('appointment_date, status')
         .gte('appointment_date', startDateStr)
+        .eq('organization_id', userOrgId)
         .order('appointment_date', { ascending: true });
 
       if (error) throw error;
@@ -192,6 +228,7 @@ export const useCapacityUtilization = () => {
   return useQuery({
     queryKey: ['reports-manager', 'capacity-utilization'],
     queryFn: async () => {
+      const userOrgId = await getCurrentUserOrgId();
       const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
       const { data: doctors, error: doctorsError } = await supabase
@@ -201,7 +238,8 @@ export const useCapacityUtilization = () => {
           profiles!inner(first_name, last_name),
           specialties!inner(name)
         `)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('organization_id', userOrgId);
 
       if (doctorsError) throw doctorsError;
 
@@ -218,6 +256,7 @@ export const useCapacityUtilization = () => {
             .select('*', { count: 'exact', head: true })
             .eq('doctor_id', doctor.id)
             .eq('status', 'completed')
+            .eq('organization_id', userOrgId)
             .gte('appointment_date', firstDayOfMonth);
 
           const { count: scheduledCount } = await supabase
@@ -225,6 +264,7 @@ export const useCapacityUtilization = () => {
             .select('*', { count: 'exact', head: true })
             .eq('doctor_id', doctor.id)
             .in('status', ['scheduled', 'confirmed', 'in_progress'])
+            .eq('organization_id', userOrgId)
             .gte('appointment_date', firstDayOfMonth);
 
           const completed = completedCount || 0;
@@ -256,6 +296,7 @@ export const useOrdersPipeline = (status?: string) => {
   return useQuery({
     queryKey: ['reports-manager', 'orders-pipeline', status],
     queryFn: async () => {
+      const userOrgId = await getCurrentUserOrgId();
       let query = supabase
         .from('medical_orders')
         .select(`
@@ -277,6 +318,7 @@ export const useOrdersPipeline = (status?: string) => {
           ),
           obras_sociales_art(nombre)
         `)
+        .eq('organization_id', userOrgId)
         .order('order_date', { ascending: false });
 
       // Filtrar por estado si se proporciona
@@ -352,9 +394,11 @@ export const useDashboardStats = (
   return useQuery({
     queryKey: ['reports-manager', 'dashboard-stats', startDate, endDate],
     queryFn: async () => {
+      const userOrgId = await getCurrentUserOrgId();
       let appointmentsQuery = supabase
         .from('appointments')
-        .select('status', { count: 'exact' });
+        .select('status', { count: 'exact' })
+        .eq('organization_id', userOrgId);
 
       if (startDate) appointmentsQuery = appointmentsQuery.gte('appointment_date', startDate);
       if (endDate) appointmentsQuery = appointmentsQuery.lte('appointment_date', endDate);
@@ -364,7 +408,8 @@ export const useDashboardStats = (
       let completedQuery = supabase
         .from('appointments')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'completed');
+        .eq('status', 'completed')
+        .eq('organization_id', userOrgId);
 
       if (startDate) completedQuery = completedQuery.gte('appointment_date', startDate);
       if (endDate) completedQuery = completedQuery.lte('appointment_date', endDate);
@@ -374,28 +419,33 @@ export const useDashboardStats = (
       const { count: activeOrders } = await supabase
         .from('medical_orders')
         .select('*', { count: 'exact', head: true })
-        .eq('completed', false);
+        .eq('completed', false)
+        .eq('organization_id', userOrgId);
 
       const { count: completedOrders } = await supabase
         .from('medical_orders')
         .select('*', { count: 'exact', head: true })
-        .eq('completed', true);
+        .eq('completed', true)
+        .eq('organization_id', userOrgId);
 
       const { count: pendingDocs } = await supabase
         .from('medical_orders')
         .select('*', { count: 'exact', head: true })
-        .eq('document_status', 'pendiente');
+        .eq('document_status', 'pendiente')
+        .eq('organization_id', userOrgId);
 
       const { count: activePatients } = await supabase
         .from('patients')
         .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('organization_id', userOrgId);
 
       const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
       const { count: newPatients } = await supabase
         .from('patients')
         .select('*', { count: 'exact', head: true })
-        .gte('created_at', firstDayOfMonth);
+        .gte('created_at', firstDayOfMonth)
+        .eq('organization_id', userOrgId);
 
       const dashboardStats = {
         total_appointments: totalAppointments || 0,
