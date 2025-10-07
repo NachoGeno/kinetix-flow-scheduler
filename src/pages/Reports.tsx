@@ -729,7 +729,7 @@ export default function Reports() {
                         <TableCell className="font-medium">{professional.doctor_name}</TableCell>
                         <TableCell>{professional.specialty_name}</TableCell>
                         <TableCell>{professional.total_sessions}</TableCell>
-                        <TableCell className="font-semibold">{professional.total_hours.toFixed(2)}h</TableCell>
+                        <TableCell className="font-semibold">{(professional.total_hours ?? 0).toFixed(2)}h</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
