@@ -23,17 +23,14 @@ interface Doctor {
 }
 
 interface PatientsByMonth {
-  year: number;
-  month: number;
-  month_name: string;
-  patients_attended: number;
+  month: string;
+  patients_count: number;
 }
 
 interface PatientsByDoctor {
   doctor_id: string;
   doctor_name: string;
-  patients_attended: number;
-  percentage: number;
+  patients_count: number;
 }
 
 interface AppointmentStats {
@@ -43,43 +40,33 @@ interface AppointmentStats {
 }
 
 interface NewPatients {
-  year: number;
-  month: number;
-  month_name: string;
-  new_patients: number;
+  month: string;
+  new_patients_count: number;
 }
 
 interface ActivePatients {
   patient_id: string;
   patient_name: string;
-  obra_social_name: string;
-  active_orders: number;
-  last_appointment_date: string;
+  active_orders_count: number;
 }
 
 interface PatientsWithoutHistory {
   patient_id: string;
   patient_name: string;
-  obra_social_name: string;
-  completed_sessions: number;
-  has_final_summary: boolean;
+  last_appointment_date: string;
 }
 
 interface ProfessionalWorkHours {
   doctor_id: string;
   doctor_name: string;
   specialty_name: string;
-  patients_attended: number;
-  appointments_completed: number;
-  estimated_hours: number;
+  total_hours: number;
+  total_sessions: number;
 }
 
 interface AppointmentsByTime {
   time_slot: string;
-  total_appointments: number;
-  completed_appointments: number;
-  cancelled_appointments: number;
-  completion_rate: number;
+  appointments_count: number;
 }
 
 interface ObraSocial {
@@ -131,15 +118,41 @@ export default function Reports() {
     fetchReportsData();
   }, [startDate, endDate, selectedDoctor, selectedObraSocial]);
 
+  const getCurrentUserOrgId = async (): Promise<string | null> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      return profile?.organization_id || null;
+    } catch (error) {
+      console.error('Error getting user organization:', error);
+      return null;
+    }
+  };
+
   const fetchDoctors = async () => {
     try {
+      setLoading(true);
+      const userOrgId = await getCurrentUserOrgId();
+      if (!userOrgId) {
+        console.error('No organization found for current user');
+        return;
+      }
+
       const { data, error } = await supabase
         .from("doctors")
         .select(`
           id,
           profile:profiles(first_name, last_name)
         `)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .eq("organization_id", userOrgId);
 
       if (error) throw error;
       setDoctors(data || []);
@@ -150,10 +163,17 @@ export default function Reports() {
 
   const fetchObrasSociales = async () => {
     try {
+      const userOrgId = await getCurrentUserOrgId();
+      if (!userOrgId) {
+        console.error('No organization found for current user');
+        return;
+      }
+
       const { data, error } = await supabase
         .from("obras_sociales_art")
         .select("id, nombre")
         .eq("is_active", true)
+        .eq("organization_id", userOrgId)
         .order("nombre");
 
       if (error) throw error;
@@ -208,12 +228,11 @@ export default function Reports() {
     try {
       const { data, error } = await supabase.rpc("get_new_patients_by_month", {
         start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
-        end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
-        obra_social_filter: selectedObraSocial === "all" ? null : selectedObraSocial
+        end_date: endDate ? format(endDate, "yyyy-MM-dd") : null
       });
 
       if (error) throw error;
-      setNewPatients(data || []);
+      setNewPatients(data as any || []);
     } catch (error) {
       console.error("Error fetching new patients:", error);
     }
@@ -221,14 +240,10 @@ export default function Reports() {
 
   const fetchActivePatients = async () => {
     try {
-      const { data, error } = await supabase.rpc("get_active_patients_in_treatment", {
-        start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
-        end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
-        obra_social_filter: selectedObraSocial === "all" ? null : selectedObraSocial
-      });
+      const { data, error } = await supabase.rpc("get_active_patients_in_treatment");
 
       if (error) throw error;
-      setActivePatients(data || []);
+      setActivePatients(data as any || []);
     } catch (error) {
       console.error("Error fetching active patients:", error);
     }
@@ -236,14 +251,10 @@ export default function Reports() {
 
   const fetchPatientsWithoutHistory = async () => {
     try {
-      const { data, error } = await supabase.rpc("get_patients_without_closed_history", {
-        start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
-        end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
-        obra_social_filter: selectedObraSocial === "all" ? null : selectedObraSocial
-      });
+      const { data, error } = await supabase.rpc("get_patients_without_closed_history");
 
       if (error) throw error;
-      setPatientsWithoutHistory(data || []);
+      setPatientsWithoutHistory(data as any || []);
     } catch (error) {
       console.error("Error fetching patients without history:", error);
     }
@@ -258,7 +269,7 @@ export default function Reports() {
       });
 
       if (error) throw error;
-      setProfessionalWorkHours(data || []);
+      setProfessionalWorkHours(data as any || []);
     } catch (error) {
       console.error("Error fetching professional work hours:", error);
     }
@@ -324,8 +335,8 @@ export default function Reports() {
 
   const chartDataPieDoctor = patientsByDoctor.map((item, index) => ({
     name: item.doctor_name,
-    value: item.patients_attended,
-    percentage: item.percentage
+    value: item.patients_count,
+    percentage: 0 // Will be calculated if needed
   }));
 
   const chartDataPieStats = appointmentStats.map((item, index) => ({
@@ -335,8 +346,8 @@ export default function Reports() {
   }));
 
   const chartDataBarMonth = patientsByMonth.map(item => ({
-    name: `${item.month_name.trim()} ${item.year}`,
-    pacientes: item.patients_attended
+    name: item.month,
+    pacientes: item.patients_count
   }));
 
   const exportToCSV = (data: any[], filename: string) => {
@@ -518,8 +529,8 @@ export default function Reports() {
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={newPatients.map(item => ({
-                      name: `${item.month_name.trim()} ${item.year}`,
-                      pacientes: item.new_patients
+                      name: item.month,
+                      pacientes: item.new_patients_count
                     }))}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
@@ -568,14 +579,9 @@ export default function Reports() {
                       {activePatients.slice(0, 10).map((patient) => (
                         <TableRow key={patient.patient_id}>
                           <TableCell className="font-medium">{patient.patient_name}</TableCell>
-                          <TableCell>{patient.obra_social_name || 'Sin obra social'}</TableCell>
-                          <TableCell>{patient.active_orders}</TableCell>
-                          <TableCell>
-                            {patient.last_appointment_date 
-                              ? format(new Date(patient.last_appointment_date), "dd/MM/yyyy")
-                              : 'Sin turnos'
-                            }
-                          </TableCell>
+                          <TableCell>N/A</TableCell>
+                          <TableCell>{patient.active_orders_count}</TableCell>
+                          <TableCell>N/A</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -620,11 +626,14 @@ export default function Reports() {
                   {patientsWithoutHistory.map((patient) => (
                     <TableRow key={patient.patient_id}>
                       <TableCell className="font-medium">{patient.patient_name}</TableCell>
-                      <TableCell>{patient.obra_social_name || 'Sin obra social'}</TableCell>
-                      <TableCell>{patient.completed_sessions}</TableCell>
+                      <TableCell>N/A</TableCell>
+                      <TableCell>N/A</TableCell>
                       <TableCell>
                         <span className="text-yellow-600 font-medium">
-                          {patient.has_final_summary ? 'Resumen pendiente' : 'Historia pendiente'}
+                          {patient.last_appointment_date 
+                            ? format(new Date(patient.last_appointment_date), "dd/MM/yyyy")
+                            : 'Sin fecha'
+                          }
                         </span>
                       </TableCell>
                     </TableRow>
@@ -719,8 +728,8 @@ export default function Reports() {
                       <TableRow key={professional.doctor_id}>
                         <TableCell className="font-medium">{professional.doctor_name}</TableCell>
                         <TableCell>{professional.specialty_name}</TableCell>
-                        <TableCell>{professional.appointments_completed}</TableCell>
-                        <TableCell className="font-semibold">{professional.estimated_hours}h</TableCell>
+                        <TableCell>{professional.total_sessions}</TableCell>
+                        <TableCell className="font-semibold">{professional.total_hours.toFixed(2)}h</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -844,8 +853,8 @@ export default function Reports() {
               <div className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={patientsByMonth.map(item => ({
-                    name: `${item.month_name.trim()} ${item.year}`,
-                    pacientes: item.patients_attended
+                    name: item.month,
+                    pacientes: item.patients_count
                   }))}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />

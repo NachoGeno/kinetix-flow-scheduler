@@ -1957,11 +1957,13 @@ export type Database = {
         Returns: number
       }
       get_active_patients_in_treatment: {
-        Args: {
-          end_date?: string
-          obra_social_filter?: string
-          start_date?: string
-        }
+        Args:
+          | Record<PropertyKey, never>
+          | {
+              end_date?: string
+              obra_social_filter?: string
+              start_date?: string
+            }
         Returns: {
           active_orders: number
           last_appointment_date: string
@@ -1997,11 +1999,8 @@ export type Database = {
       get_appointments_by_time_slot: {
         Args: { doctor_filter?: string; end_date?: string; start_date?: string }
         Returns: {
-          cancelled_appointments: number
-          completed_appointments: number
-          completion_rate: number
+          appointments_count: number
           time_slot: string
-          total_appointments: number
         }[]
       }
       get_current_user_organization_id: {
@@ -2057,11 +2056,13 @@ export type Database = {
         }[]
       }
       get_new_patients_by_month: {
-        Args: {
-          end_date?: string
-          obra_social_filter?: string
-          start_date?: string
-        }
+        Args:
+          | {
+              end_date?: string
+              obra_social_filter?: string
+              start_date?: string
+            }
+          | { end_date?: string; start_date?: string }
         Returns: {
           month: number
           month_name: string
@@ -2082,10 +2083,8 @@ export type Database = {
       get_patients_attended_by_month: {
         Args: { doctor_filter?: string; end_date?: string; start_date?: string }
         Returns: {
-          month: number
-          month_name: string
-          patients_attended: number
-          year: number
+          month: string
+          patients_count: number
         }[]
       }
       get_patients_by_doctor: {
@@ -2093,16 +2092,17 @@ export type Database = {
         Returns: {
           doctor_id: string
           doctor_name: string
-          patients_attended: number
-          percentage: number
+          patients_count: number
         }[]
       }
       get_patients_without_closed_history: {
-        Args: {
-          end_date?: string
-          obra_social_filter?: string
-          start_date?: string
-        }
+        Args:
+          | Record<PropertyKey, never>
+          | {
+              end_date?: string
+              obra_social_filter?: string
+              start_date?: string
+            }
         Returns: {
           completed_sessions: number
           has_final_summary: boolean
@@ -2130,7 +2130,9 @@ export type Database = {
         }[]
       }
       get_professional_work_hours: {
-        Args: { doctor_filter?: string; end_date?: string; start_date?: string }
+        Args:
+          | { doctor_filter?: string; end_date?: string; start_date?: string }
+          | { end_date?: string; start_date?: string }
         Returns: {
           appointments_completed: number
           doctor_id: string
