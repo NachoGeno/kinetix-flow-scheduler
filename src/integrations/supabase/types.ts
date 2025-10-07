@@ -1957,17 +1957,9 @@ export type Database = {
         Returns: number
       }
       get_active_patients_in_treatment: {
-        Args:
-          | Record<PropertyKey, never>
-          | {
-              end_date?: string
-              obra_social_filter?: string
-              start_date?: string
-            }
+        Args: Record<PropertyKey, never>
         Returns: {
-          active_orders: number
-          last_appointment_date: string
-          obra_social_name: string
+          active_orders_count: number
           patient_id: string
           patient_name: string
         }[]
@@ -2056,18 +2048,10 @@ export type Database = {
         }[]
       }
       get_new_patients_by_month: {
-        Args:
-          | {
-              end_date?: string
-              obra_social_filter?: string
-              start_date?: string
-            }
-          | { end_date?: string; start_date?: string }
+        Args: { end_date?: string; start_date?: string }
         Returns: {
-          month: number
-          month_name: string
-          new_patients: number
-          year: number
+          month: string
+          new_patients_count: number
         }[]
       }
       get_organization_statistics: {
@@ -2096,17 +2080,9 @@ export type Database = {
         }[]
       }
       get_patients_without_closed_history: {
-        Args:
-          | Record<PropertyKey, never>
-          | {
-              end_date?: string
-              obra_social_filter?: string
-              start_date?: string
-            }
+        Args: Record<PropertyKey, never>
         Returns: {
-          completed_sessions: number
-          has_final_summary: boolean
-          obra_social_name: string
+          last_appointment_date: string
           patient_id: string
           patient_name: string
         }[]
