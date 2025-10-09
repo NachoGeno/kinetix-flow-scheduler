@@ -211,11 +211,25 @@ export default function AppointmentCalendar() {
       const patientIds = [...new Set(appointmentsData?.map(a => a.patient_id).filter(Boolean))];
       const doctorIds = [...new Set(appointmentsData?.map(a => a.doctor_id).filter(Boolean))];
       
-      // Fetch related data
-      const [patientsData, doctorsData, profilesData, specialtiesData] = await Promise.all([
+      // PASO 1: Fetch patients y doctors primero
+      const [patientsData, doctorsData] = await Promise.all([
         patientIds.length > 0 ? supabase.from('patients').select('id, profile_id').in('id', patientIds) : { data: [] },
         doctorIds.length > 0 ? supabase.from('doctors').select('id, profile_id, specialty_id').in('id', doctorIds) : { data: [] },
-        supabase.from('profiles').select('id, first_name, last_name'),
+      ]);
+
+      // PASO 2: Recopilar profile_ids necesarios
+      const allProfileIds = [
+        ...new Set([
+          ...(patientsData.data?.map(p => p.profile_id).filter(Boolean) || []),
+          ...(doctorsData.data?.map(d => d.profile_id).filter(Boolean) || [])
+        ])
+      ];
+
+      // PASO 3: Fetch profiles y specialties con IDs específicos
+      const [profilesData, specialtiesData] = await Promise.all([
+        allProfileIds.length > 0 
+          ? supabase.from('profiles').select('id, first_name, last_name').in('id', allProfileIds)
+          : { data: [] },
         supabase.from('specialties').select('id, name, color')
       ]);
       
