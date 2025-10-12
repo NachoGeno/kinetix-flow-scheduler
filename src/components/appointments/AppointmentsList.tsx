@@ -69,16 +69,16 @@ interface Appointment {
 }
 
 const statusColors = {
-  scheduled: 'bg-blue-100 text-blue-800',
-  confirmed: 'bg-green-100 text-green-800',
-  in_progress: 'bg-yellow-100 text-yellow-800',
-  completed: 'bg-purple-100 text-purple-800',
-  cancelled: 'bg-red-100 text-red-800',
-  no_show: 'bg-gray-100 text-gray-800',
-  no_show_rescheduled: 'bg-orange-100 text-orange-800',
-  no_show_session_lost: 'bg-amber-100 text-amber-800',
-  rescheduled: 'bg-purple-100 text-purple-800',
-  discharged: 'bg-cyan-100 text-cyan-800',
+  scheduled: 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light',
+  confirmed: 'bg-success/10 text-success dark:bg-success/20 dark:text-success-light',
+  in_progress: 'bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning-light',
+  completed: 'bg-primary/20 text-primary-dark dark:bg-primary/30 dark:text-primary-light',
+  cancelled: 'bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive-foreground',
+  no_show: 'bg-muted text-muted-foreground dark:bg-muted dark:text-muted-foreground',
+  no_show_rescheduled: 'bg-warning/20 text-warning dark:bg-warning/30 dark:text-warning-light',
+  no_show_session_lost: 'bg-warning/15 text-warning dark:bg-warning/25 dark:text-warning-light',
+  rescheduled: 'bg-primary/15 text-primary dark:bg-primary/25 dark:text-primary-light',
+  discharged: 'bg-accent text-accent-foreground dark:bg-accent dark:text-accent-foreground',
 };
 
 const statusLabels = {
