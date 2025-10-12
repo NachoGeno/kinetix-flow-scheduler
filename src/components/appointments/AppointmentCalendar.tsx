@@ -715,18 +715,18 @@ export default function AppointmentCalendar() {
                            key={slot.time}
                            className={`transition-all duration-200 hover:shadow-md border-2 ${
                              slot.isFull
-                               ? 'bg-red-50 border-red-200 hover:bg-red-100'
-                               : 'bg-green-50 border-green-200 hover:bg-green-100'
+                               ? 'bg-destructive/10 border-destructive/20 hover:bg-destructive/15 dark:bg-destructive/20 dark:border-destructive/30 dark:hover:bg-destructive/25'
+                               : 'bg-success/10 border-success/20 hover:bg-success/15 dark:bg-success/20 dark:border-success/30 dark:hover:bg-success/25'
                            }`}
                          >
                           <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
+                               <div className="flex items-center gap-2">
                                 <div className={`p-1.5 rounded-full ${
-                                  slot.isFull ? 'bg-red-200' : 'bg-green-200'
+                                  slot.isFull ? 'bg-destructive/20 dark:bg-destructive/30' : 'bg-success/20 dark:bg-success/30'
                                 }`}>
                                   <Clock className={`h-4 w-4 ${
-                                    slot.isFull ? 'text-red-600' : 'text-green-600'
+                                    slot.isFull ? 'text-destructive dark:text-destructive-foreground' : 'text-success dark:text-success-light'
                                   }`} />
                                 </div>
                                 <span className="font-semibold">{slot.display}</span>
@@ -747,14 +747,14 @@ export default function AppointmentCalendar() {
                                   return (
                                     <div 
                                       key={appointment.id}
-                                      className="p-3 bg-white rounded-lg border border-slate-200"
+                                      className="p-3 bg-card rounded-lg border border-border"
                                     >
                                       <div className="flex items-start gap-2">
-                                        <div className="p-1 rounded-full bg-blue-100">
-                                          <User className="h-3 w-3 text-blue-600" />
+                                        <div className="p-1 rounded-full bg-primary/10 dark:bg-primary/20">
+                                          <User className="h-3 w-3 text-primary dark:text-primary-light" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <div className="font-medium text-sm text-slate-900 mb-1">
+                                          <div className="font-medium text-sm text-foreground mb-1">
                                             {appointment.patient?.profile?.first_name || 'N/A'} {appointment.patient?.profile?.last_name || ''}
                                           </div>
                                              {(appointment.status !== 'completed' && appointment.status !== 'no_show' && appointment.status !== 'cancelled' && appointment.status !== 'discharged') && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
@@ -765,16 +765,16 @@ export default function AppointmentCalendar() {
                                                  <PopoverTrigger asChild>
                                                     <div className={`inline-flex items-center text-xs cursor-pointer rounded-md px-2 py-1 ${
                                                       appointment.status === 'cancelled' 
-                                                        ? 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
+                                                        ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground border border-destructive/50'
                                                         : appointment.status === 'completed' || appointment.status === 'in_progress'
-                                                        ? 'bg-green-500 hover:bg-green-600 text-white border border-green-400'
-                                                        : 'bg-blue-500 hover:bg-blue-600 text-white border border-blue-400'
+                                                        ? 'bg-success hover:bg-success/90 text-success-foreground border border-success/50'
+                                                        : 'bg-primary hover:bg-primary/90 text-primary-foreground border border-primary/50'
                                                     }`}>
                                                      <CalendarIcon className="h-3 w-3 mr-1" />
                                                      {statusLabels[appointment.status] || appointment.status}
                                                    </div>
-                                                </PopoverTrigger>
-                                                 <PopoverContent className="w-48 p-2 bg-white shadow-lg border rounded-md z-50">
+                                                 </PopoverTrigger>
+                                                 <PopoverContent className="w-48 p-2 bg-popover shadow-lg border rounded-md z-50">
                                                    <div className="space-y-1">
                                                      {appointment.status !== 'in_progress' ? (
                                                        <>
@@ -783,7 +783,7 @@ export default function AppointmentCalendar() {
                                                              <Button
                                                                variant="ghost"
                                                                size="sm"
-                                                               className="w-8 h-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                               className="w-8 h-8 p-0 text-success hover:text-success hover:bg-success/10 dark:hover:bg-success/20"
                                                                onClick={(e) => {
                                                                  e.stopPropagation();
                                                                  handleStatusUpdate(appointment.id, 'completed');
@@ -803,7 +803,7 @@ export default function AppointmentCalendar() {
                                                            <Button
                                                              variant="ghost"
                                                              size="sm"
-                                                             className="w-8 h-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                                             className="w-8 h-8 p-0 text-warning hover:text-warning hover:bg-warning/10 dark:hover:bg-warning/20"
                                                              onClick={(e) => {
                                                                e.stopPropagation();
                                                                handleRevertAttendance(appointment.id);
@@ -838,13 +838,13 @@ export default function AppointmentCalendar() {
                                 })}
                                  {!slot.isFull && (
                                    <div 
-                                     className="text-center pt-2 border-t border-dashed border-green-300 cursor-pointer hover:bg-green-200 transition-colors rounded-md p-2"
+                                     className="text-center pt-2 border-t border-dashed border-success/30 cursor-pointer hover:bg-success/10 transition-colors rounded-md p-2 dark:border-success/40 dark:hover:bg-success/20"
                                      onClick={(e) => {
                                        e.stopPropagation();
                                        handleTimeSlotClick(slot.time, slot.isFull);
                                      }}
                                    >
-                                     <div className="text-xs text-green-600 font-medium">
+                                     <div className="text-xs text-success font-medium dark:text-success-light">
                                        <Plus className="h-3 w-3 inline mr-1" />
                                        {slot.availableSlots} disponible{slot.availableSlots !== 1 ? 's' : ''}
                                      </div>
