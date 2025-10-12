@@ -528,15 +528,15 @@ export default function AppointmentCalendar() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-slate-50 p-4">
+      <div className="min-h-screen bg-background p-4">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">
+            <h1 className="text-3xl font-bold text-foreground">
               Calendario de Citas
             </h1>
-            <p className="text-slate-600 mt-1">Gestiona tus citas médicas de forma eficiente</p>
+            <p className="text-muted-foreground mt-1">Gestiona tus citas médicas de forma eficiente</p>
           </div>
           {/* Nueva Cita button hidden per user request */}
         </div>
@@ -547,10 +547,10 @@ export default function AppointmentCalendar() {
           <div className="xl:col-span-3">
             <div className="space-y-4 sticky top-4">
               {/* Doctor Filter */}
-              <Card className="border border-slate-200">
+              <Card className="border border-border">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <Stethoscope className="h-4 w-4 text-blue-600" />
+                    <Stethoscope className="h-4 w-4 text-primary" />
                     Profesional
                   </CardTitle>
                 </CardHeader>
@@ -614,10 +614,10 @@ export default function AppointmentCalendar() {
               </Card>
 
               {/* Calendar */}
-              <Card className="border border-slate-200">
+              <Card className="border border-border">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <CalendarIcon className="h-4 w-4 text-blue-600" />
+                    <CalendarIcon className="h-4 w-4 text-primary" />
                     Seleccionar Fecha
                   </CardTitle>
                 </CardHeader>
@@ -658,16 +658,16 @@ export default function AppointmentCalendar() {
 
           {/* Main Content - Time Slots */}
           <div className="xl:col-span-9">
-            <Card className="border border-slate-200">
-              <CardHeader className="bg-slate-50 border-b">
+            <Card className="border border-border">
+              <CardHeader className="bg-muted/50 border-b border-border">
                 <div>
                   <CardTitle className="text-xl flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-blue-600" />
+                    <Clock className="h-5 w-5 text-primary" />
                     Horarios - {format(selectedDate, 'EEEE, d MMMM yyyy', { locale: es })}
                   </CardTitle>
                   {selectedDoctor !== 'all' && (
                     <div className="flex items-center gap-2 mt-2">
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                      <Badge variant="secondary" className="bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light">
                         <Stethoscope className="h-3 w-3 mr-1" />
                         Dr. {doctors.find(d => d.id === selectedDoctor)?.profile?.first_name} {doctors.find(d => d.id === selectedDoctor)?.profile?.last_name}
                       </Badge>
@@ -681,20 +681,20 @@ export default function AppointmentCalendar() {
               <CardContent className="p-6">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-200 border-t-blue-600"></div>
-                    <p className="text-slate-500 mt-4">Cargando horarios...</p>
+                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary/20 border-t-primary"></div>
+                    <p className="text-muted-foreground mt-4">Cargando horarios...</p>
                   </div>
                 ) : selectedDoctor === 'all' ? (
                   <div className="text-center py-12">
-                    <Users className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-slate-900 mb-2">Selecciona un profesional</h3>
-                    <p className="text-slate-500">Elige un doctor para ver los horarios disponibles</p>
+                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">Selecciona un profesional</h3>
+                    <p className="text-muted-foreground">Elige un doctor para ver los horarios disponibles</p>
                   </div>
                 ) : timeSlots.length === 0 ? (
                   <div className="text-center py-12">
-                    <AlertCircle className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-slate-900 mb-2">Sin horarios disponibles</h3>
-                    <p className="text-slate-500">
+                    <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">Sin horarios disponibles</h3>
+                    <p className="text-muted-foreground">
                       {(() => {
                         const doctor = doctors.find(d => d.id === selectedDoctor);
                         const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
