@@ -16,6 +16,7 @@ import { useNovedadesToday } from "@/hooks/useNovedades";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export function Header() {
   const { profile, signOut } = useAuth();
@@ -49,6 +50,9 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4">
+        {/* Toggle de tema */}
+        <ThemeToggle />
+
         {/* Notificaciones de Novedades */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
