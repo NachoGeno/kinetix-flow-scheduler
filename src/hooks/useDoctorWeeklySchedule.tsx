@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { useHolidays } from "./useHolidays";
 import { startOfWeek, endOfWeek, format, parse, addMinutes } from "date-fns";
 import { es } from "date-fns/locale";
 
 interface DoctorScheduleSlot {
   time: string; // "08:00"
-  status: 'free' | 'occupied' | 'non-working';
+  status: 'free' | 'occupied' | 'non-working' | 'holiday';
+  holidayName?: string;
   appointments?: Array<{
     id: string;
     patient_id: string;
@@ -58,6 +60,9 @@ export function useDoctorWeeklySchedule(doctorId: string | undefined, weekStartD
 
   const weekStart = startOfWeek(weekStartDate, { weekStartsOn: 1, locale: es });
   const weekEnd = endOfWeek(weekStartDate, { weekStartsOn: 1, locale: es });
+
+  // Obtener feriados de la semana
+  const { data: holidays = [] } = useHolidays(weekStart, weekEnd);
 
   return useQuery({
     queryKey: ['doctor-weekly-schedule', doctorId, format(weekStart, 'yyyy-MM-dd')],
@@ -156,6 +161,17 @@ export function useDoctorWeeklySchedule(doctorId: string | undefined, weekStartD
         );
 
         const slots: DoctorScheduleSlot[] = timeSlots.map(timeSlot => {
+          // Verificar si es feriado PRIMERO
+          const holidayOnDate = holidays.find(h => h.date === dateKey);
+          
+          if (holidayOnDate) {
+            return {
+              time: timeSlot,
+              status: 'holiday' as const,
+              holidayName: holidayOnDate.name,
+            };
+          }
+
           if (!isWorkingDay) {
             return {
               time: timeSlot,

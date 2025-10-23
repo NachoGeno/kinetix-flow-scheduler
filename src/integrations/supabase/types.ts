@@ -953,6 +953,50 @@ export type Database = {
           },
         ]
       }
+      holidays: {
+        Row: {
+          created_at: string | null
+          date: string
+          id: string
+          is_active: boolean | null
+          is_national: boolean | null
+          name: string
+          organization_id: string
+          recurring: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          id?: string
+          is_active?: boolean | null
+          is_national?: boolean | null
+          name: string
+          organization_id: string
+          recurring?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          is_active?: boolean | null
+          is_national?: boolean | null
+          name?: string
+          organization_id?: string
+          recurring?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holidays_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medical_history_entries: {
         Row: {
           appointment_date: string
@@ -1841,7 +1885,7 @@ export type Database = {
     }
     Functions: {
       analyze_medical_order_assignments: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           active_assignments: number
           order_completed: boolean
@@ -1871,45 +1915,37 @@ export type Database = {
           total_sessions: number
         }[]
       }
-      can_access_admin_only_modules: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      can_access_reports: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      can_access_secretaria_modules: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      can_manage_plus_payments: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      check_presentation_ready: {
-        Args: { order_id: string }
-        Returns: boolean
-      }
-      create_appointments_with_order: {
-        Args:
-          | {
-              appointments_data: Json
-              assigned_by_param?: string
-              medical_order_id_param?: string
-            }
-          | {
+      can_access_admin_only_modules: { Args: never; Returns: boolean }
+      can_access_reports: { Args: never; Returns: boolean }
+      can_access_secretaria_modules: { Args: never; Returns: boolean }
+      can_manage_plus_payments: { Args: never; Returns: boolean }
+      check_presentation_ready: { Args: { order_id: string }; Returns: boolean }
+      create_appointments_with_order:
+        | {
+            Args: {
               appointments_data: Json
               assigned_by_param?: string
               medical_order_id_param?: string
               organization_id_param?: string
             }
-        Returns: {
-          appointment_id: string
-          conflict_reason: string
-          was_created: boolean
-        }[]
-      }
+            Returns: {
+              appointment_id: string
+              conflict_reason: string
+              was_created: boolean
+            }[]
+          }
+        | {
+            Args: {
+              appointments_data: Json
+              assigned_by_param?: string
+              medical_order_id_param?: string
+            }
+            Returns: {
+              appointment_id: string
+              conflict_reason: string
+              was_created: boolean
+            }[]
+          }
       create_organization_with_validation: {
         Args: {
           org_address?: string
@@ -1928,7 +1964,7 @@ export type Database = {
         }[]
       }
       fix_all_patient_session_counts: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           orders_changed: number
           orders_processed: number
@@ -1937,7 +1973,7 @@ export type Database = {
         }[]
       }
       fix_medical_orders_data_integrity: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           action_taken: string
           new_completed: boolean
@@ -1957,7 +1993,7 @@ export type Database = {
         Returns: number
       }
       get_active_patients_in_treatment: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           active_orders_count: number
           patient_id: string
@@ -1965,7 +2001,7 @@ export type Database = {
         }[]
       }
       get_all_users_for_super_admin: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           avatar_url: string
           created_at: string
@@ -1995,14 +2031,8 @@ export type Database = {
           time_slot: string
         }[]
       }
-      get_current_user_organization_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_current_user_profile_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_current_user_organization_id: { Args: never; Returns: string }
+      get_current_user_profile_id: { Args: never; Returns: string }
       get_daily_cash_summary: {
         Args: { target_date?: string }
         Returns: {
@@ -2055,7 +2085,7 @@ export type Database = {
         }[]
       }
       get_organization_statistics: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           active_doctors: number
           organization_id: string
@@ -2080,7 +2110,7 @@ export type Database = {
         }[]
       }
       get_patients_without_closed_history: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           last_appointment_date: string
           patient_id: string
@@ -2105,19 +2135,32 @@ export type Database = {
           professional_name: string
         }[]
       }
-      get_professional_work_hours: {
-        Args:
-          | { doctor_filter?: string; end_date?: string; start_date?: string }
-          | { end_date?: string; start_date?: string }
-        Returns: {
-          appointments_completed: number
-          doctor_id: string
-          doctor_name: string
-          estimated_hours: number
-          patients_attended: number
-          specialty_name: string
-        }[]
-      }
+      get_professional_work_hours:
+        | {
+            Args: {
+              doctor_filter?: string
+              end_date?: string
+              start_date?: string
+            }
+            Returns: {
+              appointments_completed: number
+              doctor_id: string
+              doctor_name: string
+              estimated_hours: number
+              patients_attended: number
+              specialty_name: string
+            }[]
+          }
+        | {
+            Args: { end_date?: string; start_date?: string }
+            Returns: {
+              doctor_id: string
+              doctor_name: string
+              specialty_name: string
+              total_hours: number
+              total_sessions: number
+            }[]
+          }
       get_real_session_count: {
         Args: { patient_uuid: string }
         Returns: number
@@ -2138,22 +2181,10 @@ export type Database = {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
       }
-      is_admin: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
-      is_secretaria: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
-      is_super_admin: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
-      is_super_admin_only: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
+      is_admin: { Args: { user_id: string }; Returns: boolean }
+      is_secretaria: { Args: { user_id: string }; Returns: boolean }
+      is_super_admin: { Args: { user_id: string }; Returns: boolean }
+      is_super_admin_only: { Args: { user_id: string }; Returns: boolean }
       recalc_order_sessions: {
         Args: { order_id_param: string }
         Returns: undefined
@@ -2174,7 +2205,7 @@ export type Database = {
         Returns: undefined
       }
       remediate_duplicate_appointments: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           appointment_date: string
           appointment_time: string
@@ -2186,7 +2217,7 @@ export type Database = {
         }[]
       }
       repair_medical_orders_data_integrity: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           action_taken: string
           new_completed: boolean

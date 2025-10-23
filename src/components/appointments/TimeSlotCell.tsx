@@ -3,7 +3,8 @@ import { cn } from '@/lib/utils';
 
 interface TimeSlotCellProps {
   slot: {
-    status: 'free' | 'occupied' | 'non-working';
+    status: 'free' | 'occupied' | 'non-working' | 'holiday';
+    holidayName?: string;
     appointments?: Array<{
       id: string;
       patientName: string;
@@ -35,6 +36,17 @@ const statusColors: { [key: string]: string } = {
 };
 
 export default function TimeSlotCell({ slot, onClickFree, onClickOccupied }: TimeSlotCellProps) {
+  if (slot.status === 'holiday') {
+    return (
+      <div className="h-16 bg-red-50 dark:bg-red-950 flex flex-col items-center justify-center border border-red-200 dark:border-red-800">
+        <span className="text-lg">🎊</span>
+        <span className="text-[10px] text-red-600 dark:text-red-400 font-medium text-center px-1 leading-tight">
+          {slot.holidayName || 'Feriado'}
+        </span>
+      </div>
+    );
+  }
+
   if (slot.status === 'non-working') {
     return (
       <div className="h-16 bg-muted/50 flex items-center justify-center text-muted-foreground text-xs">
