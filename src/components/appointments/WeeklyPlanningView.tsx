@@ -18,6 +18,30 @@ import { supabase } from '@/integrations/supabase/client';
 import { useUnifiedMedicalHistory } from '@/hooks/useUnifiedMedicalHistory';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { cn } from '@/lib/utils';
+
+// Colores y etiquetas del sistema para estados de citas
+const statusColors = {
+  scheduled: 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light border-primary/20',
+  confirmed: 'bg-success/10 text-success dark:bg-success/20 dark:text-success-light border-success/20',
+  in_progress: 'bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning-light border-warning/20',
+  completed: 'bg-primary/20 text-primary-dark dark:bg-primary/30 dark:text-primary-light border-primary/30',
+  cancelled: 'bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive-foreground border-destructive/20',
+  no_show: 'bg-muted text-muted-foreground dark:bg-muted border-muted',
+  no_show_rescheduled: 'bg-warning/20 text-warning dark:bg-warning/30 dark:text-warning-light border-warning/30',
+  no_show_session_lost: 'bg-warning/15 text-warning dark:bg-warning/25 dark:text-warning-light border-warning/25',
+};
+
+const statusLabels: { [key: string]: string } = {
+  scheduled: 'Programada',
+  confirmed: 'Confirmada',
+  in_progress: 'En Progreso',
+  completed: 'Completada',
+  cancelled: 'Cancelada',
+  no_show: 'Ausente',
+  no_show_rescheduled: 'Ausente - Reprogramado',
+  no_show_session_lost: 'Ausente - Sesión Perdida',
+};
 
 export default function WeeklyPlanningView() {
   const queryClient = useQueryClient();
@@ -362,97 +386,143 @@ export default function WeeklyPlanningView() {
       {/* Modal de detalles de turno */}
       <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
         <DialogContent className="max-w-lg border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">
-              {selectedAppointment?.multiple ? 'Turnos en este horario' : 'Detalles del Turno'}
+          <DialogHeader className="border-b border-border pb-4">
+            <DialogTitle className="text-xl font-bold text-foreground">
+              {selectedAppointment?.multiple ? 
+                `🗓️ ${selectedAppointment.appointments.length} Turnos en este horario` : 
+                '📋 Detalles del Turno'
+              }
             </DialogTitle>
           </DialogHeader>
-          {selectedAppointment && (
-            selectedAppointment.multiple ? (
+          <div className="py-4">
+            {selectedAppointment?.multiple ? (
               // Lista de múltiples turnos
-              <div className="space-y-3 mt-4 max-h-96 overflow-y-auto">
-                {selectedAppointment.appointments.map((apt: any) => (
-                  <div key={apt.id} className="p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Paciente</p>
-                        <p className="font-medium text-foreground">{apt.patientName}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Obra Social</p>
-                        <p className="font-medium text-foreground">{apt.obraSocial}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Estado</p>
-                        <Badge variant="outline" className="text-xs">
-                          {apt.status}
+              <div className="space-y-3 mt-4 max-h-96 overflow-y-auto pr-2">
+                {selectedAppointment.appointments.map((apt: any) => {
+                  const statusColor = statusColors[apt.status as keyof typeof statusColors] || 
+                    'bg-gray-100 text-gray-700 border-gray-200';
+                  const statusLabel = statusLabels[apt.status as keyof typeof statusLabels] || apt.status;
+                  
+                  return (
+                    <div 
+                      key={apt.id} 
+                      className="p-4 border-2 border-border rounded-xl hover:shadow-md transition-all duration-200 bg-card"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-foreground mb-1">
+                            {apt.patientName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {apt.obraSocial}
+                          </p>
+                        </div>
+                        <Badge 
+                          variant="outline" 
+                          className={cn("text-xs font-medium px-3 py-1", statusColor)}
+                        >
+                          {statusLabel}
                         </Badge>
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Duración</p>
-                        <p className="font-medium text-foreground">{apt.duration_minutes} min</p>
+                      
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div className="bg-muted/30 rounded-lg p-2">
+                          <p className="text-[10px] uppercase text-muted-foreground font-medium mb-0.5">
+                            Duración
+                          </p>
+                          <p className="text-sm font-semibold text-foreground">
+                            {apt.duration_minutes} min
+                          </p>
+                        </div>
+                        {apt.reason && (
+                          <div className="col-span-2 bg-muted/30 rounded-lg p-2">
+                            <p className="text-[10px] uppercase text-muted-foreground font-medium mb-0.5">
+                              Motivo
+                            </p>
+                            <p className="text-sm text-foreground">
+                              {apt.reason}
+                            </p>
+                          </div>
+                        )}
                       </div>
+
+                      {(apt.status === 'scheduled' || apt.status === 'confirmed') && (
+                        <div className="mt-3 pt-3 border-t border-border">
+                          <Button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMarkAttendance(apt.id, apt);
+                            }}
+                            size="sm"
+                            className="w-full font-medium"
+                            variant="default"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Marcar Presente
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    {apt.reason && (
-                      <div className="mt-2">
-                        <p className="text-xs text-muted-foreground mb-1">Motivo</p>
-                        <p className="text-sm text-foreground">{apt.reason}</p>
-                      </div>
-                    )}
-                    {(apt.status === 'scheduled' || apt.status === 'confirmed') && (
-                      <div className="mt-3 pt-3 border-t border-border">
-                        <Button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMarkAttendance(apt.id, apt);
-                          }}
-                          size="sm"
-                          className="w-full"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Marcar Presente
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
-              // Turno único (código existente)
+              // Turno único
               <div className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Paciente</p>
-                    <p className="font-medium text-foreground">{selectedAppointment.appointment?.patientName}</p>
+                <div className="flex items-start justify-between pb-4 border-b border-border">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-foreground mb-1">
+                      {selectedAppointment?.appointment?.patientName}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedAppointment?.appointment?.obraSocial}
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Obra Social</p>
-                    <p className="font-medium text-foreground">{selectedAppointment.appointment?.obraSocial}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Estado</p>
-                    <p className="font-medium text-foreground capitalize">{selectedAppointment.appointment?.status}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Duración</p>
-                    <p className="font-medium text-foreground">{selectedAppointment.appointment?.duration_minutes} min</p>
-                  </div>
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "text-xs font-medium px-3 py-1.5",
+                      statusColors[selectedAppointment?.appointment?.status as keyof typeof statusColors] || 
+                      'bg-gray-100 text-gray-700 border-gray-200'
+                    )}
+                  >
+                    {statusLabels[selectedAppointment?.appointment?.status as keyof typeof statusLabels] || 
+                     selectedAppointment?.appointment?.status}
+                  </Badge>
                 </div>
-                {selectedAppointment.appointment?.reason && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Motivo</p>
-                    <p className="text-sm text-foreground">{selectedAppointment.appointment.reason}</p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs uppercase text-muted-foreground font-medium mb-1">
+                      Duración
+                    </p>
+                    <p className="text-base font-semibold text-foreground">
+                      {selectedAppointment?.appointment?.duration_minutes} min
+                    </p>
                   </div>
-                )}
-                {(selectedAppointment.appointment?.status === 'scheduled' || 
-                  selectedAppointment.appointment?.status === 'confirmed') && (
+                  
+                  {selectedAppointment?.appointment?.reason && (
+                    <div className="col-span-2 bg-muted/30 rounded-lg p-3">
+                      <p className="text-xs uppercase text-muted-foreground font-medium mb-1">
+                        Motivo de la consulta
+                      </p>
+                      <p className="text-sm text-foreground leading-relaxed">
+                        {selectedAppointment.appointment.reason}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {(selectedAppointment?.appointment?.status === 'scheduled' || 
+                  selectedAppointment?.appointment?.status === 'confirmed') && (
                   <div className="pt-4 border-t border-border">
                     <Button 
                       onClick={() => handleMarkAttendance(
                         selectedAppointment.appointment.id,
                         selectedAppointment.appointment
                       )}
-                      className="w-full"
+                      className="w-full font-medium"
+                      variant="default"
                     >
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Marcar Presente
@@ -460,8 +530,8 @@ export default function WeeklyPlanningView() {
                   </div>
                 )}
               </div>
-            )
-          )}
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
