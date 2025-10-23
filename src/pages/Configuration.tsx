@@ -6,7 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import UserManagement from '@/components/admin/UserManagement';
 import RoleManagement from '@/components/admin/RoleManagement';
 import EmailSettingsForm from '@/components/email/EmailSettingsForm';
-import { Shield, Users, Settings as SettingsIcon, Building2 } from 'lucide-react';
+import HolidaysManagement from '@/components/configuration/HolidaysManagement';
+import { Shield, Users, Settings as SettingsIcon, Building2, Calendar } from 'lucide-react';
 
 export default function Configuration() {
   const { profile } = useAuth();
@@ -43,18 +44,22 @@ export default function Configuration() {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Gestión de Usuarios
+            Usuarios
           </TabsTrigger>
           <TabsTrigger value="roles" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
-            Gestión de Roles
+            Roles
           </TabsTrigger>
           <TabsTrigger value="email" className="flex items-center gap-2">
             <SettingsIcon className="h-4 w-4" />
             Email
+          </TabsTrigger>
+          <TabsTrigger value="holidays" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Feriados
           </TabsTrigger>
         </TabsList>
 
@@ -67,8 +72,11 @@ export default function Configuration() {
         </TabsContent>
 
         <TabsContent value="email" className="space-y-4">
-          {/* Email Settings */}
           <EmailSettingsForm />
+        </TabsContent>
+
+        <TabsContent value="holidays" className="space-y-4">
+          <HolidaysManagement />
         </TabsContent>
       </Tabs>
 
