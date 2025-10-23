@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Calendar as CalendarIcon, List } from 'lucide-react';
+import { Calendar as CalendarIcon, List, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppointmentCalendar from '@/components/appointments/AppointmentCalendar';
 import AppointmentsList from '@/components/appointments/AppointmentsList';
+import WeeklyPlanningView from '@/components/appointments/WeeklyPlanningView';
 
 
 export default function Appointments() {
@@ -32,7 +33,7 @@ export default function Appointments() {
         >Enviar turnos sociales (hoy)</Button>
       </div>
       <Tabs value={view} onValueChange={setView} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="calendar" className="flex items-center gap-2">
             <CalendarIcon className="h-4 w-4" />
             Vista Calendario
@@ -40,6 +41,10 @@ export default function Appointments() {
           <TabsTrigger value="list" className="flex items-center gap-2">
             <List className="h-4 w-4" />
             Vista Lista
+          </TabsTrigger>
+          <TabsTrigger value="weekly" className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" />
+            Planificación Semanal
           </TabsTrigger>
         </TabsList>
         
@@ -49,6 +54,10 @@ export default function Appointments() {
         
         <TabsContent value="list" className="space-y-4">
           <AppointmentsList />
+        </TabsContent>
+        
+        <TabsContent value="weekly" className="space-y-4">
+          <WeeklyPlanningView />
         </TabsContent>
       </Tabs>
     </div>
