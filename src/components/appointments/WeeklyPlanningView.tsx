@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Stethoscope } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Stethoscope, CheckCircle } from 'lucide-react';
 import { format, addWeeks, subWeeks, startOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useDoctorWeeklySchedule } from '@/hooks/useDoctorWeeklySchedule';
@@ -14,9 +14,15 @@ import TimeSlotCell from './TimeSlotCell';
 import CreateAppointmentDialog from './CreateAppointmentDialog';
 import WeeklyAppointmentCard from './WeeklyAppointmentCard';
 import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useUnifiedMedicalHistory } from '@/hooks/useUnifiedMedicalHistory';
+import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function WeeklyPlanningView() {
   const queryClient = useQueryClient();
+  const { profile } = useAuth();
+  const { createOrUpdateMedicalHistoryEntry } = useUnifiedMedicalHistory();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -77,6 +83,55 @@ export default function WeeklyPlanningView() {
     queryClient.invalidateQueries({ 
       queryKey: ['doctor-weekly-schedule', selectedDoctorId] 
     });
+  };
+
+  const handleMarkAttendance = async (appointmentId: string, appointmentData: any) => {
+    if (!profile) return;
+
+    try {
+      // Actualizar estado del turno a "completed"
+      const { error: appointmentError } = await supabase
+        .from('appointments')
+        .update({ 
+          status: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', appointmentId);
+
+      if (appointmentError) throw appointmentError;
+
+      // Buscar orden médica asociada
+      const { data: medicalOrderData, error: orderError } = await supabase
+        .from('medical_orders')
+        .select('id')
+        .eq('appointment_id', appointmentId)
+        .maybeSingle();
+
+      if (orderError) {
+        console.error('Error fetching medical order:', orderError);
+      }
+
+      // Crear/actualizar entrada en historial médico
+      await createOrUpdateMedicalHistoryEntry(
+        appointmentId,
+        medicalOrderData?.id || null,
+        appointmentData.patient_id,
+        selectedDoctorId!,
+        scheduleData?.doctor?.name || 'Doctor',
+        appointmentData.appointment_date
+      );
+
+      toast.success('Paciente marcado como presente y sesión completada');
+
+      // Refrescar datos y cerrar modal
+      queryClient.invalidateQueries({ 
+        queryKey: ['doctor-weekly-schedule', selectedDoctorId] 
+      });
+      setDetailsDialogOpen(false);
+    } catch (error) {
+      console.error('Error marking attendance:', error);
+      toast.error('No se pudo marcar la asistencia');
+    }
   };
 
   if (error) {
@@ -344,6 +399,21 @@ export default function WeeklyPlanningView() {
                         <p className="text-sm text-foreground">{apt.reason}</p>
                       </div>
                     )}
+                    {(apt.status === 'scheduled' || apt.status === 'confirmed') && (
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <Button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkAttendance(apt.id, apt);
+                          }}
+                          size="sm"
+                          className="w-full"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Marcar Presente
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -372,6 +442,21 @@ export default function WeeklyPlanningView() {
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Motivo</p>
                     <p className="text-sm text-foreground">{selectedAppointment.appointment.reason}</p>
+                  </div>
+                )}
+                {(selectedAppointment.appointment?.status === 'scheduled' || 
+                  selectedAppointment.appointment?.status === 'confirmed') && (
+                  <div className="pt-4 border-t border-border">
+                    <Button 
+                      onClick={() => handleMarkAttendance(
+                        selectedAppointment.appointment.id,
+                        selectedAppointment.appointment
+                      )}
+                      className="w-full"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Marcar Presente
+                    </Button>
                   </div>
                 )}
               </div>

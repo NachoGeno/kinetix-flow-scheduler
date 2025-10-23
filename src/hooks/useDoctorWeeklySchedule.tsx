@@ -9,6 +9,8 @@ interface DoctorScheduleSlot {
   status: 'free' | 'occupied' | 'non-working';
   appointments?: Array<{
     id: string;
+    patient_id: string;
+    appointment_date: string;
     patientName: string;
     obraSocial: string;
     status: string;
@@ -100,6 +102,7 @@ export function useDoctorWeeklySchedule(doctorId: string | undefined, weekStartD
         .from('appointments')
         .select(`
           id,
+          patient_id,
           appointment_date,
           appointment_time,
           status,
@@ -170,16 +173,18 @@ export function useDoctorWeeklySchedule(doctorId: string | undefined, weekStartD
             return {
               time: timeSlot,
               status: 'occupied' as const,
-              appointments: appointmentsInSlot.map((appointment: any) => ({
-                id: appointment.id,
-                patientName: appointment.patient?.profile
-                  ? `${appointment.patient.profile.first_name} ${appointment.patient.profile.last_name}`
-                  : 'Sin paciente',
-                obraSocial: appointment.patient?.obra_social_art?.nombre || 'Particular',
-                status: appointment.status,
-                reason: appointment.reason,
-                duration_minutes: appointment.duration_minutes || doctor.appointmentDuration,
-              })),
+          appointments: appointmentsInSlot.map((appointment: any) => ({
+            id: appointment.id,
+            patient_id: appointment.patient_id,
+            appointment_date: appointment.appointment_date,
+            patientName: appointment.patient?.profile
+              ? `${appointment.patient.profile.first_name} ${appointment.patient.profile.last_name}`
+              : 'Sin paciente',
+            obraSocial: appointment.patient?.obra_social_art?.nombre || 'Particular',
+            status: appointment.status,
+            reason: appointment.reason,
+            duration_minutes: appointment.duration_minutes || doctor.appointmentDuration,
+          })),
             };
           }
 
