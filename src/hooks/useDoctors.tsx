@@ -7,12 +7,15 @@ export function useDoctors() {
   const { profile } = useAuth();
 
   return useQuery({
-    queryKey: ['doctors', 'active'],
+    queryKey: ['doctors', 'active', profile?.organization_id],
     queryFn: async () => {
-      if (!profile) throw new Error('No authenticated user');
+      if (!profile?.organization_id) {
+        throw new Error('No organization context available');
+      }
 
-      // Try to get from cache first
-      const cached = LocalStorageCache.get(CACHE_KEYS.DOCTORS);
+      // Try to get from cache first with organization-specific key
+      const cacheKey = `${CACHE_KEYS.DOCTORS}_${profile.organization_id}`;
+      const cached = LocalStorageCache.get(cacheKey);
       if (cached) return cached;
 
       const { data, error } = await supabase
@@ -30,6 +33,7 @@ export function useDoctors() {
           )
         `)
         .eq('is_active', true)
+        .eq('organization_id', profile.organization_id)
         .order('profile(first_name)');
 
       if (error) throw error;
@@ -42,8 +46,8 @@ export function useDoctors() {
         specialty: doctor.specialty
       }));
 
-      // Cache the result for 10 minutes
-      LocalStorageCache.set(CACHE_KEYS.DOCTORS, doctors, 10);
+      // Cache the result for 10 minutes with organization-specific key
+      LocalStorageCache.set(cacheKey, doctors, 10);
 
       return doctors;
     },
