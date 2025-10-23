@@ -425,26 +425,16 @@ export default function WeeklyPlanningView() {
                         </Badge>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div className="bg-muted/30 rounded-lg p-2">
+                      {apt.reason && (
+                        <div className="bg-muted/30 rounded-lg p-2 mb-3">
                           <p className="text-[10px] uppercase text-muted-foreground font-medium mb-0.5">
-                            Duración
+                            Motivo
                           </p>
-                          <p className="text-sm font-semibold text-foreground">
-                            {apt.duration_minutes} min
+                          <p className="text-sm text-foreground">
+                            {apt.reason}
                           </p>
                         </div>
-                        {apt.reason && (
-                          <div className="col-span-2 bg-muted/30 rounded-lg p-2">
-                            <p className="text-[10px] uppercase text-muted-foreground font-medium mb-0.5">
-                              Motivo
-                            </p>
-                            <p className="text-sm text-foreground">
-                              {apt.reason}
-                            </p>
-                          </div>
-                        )}
-                      </div>
+                      )}
 
                       {(apt.status === 'scheduled' || apt.status === 'confirmed') && (
                         <div className="mt-3 pt-3 border-t border-border">
@@ -491,27 +481,16 @@ export default function WeeklyPlanningView() {
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {selectedAppointment?.appointment?.reason && (
                   <div className="bg-muted/30 rounded-lg p-3">
                     <p className="text-xs uppercase text-muted-foreground font-medium mb-1">
-                      Duración
+                      Motivo de la consulta
                     </p>
-                    <p className="text-base font-semibold text-foreground">
-                      {selectedAppointment?.appointment?.duration_minutes} min
+                    <p className="text-sm text-foreground leading-relaxed">
+                      {selectedAppointment.appointment.reason}
                     </p>
                   </div>
-                  
-                  {selectedAppointment?.appointment?.reason && (
-                    <div className="col-span-2 bg-muted/30 rounded-lg p-3">
-                      <p className="text-xs uppercase text-muted-foreground font-medium mb-1">
-                        Motivo de la consulta
-                      </p>
-                      <p className="text-sm text-foreground leading-relaxed">
-                        {selectedAppointment.appointment.reason}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                )}
 
                 {(selectedAppointment?.appointment?.status === 'scheduled' || 
                   selectedAppointment?.appointment?.status === 'confirmed') && (
