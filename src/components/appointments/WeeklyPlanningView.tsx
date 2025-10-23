@@ -86,7 +86,13 @@ export default function WeeklyPlanningView() {
     setCurrentWeek(new Date());
   };
 
-  const handleCreateAppointment = (date: Date, time: string) => {
+  const handleCreateAppointment = (date: Date, time: string, slot?: any) => {
+    // Prevenir creación de turnos en feriados
+    if (slot?.status === 'holiday') {
+      toast.error(`No se pueden crear turnos en ${slot.holidayName || 'días feriados'}`);
+      return;
+    }
+
     setSelectedSlot({ date, time });
     setCreateDialogOpen(true);
   };
@@ -353,7 +359,7 @@ export default function WeeklyPlanningView() {
                             {slot && (
                               <TimeSlotCell
                                 slot={slot}
-                                onClickFree={() => handleCreateAppointment(dayData.date, time)}
+                                onClickFree={() => handleCreateAppointment(dayData.date, time, slot)}
                                 onClickOccupied={() => handleViewDetails(slot.appointments)}
                               />
                             )}

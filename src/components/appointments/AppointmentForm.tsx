@@ -22,6 +22,7 @@ import { cn, formatDateToISO, validateAppointmentDate, validateDateIntegrity, lo
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganizationContext } from '@/hooks/useOrganizationContext';
+import { useHolidays } from '@/hooks/useHolidays';
 import { useToast } from '@/hooks/use-toast';
 import PatientForm from '@/components/patients/PatientForm';
 import MedicalOrderForm from './MedicalOrderForm';
@@ -117,6 +118,9 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   const { profile } = useAuth();
   const { currentOrgId } = useOrganizationContext();
   const { toast } = useToast();
+  
+  // Obtener feriados para validación
+  const { data: holidays = [] } = useHolidays();
 
   const weekDays = [
     { key: 'monday', label: 'Lun', value: 1 },
@@ -582,20 +586,32 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         return;
       }
 
-      // 2. Validar integridad de fecha
-      const formattedDate = formatDateToISO(values.appointment_date);
-      const integrityCheck = validateDateIntegrity(values.appointment_date, formattedDate);
+      // 2. Validar que no sea feriado
+      const selectedDate = formatDateToISO(values.appointment_date);
+      const holidayOnDate = holidays.find(h => h.date === selectedDate);
       
-      // 3. Logging para debugging
+      if (holidayOnDate) {
+        toast({
+          title: "Fecha no disponible",
+          description: `${holidayOnDate.name} - No se pueden agendar turnos en feriados`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 3. Validar integridad de fecha
+      const integrityCheck = validateDateIntegrity(values.appointment_date, selectedDate);
+      
+      // 4. Logging para debugging
       logAppointmentDebug('Turno individual validado', {
         selectedDate: values.appointment_date,
-        formattedDate: formattedDate,
+        formattedDate: selectedDate,
         appointmentTime: values.appointment_time,
         doctorId: values.doctor_id,
         patientId: values.patient_id,
       });
 
-      // 4. Alertar discrepancias
+      // 5. Alertar discrepancias
       if (!integrityCheck.isValid && integrityCheck.warning) {
         console.warn(`⚠️ ${integrityCheck.warning}`);
       }
@@ -606,7 +622,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
         .select('id')
         .eq('patient_id', values.patient_id)
         .eq('doctor_id', values.doctor_id)
-        .eq('appointment_date', formattedDate) // Usar fecha ya validada
+        .eq('appointment_date', selectedDate) // Usar fecha ya validada
         .eq('appointment_time', values.appointment_time)
         .in('status', ['scheduled', 'confirmed', 'in_progress'])
         .maybeSingle();
