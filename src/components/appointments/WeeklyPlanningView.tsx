@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Stethoscope } from 'lucide-react';
 import { format, addWeeks, subWeeks, startOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -60,8 +61,14 @@ export default function WeeklyPlanningView() {
     setCreateDialogOpen(true);
   };
 
-  const handleViewDetails = (appointment: any) => {
-    setSelectedAppointment(appointment);
+  const handleViewDetails = (appointments: any) => {
+    if (Array.isArray(appointments)) {
+      // Múltiples turnos
+      setSelectedAppointment({ multiple: true, appointments });
+    } else {
+      // Turno único (compatibilidad backward)
+      setSelectedAppointment({ multiple: false, appointment: appointments });
+    }
     setDetailsDialogOpen(true);
   };
 
@@ -268,7 +275,7 @@ export default function WeeklyPlanningView() {
                               <TimeSlotCell
                                 slot={slot}
                                 onClickFree={() => handleCreateAppointment(dayData.date, time)}
-                                onClickOccupied={() => handleViewDetails(slot.appointment)}
+                                onClickOccupied={() => handleViewDetails(slot.appointments)}
                               />
                             )}
                           </td>
@@ -301,35 +308,74 @@ export default function WeeklyPlanningView() {
       <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
         <DialogContent className="max-w-lg border-border">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Detalles del Turno</DialogTitle>
+            <DialogTitle className="text-foreground">
+              {selectedAppointment?.multiple ? 'Turnos en este horario' : 'Detalles del Turno'}
+            </DialogTitle>
           </DialogHeader>
           {selectedAppointment && (
-            <div className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Paciente</p>
-                  <p className="font-medium text-foreground">{selectedAppointment.patientName}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Obra Social</p>
-                  <p className="font-medium text-foreground">{selectedAppointment.obraSocial}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Estado</p>
-                  <p className="font-medium text-foreground capitalize">{selectedAppointment.status}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Duración</p>
-                  <p className="font-medium text-foreground">{selectedAppointment.duration_minutes} min</p>
-                </div>
+            selectedAppointment.multiple ? (
+              // Lista de múltiples turnos
+              <div className="space-y-3 mt-4 max-h-96 overflow-y-auto">
+                {selectedAppointment.appointments.map((apt: any) => (
+                  <div key={apt.id} className="p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Paciente</p>
+                        <p className="font-medium text-foreground">{apt.patientName}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Obra Social</p>
+                        <p className="font-medium text-foreground">{apt.obraSocial}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Estado</p>
+                        <Badge variant="outline" className="text-xs">
+                          {apt.status}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Duración</p>
+                        <p className="font-medium text-foreground">{apt.duration_minutes} min</p>
+                      </div>
+                    </div>
+                    {apt.reason && (
+                      <div className="mt-2">
+                        <p className="text-xs text-muted-foreground mb-1">Motivo</p>
+                        <p className="text-sm text-foreground">{apt.reason}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-              {selectedAppointment.reason && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Motivo</p>
-                  <p className="text-sm text-foreground">{selectedAppointment.reason}</p>
+            ) : (
+              // Turno único (código existente)
+              <div className="space-y-4 mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Paciente</p>
+                    <p className="font-medium text-foreground">{selectedAppointment.appointment?.patientName}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Obra Social</p>
+                    <p className="font-medium text-foreground">{selectedAppointment.appointment?.obraSocial}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Estado</p>
+                    <p className="font-medium text-foreground capitalize">{selectedAppointment.appointment?.status}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Duración</p>
+                    <p className="font-medium text-foreground">{selectedAppointment.appointment?.duration_minutes} min</p>
+                  </div>
                 </div>
-              )}
-            </div>
+                {selectedAppointment.appointment?.reason && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Motivo</p>
+                    <p className="text-sm text-foreground">{selectedAppointment.appointment.reason}</p>
+                  </div>
+                )}
+              </div>
+            )
           )}
         </DialogContent>
       </Dialog>

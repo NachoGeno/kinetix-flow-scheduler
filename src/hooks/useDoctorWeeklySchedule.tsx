@@ -7,14 +7,14 @@ import { es } from "date-fns/locale";
 interface DoctorScheduleSlot {
   time: string; // "08:00"
   status: 'free' | 'occupied' | 'non-working';
-  appointment?: {
+  appointments?: Array<{
     id: string;
     patientName: string;
     obraSocial: string;
     status: string;
     reason: string | null;
     duration_minutes: number;
-  };
+  }>;
 }
 
 interface DaySchedule {
@@ -160,17 +160,17 @@ export function useDoctorWeeklySchedule(doctorId: string | undefined, weekStartD
             };
           }
 
-          // Buscar si hay un turno en este horario
-          const appointment = dayAppointments.find((apt: any) => {
+          // Buscar todos los turnos en este horario
+          const appointmentsInSlot = dayAppointments.filter((apt: any) => {
             const aptTime = format(parse(apt.appointment_time, 'HH:mm:ss', new Date()), 'HH:mm');
             return aptTime === timeSlot;
           });
 
-          if (appointment) {
+          if (appointmentsInSlot.length > 0) {
             return {
               time: timeSlot,
               status: 'occupied' as const,
-              appointment: {
+              appointments: appointmentsInSlot.map((appointment: any) => ({
                 id: appointment.id,
                 patientName: appointment.patient?.profile
                   ? `${appointment.patient.profile.first_name} ${appointment.patient.profile.last_name}`
@@ -179,7 +179,7 @@ export function useDoctorWeeklySchedule(doctorId: string | undefined, weekStartD
                 status: appointment.status,
                 reason: appointment.reason,
                 duration_minutes: appointment.duration_minutes || doctor.appointmentDuration,
-              },
+              })),
             };
           }
 

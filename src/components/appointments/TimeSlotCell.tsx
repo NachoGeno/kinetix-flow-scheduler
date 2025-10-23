@@ -4,13 +4,13 @@ import { cn } from '@/lib/utils';
 interface TimeSlotCellProps {
   slot: {
     status: 'free' | 'occupied' | 'non-working';
-    appointment?: {
+    appointments?: Array<{
       id: string;
       patientName: string;
       obraSocial: string;
       status: string;
       reason: string | null;
-    };
+    }>;
   };
   onClickFree: () => void;
   onClickOccupied: () => void;
@@ -63,34 +63,71 @@ export default function TimeSlotCell({ slot, onClickFree, onClickOccupied }: Tim
     );
   }
 
-  // Ocupado
-  const appointment = slot.appointment!;
-  const statusColor = statusColors[appointment.status] || 'bg-gray-100 border-gray-300';
+  // Ocupado - Verificar si hay uno o múltiples turnos
+  const appointments = slot.appointments!;
+  const isSingleAppointment = appointments.length === 1;
 
-  return (
-    <div
-      onClick={onClickOccupied}
-      className={cn(
-        "h-16 p-1.5 cursor-pointer hover:opacity-80 transition-opacity border flex flex-col justify-between",
-        statusColor
-      )}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          onClickOccupied();
-        }
-      }}
-    >
-      <div className="text-xs font-medium truncate leading-tight">
-        {appointment.patientName}
+  if (isSingleAppointment) {
+    // Mostrar detalles completos como antes
+    const appointment = appointments[0];
+    const statusColor = statusColors[appointment.status] || 'bg-gray-100 border-gray-300';
+    
+    return (
+      <div
+        onClick={onClickOccupied}
+        className={cn(
+          "h-16 p-1.5 cursor-pointer hover:opacity-80 transition-opacity border flex flex-col justify-between",
+          statusColor
+        )}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            onClickOccupied();
+          }
+        }}
+      >
+        <div className="text-xs font-medium truncate leading-tight">
+          {appointment.patientName}
+        </div>
+        <div className="text-[10px] text-muted-foreground truncate leading-tight">
+          {appointment.obraSocial}
+        </div>
+        <Badge variant="outline" className="text-[9px] py-0 px-1 h-4 w-fit bg-background/50 border-current">
+          {statusLabels[appointment.status] || appointment.status}
+        </Badge>
       </div>
-      <div className="text-[10px] text-muted-foreground truncate leading-tight">
-        {appointment.obraSocial}
+    );
+  } else {
+    // Múltiples turnos - Mostrar contador y lista compacta
+    return (
+      <div
+        onClick={onClickOccupied}
+        className="h-16 p-1.5 cursor-pointer hover:opacity-80 transition-opacity border bg-blue-50 border-blue-300 dark:bg-blue-950 dark:border-blue-800 flex flex-col gap-1"
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            onClickOccupied();
+          }
+        }}
+      >
+        <div className="text-xs font-bold text-blue-700 dark:text-blue-300">
+          {appointments.length} turnos
+        </div>
+        <div className="space-y-0.5 overflow-hidden">
+          {appointments.slice(0, 2).map((apt) => (
+            <div key={apt.id} className="text-[9px] text-muted-foreground truncate leading-tight">
+              • {apt.patientName}
+            </div>
+          ))}
+          {appointments.length > 2 && (
+            <div className="text-[9px] text-muted-foreground">
+              +{appointments.length - 2} más
+            </div>
+          )}
+        </div>
       </div>
-      <Badge variant="outline" className="text-[9px] py-0 px-1 h-4 w-fit bg-background/50 border-current">
-        {statusLabels[appointment.status] || appointment.status}
-      </Badge>
-    </div>
-  );
+    );
+  }
 }
