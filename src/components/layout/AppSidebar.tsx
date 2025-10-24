@@ -32,98 +32,98 @@ const navigationItems = [
     url: "/",
     icon: Activity,
     description: "Vista general del sistema",
-    roles: ['admin', 'doctor', 'patient', 'secretaria']
+    roles: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia']
   },
   {
     title: "Citas",
     url: "/appointments",
     icon: Calendar,
     description: "Gestión de citas médicas",
-    roles: ['admin', 'doctor', 'patient', 'secretaria']
+    roles: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia']
   },
   {
     title: "Pacientes",
     url: "/patients",
     icon: Users,
     description: "Gestión de pacientes",
-    roles: ['admin', 'doctor', 'patient', 'secretaria']
+    roles: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia']
   },
   {
     title: "Profesionales",
     url: "/doctors",
     icon: UserCheck,
     description: "Gestión de profesionales",
-    roles: ['admin', 'patient', 'secretaria']
+    roles: ['admin', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia']
   },
   {
     title: "Órdenes Médicas",
     url: "/orders",
     icon: FileText,
     description: "Órdenes y prescripciones médicas",
-    roles: ['admin', 'doctor', 'secretaria']
+    roles: ['admin', 'doctor', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia']
   },
   {
     title: "Obras Sociales / ART",
     url: "/obras-sociales",
     icon: Building2,
     description: "Gestión de obras sociales y ART",
-    roles: ['admin', 'doctor', 'secretaria']
+    roles: ['admin', 'doctor', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia']
   },
   {
     title: "Presentaciones",
     url: "/presentaciones",
     icon: FileText,
     description: "Documentos para facturación por obra social",
-    roles: ['admin', 'doctor', 'secretaria']
+    roles: ['admin', 'doctor', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia']
   },
   {
     title: "Facturación",
     url: "/billing",
     icon: FileText,
     description: "Facturación por obra social y ART",
-    roles: ['admin']
+    roles: ['super_admin', 'gerencia']
   },
   {
     title: "Plus",
     url: "/plus-payments",
     icon: DollarSign,
     description: "Gestión de plus payments",
-    roles: ['admin', 'reception', 'secretaria']
+    roles: ['admin', 'reception', 'secretaria', 'super_admin', 'reports_manager', 'gerencia']
   },
   {
     title: "Gestión de Caja",
     url: "/cash-management",
     icon: Wallet,
     description: "Control de ingresos, egresos y arqueos",
-    roles: ['admin', 'reception', 'secretaria']
+    roles: ['admin', 'reception', 'secretaria', 'super_admin', 'reports_manager', 'gerencia']
   },
   {
     title: "Historia Clínica",
     url: "/medical-records",
     icon: ClipboardList,
     description: "Historiales clínicos",
-    roles: ['admin', 'doctor', 'patient', 'secretaria']
+    roles: ['admin', 'doctor', 'patient', 'secretaria', 'super_admin', 'reports_manager', 'gerencia']
   },
   {
     title: "Novedades",
     url: "/novedades",
     icon: MessageCircle,
     description: "Comunicación interna del equipo",
-    roles: ['admin', 'doctor', 'reception', 'secretaria']
+    roles: ['admin', 'doctor', 'reception', 'secretaria', 'super_admin', 'reports_manager', 'gerencia']
   },
   {
     title: "Reportes",
     url: "/reports",
     icon: BarChart3,
     description: "Reportes y estadísticas",
-    roles: ['admin']
+    roles: ['super_admin', 'gerencia']
   },
   {
     title: "Reportes Gerenciales",
     url: "/reports-manager",
     icon: BarChart3,
     description: "Dashboard ejecutivo y KPIs",
-    roles: ['super_admin', 'reports_manager']
+    roles: ['super_admin', 'reports_manager', 'gerencia']
   }
 ];
 
@@ -148,7 +148,7 @@ export function AppSidebar() {
   });
 
   const filteredAdminItems = adminItems.filter(() => {
-    return profile?.role === 'admin' || profile?.role === 'super_admin';
+    return profile?.role === 'super_admin' || profile?.role === 'gerencia';
   });
 
   const isActive = (path: string) => {
