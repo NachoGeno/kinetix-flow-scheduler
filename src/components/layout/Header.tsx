@@ -2,6 +2,7 @@ import { Bell, Search, User, LogOut, MessageCircle, Calendar, Clock, Menu } from
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +45,7 @@ export function Header() {
   return (
     <header className="h-16 border-b border-border bg-card backdrop-blur-sm flex items-center justify-between px-6">
       <div className="flex items-center gap-4">
+        <SidebarTrigger className="text-foreground" />
         <h1 className="text-lg font-semibold text-foreground">
           Rehabilitare - Centro de Kinesiología
         </h1>

@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Layout } from "@/components/layout/Layout";
@@ -49,89 +50,91 @@ function HomeRoute() {
 
 const App = () => (
   <TooltipProvider>
-    <Toaster />
-    <Sonner />
-    <Routes>
-      <Route path="/auth" element={<Auth />} />
-      <Route path="/saas-admin" element={
-        <ProtectedRoute requiredModule="saas-admin">
-          <SaasAdmin />
-        </ProtectedRoute>
-      } />
-      <Route path="/" element={<HomeRoute />} />
-      <Route path="/appointments" element={
-        <ProtectedRoute requiredModule="appointments">
-          <Layout><Appointments /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/patients" element={
-        <ProtectedRoute requiredModule="patients">
-          <Layout><Patients /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/doctors" element={
-        <ProtectedRoute requiredModule="doctors">
-          <Layout><Doctors /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/orders" element={
-        <ProtectedRoute requiredModule="orders">
-          <Layout><Orders /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/obras-sociales" element={
-        <ProtectedRoute requiredModule="obras-sociales">
-          <Layout><ObrasSociales /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/presentaciones" element={
-        <ProtectedRoute requiredModule="presentaciones">
-          <Layout><Presentaciones /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/billing" element={
-        <ProtectedRoute requiredModule="billing" adminOnly={true}>
-          <Layout><Billing /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/plus-payments" element={
-        <ProtectedRoute requiredModule="plus-payments">
-          <Layout><PlusPayments /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/cash-management" element={
-        <ProtectedRoute requiredModule="cash-management">
-          <Layout><CashManagement /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/medical-records" element={
-        <ProtectedRoute requiredModule="medical-records">
-          <Layout><MedicalRecords /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/novedades" element={
-        <ProtectedRoute requiredModule="novedades">
-          <Layout><Novedades /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/configuracion" element={
-        <ProtectedRoute requiredModule="configuracion" adminOnly={true}>
-          <Layout><Configuration /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/reports" element={
-        <ProtectedRoute requiredModule="reports" adminOnly={true}>
-          <Layout><Reports /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/reports-manager" element={
-        <ProtectedRoute requiredModule="reports-manager">
-          <Layout><ReportsManager /></Layout>
-        </ProtectedRoute>
-      } />
-      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <SidebarProvider>
+      <Toaster />
+      <Sonner />
+      <Routes>
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/saas-admin" element={
+          <ProtectedRoute requiredModule="saas-admin">
+            <SaasAdmin />
+          </ProtectedRoute>
+        } />
+        <Route path="/" element={<HomeRoute />} />
+        <Route path="/appointments" element={
+          <ProtectedRoute requiredModule="appointments">
+            <Layout><Appointments /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/patients" element={
+          <ProtectedRoute requiredModule="patients">
+            <Layout><Patients /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/doctors" element={
+          <ProtectedRoute requiredModule="doctors">
+            <Layout><Doctors /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/orders" element={
+          <ProtectedRoute requiredModule="orders">
+            <Layout><Orders /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/obras-sociales" element={
+          <ProtectedRoute requiredModule="obras-sociales">
+            <Layout><ObrasSociales /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/presentaciones" element={
+          <ProtectedRoute requiredModule="presentaciones">
+            <Layout><Presentaciones /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/billing" element={
+          <ProtectedRoute requiredModule="billing" adminOnly={true}>
+            <Layout><Billing /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/plus-payments" element={
+          <ProtectedRoute requiredModule="plus-payments">
+            <Layout><PlusPayments /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/cash-management" element={
+          <ProtectedRoute requiredModule="cash-management">
+            <Layout><CashManagement /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/medical-records" element={
+          <ProtectedRoute requiredModule="medical-records">
+            <Layout><MedicalRecords /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/novedades" element={
+          <ProtectedRoute requiredModule="novedades">
+            <Layout><Novedades /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/configuracion" element={
+          <ProtectedRoute requiredModule="configuracion" adminOnly={true}>
+            <Layout><Configuration /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/reports" element={
+          <ProtectedRoute requiredModule="reports" adminOnly={true}>
+            <Layout><Reports /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/reports-manager" element={
+          <ProtectedRoute requiredModule="reports-manager">
+            <Layout><ReportsManager /></Layout>
+          </ProtectedRoute>
+        } />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </SidebarProvider>
   </TooltipProvider>
 );
 
