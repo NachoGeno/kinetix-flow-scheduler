@@ -23,16 +23,24 @@ const statusLabels: { [key: string]: string } = {
   in_progress: 'Asistido',
   completed: 'Completado',
   cancelled: 'Cancelado',
+  discharged: 'Dado de Alta',
+  rescheduled: 'Reprogramado',
   no_show: 'Ausente',
+  no_show_rescheduled: 'Ausente - Reprogramado',
+  no_show_session_lost: 'Ausente - Sesión Descontada',
 };
 
 const statusColors: { [key: string]: string } = {
-  confirmed: 'bg-green-100 border-green-300 dark:bg-green-950 dark:border-green-800',
-  scheduled: 'bg-yellow-100 border-yellow-300 dark:bg-yellow-950 dark:border-yellow-800',
-  in_progress: 'bg-blue-100 border-blue-300 dark:bg-blue-950 dark:border-blue-800',
-  completed: 'bg-blue-100 border-blue-300 dark:bg-blue-950 dark:border-blue-800',
-  cancelled: 'bg-gray-100 border-gray-300 dark:bg-gray-900 dark:border-gray-700',
-  no_show: 'bg-red-100 border-red-300 dark:bg-red-950 dark:border-red-800',
+  scheduled: 'bg-gradient-to-r from-primary/5 to-primary/10 text-primary border-primary/20 dark:from-primary/10 dark:to-primary/20 dark:text-primary-light dark:border-primary/30',
+  confirmed: 'bg-gradient-to-r from-success/5 to-success/10 text-success border-success/20 dark:from-success/10 dark:to-success/20 dark:text-success-light dark:border-success/30',
+  in_progress: 'bg-gradient-to-r from-warning/5 to-warning/10 text-warning border-warning/20 dark:from-warning/10 dark:to-warning/20 dark:text-warning-light dark:border-warning/30',
+  completed: 'bg-gradient-to-r from-primary/10 to-primary/15 text-primary-dark border-primary/25 dark:from-primary/20 dark:to-primary/30 dark:text-primary-light dark:border-primary/40',
+  cancelled: 'bg-gradient-to-r from-destructive/5 to-destructive/10 text-destructive border-destructive/20 dark:from-destructive/10 dark:to-destructive/20 dark:text-destructive-foreground dark:border-destructive/30',
+  discharged: 'bg-gradient-to-r from-accent/10 to-accent/20 text-accent-foreground border-accent/30 dark:from-accent/15 dark:to-accent/25 dark:text-accent-foreground dark:border-accent/40',
+  no_show: 'bg-gradient-to-r from-muted/50 to-muted text-muted-foreground border-border dark:from-muted dark:to-muted/80 dark:text-muted-foreground dark:border-border',
+  rescheduled: 'bg-gradient-to-r from-primary/5 to-primary/10 text-primary border-primary/20 dark:from-primary/10 dark:to-primary/20 dark:text-primary-light dark:border-primary/30',
+  no_show_rescheduled: 'bg-gradient-to-r from-warning/5 to-warning/10 text-warning border-warning/20 dark:from-warning/10 dark:to-warning/20 dark:text-warning-light dark:border-warning/30',
+  no_show_session_lost: 'bg-gradient-to-r from-destructive/5 to-destructive/10 text-destructive border-destructive/20 dark:from-destructive/10 dark:to-destructive/20 dark:text-destructive-foreground dark:border-destructive/30',
 };
 
 export default function TimeSlotCell({ slot, onClickFree, onClickOccupied }: TimeSlotCellProps) {
