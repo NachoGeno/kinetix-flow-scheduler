@@ -70,7 +70,7 @@ export default function UserManagement() {
 
   const updateUserRole = async (userId: string, newRole: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'reports_manager' | 'gerencia') => {
     try {
-      // Primero obtener el user_id de este profile_id
+      // Obtener el user_id de este profile_id
       const { data: profileData, error: profileQueryError } = await supabase
         .from('profiles')
         .select('user_id')
@@ -87,7 +87,7 @@ export default function UserManagement() {
         return;
       }
 
-      // Actualizar en user_roles (fuente de verdad)
+      // Actualizar SOLO en user_roles (el trigger sincroniza profiles automáticamente)
       const { error: roleError } = await supabase
         .from('user_roles')
         .update({ role: newRole })
@@ -96,20 +96,10 @@ export default function UserManagement() {
       if (roleError) {
         toast({
           title: "Error",
-          description: `Error al actualizar el rol en user_roles: ${roleError.message}`,
+          description: `Error al actualizar el rol: ${roleError.message}`,
           variant: "destructive",
         });
         return;
-      }
-
-      // También actualizar en profiles para compatibilidad
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', userId);
-
-      if (profileError) {
-        console.warn('Error actualizando profiles (no crítico):', profileError);
       }
 
       toast({

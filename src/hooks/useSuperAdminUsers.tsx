@@ -53,7 +53,7 @@ export function useSuperAdminUsers() {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      // Primero obtener el user_id de este profile_id
+      // Obtener el user_id de este profile_id
       const { data: profileData, error: profileQueryError } = await supabase
         .from('profiles')
         .select('user_id')
@@ -70,7 +70,7 @@ export function useSuperAdminUsers() {
         return false;
       }
 
-      // Actualizar en user_roles (fuente de verdad)
+      // Actualizar SOLO en user_roles (el trigger sincroniza profiles automáticamente)
       const { error: roleError } = await supabase
         .from('user_roles')
         .update({ role: newRole as any })
@@ -80,20 +80,10 @@ export function useSuperAdminUsers() {
         console.error('Error updating user_roles:', roleError);
         toast({
           title: "Error",
-          description: `No se pudo actualizar el rol en user_roles: ${roleError.message}`,
+          description: `No se pudo actualizar el rol: ${roleError.message}`,
           variant: "destructive",
         });
         return false;
-      }
-
-      // También actualizar en profiles para compatibilidad
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ role: newRole as any })
-        .eq('id', userId);
-
-      if (profileError) {
-        console.warn('Error actualizando profiles (no crítico):', profileError);
       }
 
       toast({
