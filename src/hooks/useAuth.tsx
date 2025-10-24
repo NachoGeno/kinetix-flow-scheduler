@@ -33,18 +33,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      // Fetch profile data
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
         .single();
       
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error fetching profile:', profileError);
         return;
       }
+
+      // Fetch role from user_roles table (nueva fuente de verdad)
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+
+      // Use role from user_roles if exists, otherwise fallback to profiles.role
+      const finalRole = roleData?.role || profileData?.role;
       
-      setProfile(data);
+      setProfile({ 
+        ...profileData, 
+        role: finalRole 
+      });
     } catch (error) {
       console.error('Error fetching profile:', error);
     }

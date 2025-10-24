@@ -19,7 +19,7 @@ interface UserProfile {
   first_name: string;
   last_name: string;
   email: string;
-  role: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'reports_manager';
+  role: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'reports_manager' | 'gerencia';
   phone: string | null;
   created_at: string;
   avatar_url: string | null;
@@ -31,7 +31,7 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [newRole, setNewRole] = useState<'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'reports_manager'>('patient');
+  const [newRole, setNewRole] = useState<'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'reports_manager' | 'gerencia'>('patient');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,20 +68,48 @@ export default function UserManagement() {
     }
   };
 
-  const updateUserRole = async (userId: string, newRole: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'reports_manager') => {
+  const updateUserRole = async (userId: string, newRole: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'reports_manager' | 'gerencia') => {
     try {
-      const { error } = await supabase
+      // Primero obtener el user_id de este profile_id
+      const { data: profileData, error: profileQueryError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('id', userId)
+        .single();
+
+      if (profileQueryError || !profileData?.user_id) {
+        console.error('Error obteniendo user_id:', profileQueryError);
+        toast({
+          title: "Error",
+          description: "No se pudo obtener información del usuario",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Actualizar en user_roles (fuente de verdad)
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .update({ role: newRole })
+        .eq('user_id', profileData.user_id);
+
+      if (roleError) {
+        toast({
+          title: "Error",
+          description: `Error al actualizar el rol en user_roles: ${roleError.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // También actualizar en profiles para compatibilidad
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({ role: newRole })
         .eq('id', userId);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: `Error al actualizar el rol: ${error.message}`,
-          variant: "destructive",
-        });
-        return;
+      if (profileError) {
+        console.warn('Error actualizando profiles (no crítico):', profileError);
       }
 
       toast({
@@ -114,6 +142,8 @@ export default function UserManagement() {
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
+      case 'gerencia':
+        return 'default';
       case 'admin':
         return 'destructive';
       case 'doctor':
@@ -133,6 +163,8 @@ export default function UserManagement() {
 
   const getRoleLabel = (role: string) => {
     switch (role) {
+      case 'gerencia':
+        return 'Gerencia';
       case 'admin':
         return 'Administrador';
       case 'doctor':
@@ -264,11 +296,12 @@ export default function UserManagement() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="role">Rol</Label>
-                            <Select value={newRole} onValueChange={(value: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria') => setNewRole(value)}>
+                            <Select value={newRole} onValueChange={(value: 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'gerencia') => setNewRole(value)}>
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
+                                <SelectItem value="gerencia">Gerencia</SelectItem>
                                 <SelectItem value="admin">Administrador</SelectItem>
                                 <SelectItem value="doctor">Doctor</SelectItem>
                                 <SelectItem value="patient">Paciente</SelectItem>

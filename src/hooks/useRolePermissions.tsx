@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 
-export type UserRole = 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'reports_manager';
+export type UserRole = 'admin' | 'doctor' | 'patient' | 'reception' | 'super_admin' | 'secretaria' | 'reports_manager' | 'gerencia';
 
 interface RolePermissions {
   canAccessModule: (module: string) => boolean;
@@ -13,6 +13,7 @@ interface RolePermissions {
   isReception: () => boolean;
   isSuperAdmin: () => boolean;
   isReportsManager: () => boolean;
+  isGerencia: () => boolean;
   getCurrentRole: () => UserRole | null;
 }
 
@@ -25,23 +26,23 @@ export const useRolePermissions = (): RolePermissions => {
 
     // Definir qué roles pueden acceder a cada módulo
     const modulePermissions: Record<string, UserRole[]> = {
-      dashboard: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
-      appointments: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
-      patients: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
-      doctors: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
-      orders: ['admin', 'doctor', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
-      'obras-sociales': ['admin', 'doctor', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
-      presentaciones: ['admin', 'doctor', 'secretaria', 'reception', 'super_admin', 'reports_manager'],
-      billing: ['admin', 'super_admin'], // Solo administradores
-      'plus-payments': ['admin', 'reception', 'secretaria', 'super_admin', 'reports_manager'],
-      'cash-management': ['admin', 'reception', 'secretaria', 'super_admin', 'reports_manager'],
-      'medical-records': ['admin', 'doctor', 'patient', 'secretaria', 'super_admin', 'reports_manager'],
-      novedades: ['admin', 'doctor', 'reception', 'secretaria', 'super_admin', 'reports_manager'],
-      reports: ['admin', 'super_admin'], // Solo administradores (módulo actual)
-      'reports-manager': ['super_admin', 'reports_manager'], // Nuevo módulo
-      configuration: ['admin', 'super_admin'], // Solo administradores
-      configuracion: ['admin', 'super_admin'], // Solo administradores
-      'saas-admin': ['super_admin']
+      dashboard: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia'],
+      appointments: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia'],
+      patients: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia'],
+      doctors: ['admin', 'doctor', 'patient', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia'],
+      orders: ['admin', 'doctor', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia'],
+      'obras-sociales': ['admin', 'doctor', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia'],
+      presentaciones: ['admin', 'doctor', 'secretaria', 'reception', 'super_admin', 'reports_manager', 'gerencia'],
+      billing: ['super_admin', 'gerencia'], // ❌ Admin ya NO ve facturación
+      'plus-payments': ['admin', 'reception', 'secretaria', 'super_admin', 'reports_manager', 'gerencia'],
+      'cash-management': ['admin', 'reception', 'secretaria', 'super_admin', 'reports_manager', 'gerencia'],
+      'medical-records': ['admin', 'doctor', 'patient', 'secretaria', 'super_admin', 'reports_manager', 'gerencia'],
+      novedades: ['admin', 'doctor', 'reception', 'secretaria', 'super_admin', 'reports_manager', 'gerencia'],
+      reports: ['super_admin', 'gerencia'], // ❌ Admin ya NO ve reportes
+      'reports-manager': ['super_admin', 'reports_manager', 'gerencia'],
+      configuration: ['super_admin', 'gerencia'], // ❌ Admin ya NO ve configuración
+      configuracion: ['super_admin', 'gerencia'], // ❌ Admin ya NO ve configuración
+      'saas-admin': ['super_admin'] // ✅ Solo super_admin crea organizaciones
     };
 
     const allowedRoles = modulePermissions[module];
@@ -49,7 +50,7 @@ export const useRolePermissions = (): RolePermissions => {
   };
 
   const canAccessAdminOnlyModules = (): boolean => {
-    return currentRole === 'admin' || currentRole === 'super_admin';
+    return currentRole === 'admin' || currentRole === 'super_admin' || currentRole === 'gerencia';
   };
 
   const canAccessSecretariaModules = (): boolean => {
@@ -84,6 +85,10 @@ export const useRolePermissions = (): RolePermissions => {
     return currentRole === 'reports_manager';
   };
 
+  const isGerencia = (): boolean => {
+    return currentRole === 'gerencia';
+  };
+
   const getCurrentRole = (): UserRole | null => {
     return currentRole;
   };
@@ -99,6 +104,7 @@ export const useRolePermissions = (): RolePermissions => {
     isReception,
     isSuperAdmin,
     isReportsManager,
+    isGerencia,
     getCurrentRole,
   };
 };

@@ -48,17 +48,33 @@ export default function RoleManagement() {
       // Definir información de roles y permisos
       const rolesInfo: RoleStats[] = [
         {
+          role: 'gerencia',
+          count: roleCounts.gerencia || 0,
+          description: 'Acceso administrativo completo excepto gestión de organizaciones',
+          permissions: [
+            'Gestionar usuarios y roles de la organización',
+            'Ver todos los pacientes y doctores',
+            'Acceder a facturación y reportes gerenciales',
+            'Configurar el sistema de la organización',
+            'Gestionar citas y órdenes médicas',
+            'Ver historiales clínicos completos',
+            'Gestionar presentaciones a obras sociales',
+            '❌ NO puede crear nuevas organizaciones'
+          ]
+        },
+        {
           role: 'admin',
           count: roleCounts.admin || 0,
-          description: 'Acceso completo al sistema, puede gestionar todos los usuarios y configuraciones',
+          description: 'Acceso operativo al sistema, gestiona operaciones diarias',
           permissions: [
-            'Gestionar usuarios y roles',
             'Ver todos los pacientes y doctores',
-            'Acceder a reportes y estadísticas',
-            'Configurar el sistema',
             'Gestionar citas médicas',
             'Ver historiales clínicos',
-            'Gestionar órdenes médicas'
+            'Gestionar órdenes médicas',
+            'Gestionar obras sociales',
+            '❌ NO accede a facturación',
+            '❌ NO accede a reportes gerenciales',
+            '❌ NO accede a configuración del sistema'
           ]
         },
         {
@@ -104,6 +120,8 @@ export default function RoleManagement() {
 
   const getRoleIcon = (role: string) => {
     switch (role) {
+      case 'gerencia':
+        return <Shield className="h-6 w-6 text-purple-500" />;
       case 'admin':
         return <Shield className="h-6 w-6 text-red-500" />;
       case 'doctor':
@@ -117,6 +135,8 @@ export default function RoleManagement() {
 
   const getRoleLabel = (role: string) => {
     switch (role) {
+      case 'gerencia':
+        return 'Gerencia';
       case 'admin':
         return 'Administrador';
       case 'doctor':
@@ -130,6 +150,8 @@ export default function RoleManagement() {
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
+      case 'gerencia':
+        return 'default';
       case 'admin':
         return 'destructive';
       case 'doctor':

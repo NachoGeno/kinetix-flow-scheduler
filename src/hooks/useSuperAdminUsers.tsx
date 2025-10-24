@@ -53,19 +53,47 @@ export function useSuperAdminUsers() {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      const { error } = await supabase
+      // Primero obtener el user_id de este profile_id
+      const { data: profileData, error: profileQueryError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('id', userId)
+        .single();
+
+      if (profileQueryError || !profileData?.user_id) {
+        console.error('Error obteniendo user_id:', profileQueryError);
+        toast({
+          title: "Error",
+          description: "No se pudo obtener información del usuario",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Actualizar en user_roles (fuente de verdad)
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .update({ role: newRole as any })
+        .eq('user_id', profileData.user_id);
+
+      if (roleError) {
+        console.error('Error updating user_roles:', roleError);
+        toast({
+          title: "Error",
+          description: `No se pudo actualizar el rol en user_roles: ${roleError.message}`,
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // También actualizar en profiles para compatibilidad
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({ role: newRole as any })
         .eq('id', userId);
 
-      if (error) {
-        console.error('Error updating user role:', error);
-        toast({
-          title: "Error",
-          description: `No se pudo actualizar el rol del usuario: ${error.message}`,
-          variant: "destructive",
-        });
-        return false;
+      if (profileError) {
+        console.warn('Error actualizando profiles (no crítico):', profileError);
       }
 
       toast({

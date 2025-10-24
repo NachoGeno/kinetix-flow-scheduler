@@ -41,6 +41,8 @@ export default function SuperAdminUserManagement() {
     switch (role) {
       case 'super_admin':
         return 'destructive';
+      case 'gerencia':
+        return 'default';
       case 'admin':
         return 'default';
       case 'doctor':
@@ -56,6 +58,8 @@ export default function SuperAdminUserManagement() {
     switch (role) {
       case 'super_admin':
         return 'Super Admin';
+      case 'gerencia':
+        return 'Gerencia';
       case 'admin':
         return 'Administrador';
       case 'doctor':
@@ -111,6 +115,7 @@ export default function SuperAdminUserManagement() {
     return {
       totalUsers: users.length,
       superAdmins: users.filter(user => user.role === 'super_admin').length,
+      gerencias: users.filter(user => user.role === 'gerencia').length,
       admins: users.filter(user => user.role === 'admin').length,
       doctors: users.filter(user => user.role === 'doctor').length,
       reception: users.filter(user => user.role === 'reception').length,
@@ -155,7 +160,7 @@ export default function SuperAdminUserManagement() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
           <div className="text-center">
             <div className="text-2xl font-bold">{stats.totalUsers}</div>
             <div className="text-sm text-muted-foreground">Total Usuarios</div>
@@ -163,6 +168,10 @@ export default function SuperAdminUserManagement() {
           <div className="text-center">
             <div className="text-2xl font-bold text-destructive">{stats.superAdmins}</div>
             <div className="text-sm text-muted-foreground">Super Admins</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-purple-600">{stats.gerencias}</div>
+            <div className="text-sm text-muted-foreground">Gerencias</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-primary">{stats.admins}</div>
@@ -241,6 +250,7 @@ export default function SuperAdminUserManagement() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="super_admin">Super Admin</SelectItem>
+                            <SelectItem value="gerencia">Gerencia</SelectItem>
                             <SelectItem value="admin">Administrador</SelectItem>
                             <SelectItem value="doctor">Doctor</SelectItem>
                             <SelectItem value="reception">Recepción</SelectItem>
@@ -345,6 +355,7 @@ export default function SuperAdminUserManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="super_admin">Super Admin</SelectItem>
+                    <SelectItem value="gerencia">Gerencia</SelectItem>
                     <SelectItem value="admin">Administrador</SelectItem>
                     <SelectItem value="doctor">Doctor</SelectItem>
                     <SelectItem value="reception">Recepción</SelectItem>
