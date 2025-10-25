@@ -56,6 +56,10 @@ export default function WeeklyPlanningView() {
     time: string;
   } | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [appointmentSlotInfo, setAppointmentSlotInfo] = useState<{
+    date: Date;
+    time: string;
+  } | null>(null);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1, locale: es });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1, locale: es });
@@ -97,7 +101,7 @@ export default function WeeklyPlanningView() {
     setCreateDialogOpen(true);
   };
 
-  const handleViewDetails = (appointments: any) => {
+  const handleViewDetails = (appointments: any, date?: Date, time?: string) => {
     if (Array.isArray(appointments)) {
       // Múltiples turnos
       setSelectedAppointment({ multiple: true, appointments });
@@ -105,7 +109,30 @@ export default function WeeklyPlanningView() {
       // Turno único (compatibilidad backward)
       setSelectedAppointment({ multiple: false, appointment: appointments });
     }
+    
+    // Guardar info del slot para poder crear turnos adicionales
+    if (date && time) {
+      setAppointmentSlotInfo({ date, time });
+    } else if (appointments && appointments.length > 0) {
+      // Intentar extraer de los appointments existentes
+      const firstApt = Array.isArray(appointments) ? appointments[0] : appointments;
+      if (firstApt.appointmentDate && firstApt.appointmentTime) {
+        setAppointmentSlotInfo({ 
+          date: new Date(firstApt.appointmentDate), 
+          time: firstApt.appointmentTime 
+        });
+      }
+    }
+    
     setDetailsDialogOpen(true);
+  };
+
+  const handleAddAppointmentToSlot = () => {
+    if (appointmentSlotInfo) {
+      setDetailsDialogOpen(false);
+      setSelectedSlot(appointmentSlotInfo);
+      setCreateDialogOpen(true);
+    }
   };
 
   const handleCreateSuccess = () => {
@@ -360,7 +387,7 @@ export default function WeeklyPlanningView() {
                               <TimeSlotCell
                                 slot={slot}
                                 onClickFree={() => handleCreateAppointment(dayData.date, time, slot)}
-                                onClickOccupied={() => handleViewDetails(slot.appointments)}
+                                onClickOccupied={() => handleViewDetails(slot.appointments, dayData.date, time)}
                               />
                             )}
                           </td>
@@ -414,65 +441,81 @@ export default function WeeklyPlanningView() {
           <div className="py-4">
             {selectedAppointment?.multiple ? (
               // Lista de múltiples turnos
-              <div className="space-y-3 mt-4 max-h-96 overflow-y-auto pr-2">
-                {selectedAppointment.appointments.map((apt: any) => {
-                  const statusColor = statusColors[apt.status as keyof typeof statusColors] || 
-                    'bg-gray-100 text-gray-700 border-gray-200';
-                  const statusLabel = statusLabels[apt.status as keyof typeof statusLabels] || apt.status;
-                  
-                  return (
-                    <div 
-                      key={apt.id} 
-                      className="p-4 border-2 border-border rounded-xl hover:shadow-md transition-all duration-200 bg-card"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-foreground mb-1">
-                            {apt.patientName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {apt.obraSocial}
-                          </p>
-                        </div>
-                        <Badge 
-                          variant="outline" 
-                          className={cn("text-xs font-medium px-3 py-1", statusColor)}
-                        >
-                          {statusLabel}
-                        </Badge>
-                      </div>
-                      
-                      {apt.reason && (
-                        <div className="bg-muted/30 rounded-lg p-2 mb-3">
-                          <p className="text-[10px] uppercase text-muted-foreground font-medium mb-0.5">
-                            Motivo
-                          </p>
-                          <p className="text-sm text-foreground">
-                            {apt.reason}
-                          </p>
-                        </div>
-                      )}
-
-                      {(apt.status === 'scheduled' || apt.status === 'confirmed') && (
-                        <div className="mt-3 pt-3 border-t border-border">
-                          <Button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMarkAttendance(apt.id, apt);
-                            }}
-                            size="sm"
-                            className="w-full font-medium"
-                            variant="default"
+              <>
+                <div className="space-y-3 mt-4 max-h-96 overflow-y-auto pr-2">
+                  {selectedAppointment.appointments.map((apt: any) => {
+                    const statusColor = statusColors[apt.status as keyof typeof statusColors] || 
+                      'bg-gray-100 text-gray-700 border-gray-200';
+                    const statusLabel = statusLabels[apt.status as keyof typeof statusLabels] || apt.status;
+                    
+                    return (
+                      <div 
+                        key={apt.id} 
+                        className="p-4 border-2 border-border rounded-xl hover:shadow-md transition-all duration-200 bg-card"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-foreground mb-1">
+                              {apt.patientName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {apt.obraSocial}
+                            </p>
+                          </div>
+                          <Badge 
+                            variant="outline" 
+                            className={cn("text-xs font-medium px-3 py-1", statusColor)}
                           >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Marcar Presente
-                          </Button>
+                            {statusLabel}
+                          </Badge>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                        
+                        {apt.reason && (
+                          <div className="bg-muted/30 rounded-lg p-2 mb-3">
+                            <p className="text-[10px] uppercase text-muted-foreground font-medium mb-0.5">
+                              Motivo
+                            </p>
+                            <p className="text-sm text-foreground">
+                              {apt.reason}
+                            </p>
+                          </div>
+                        )}
+
+                        {(apt.status === 'scheduled' || apt.status === 'confirmed') && (
+                          <div className="mt-3 pt-3 border-t border-border">
+                            <Button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkAttendance(apt.id, apt);
+                              }}
+                              size="sm"
+                              className="w-full font-medium"
+                              variant="default"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Marcar Presente
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Botón para agregar turno adicional */}
+                {appointmentSlotInfo && (
+                  <div className="mt-4 pt-4 border-t border-border">
+                    <Button 
+                      onClick={handleAddAppointmentToSlot}
+                      className="w-full font-medium"
+                      variant="outline"
+                    >
+                      <CalendarIcon className="h-4 w-4 mr-2" />
+                      Agregar Turno en este Horario
+                    </Button>
+                  </div>
+                )}
+              </>
             ) : (
               // Turno único
               <div className="space-y-4 mt-4">
@@ -522,6 +565,20 @@ export default function WeeklyPlanningView() {
                     >
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Marcar Presente
+                    </Button>
+                  </div>
+                )}
+
+                {/* Botón para agregar turno adicional */}
+                {appointmentSlotInfo && (
+                  <div className="pt-4 border-t border-border">
+                    <Button 
+                      onClick={handleAddAppointmentToSlot}
+                      className="w-full font-medium"
+                      variant="outline"
+                    >
+                      <CalendarIcon className="h-4 w-4 mr-2" />
+                      Agregar Turno en este Horario
                     </Button>
                   </div>
                 )}
