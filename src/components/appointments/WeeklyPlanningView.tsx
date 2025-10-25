@@ -511,7 +511,7 @@ export default function WeeklyPlanningView() {
                       variant="outline"
                     >
                       <CalendarIcon className="h-4 w-4 mr-2" />
-                      Agregar Turno en este Horario
+                      Agregar Turno
                     </Button>
                   </div>
                 )}
@@ -578,7 +578,7 @@ export default function WeeklyPlanningView() {
                       variant="outline"
                     >
                       <CalendarIcon className="h-4 w-4 mr-2" />
-                      Agregar Turno en este Horario
+                      Agregar Turno
                     </Button>
                   </div>
                 )}
