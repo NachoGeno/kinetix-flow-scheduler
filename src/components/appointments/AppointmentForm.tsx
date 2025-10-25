@@ -376,6 +376,20 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       return;
     }
 
+    // Verificar si la fecha es feriado
+    const selectedDateStr = formatDateToISO(appointmentDate);
+    const holidayOnDate = holidays.find(h => h.date === selectedDateStr);
+    
+    if (holidayOnDate) {
+      setAvailableSlots([]);
+      toast({
+        title: "Fecha no disponible",
+        description: `${holidayOnDate.name} - No se pueden agendar turnos en feriados`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const doctor = doctors.find(d => d.id === doctorId);
       if (!doctor) {
@@ -494,6 +508,17 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
       const dayKey = weekDays.find(d => d.value === dayOfWeek)?.key;
       
       if (dayKey && selectedDays.includes(dayKey)) {
+        // Verificar si la fecha es feriado (saltar sin contar como sesión)
+        const dateStr = formatDateToISO(currentDate);
+        const isHoliday = holidays.some(h => h.date === dateStr);
+        
+        if (isHoliday) {
+          // Saltar este día sin incrementar sessionNumber
+          currentDate = addDays(currentDate, 1);
+          attempts++;
+          continue;
+        }
+
         // Check for conflicts
         const conflict = await checkAppointmentConflict(doctorId, currentDate, time);
         
@@ -517,6 +542,17 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
   const checkAppointmentConflict = async (doctorId: string, date: Date, time: string) => {
     try {
+      // Verificar si la fecha es feriado
+      const dateStr = formatDateToISO(date);
+      const holidayOnDate = holidays.find(h => h.date === dateStr);
+      
+      if (holidayOnDate) {
+        return { 
+          hasConflict: true, 
+          reason: `Feriado: ${holidayOnDate.name}` 
+        };
+      }
+
       const { data: existingAppointments, error } = await supabase
         .from('appointments')
         .select('appointment_time')
@@ -1109,7 +1145,14 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                             mode="single"
                             selected={field.value}
                             onSelect={field.onChange}
-                            disabled={(date) => date < new Date() || date < new Date("1900-01-01")}
+                            disabled={(date) => {
+                              // Deshabilitar fechas pasadas
+                              if (date < new Date() || date < new Date("1900-01-01")) return true;
+                              
+                              // Deshabilitar feriados
+                              const dateStr = formatDateToISO(date);
+                              return holidays.some(h => h.date === dateStr);
+                            }}
                             initialFocus
                             locale={es}
                           />
