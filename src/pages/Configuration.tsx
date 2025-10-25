@@ -12,8 +12,8 @@ import { Shield, Users, Settings as SettingsIcon, Building2, Calendar } from 'lu
 export default function Configuration() {
   const { profile } = useAuth();
 
-  // Verificar que el usuario sea administrador o super_admin
-  if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+  // Verificar que el usuario sea administrador, super_admin o gerencia
+  if (!profile || !['admin', 'super_admin', 'gerencia'].includes(profile.role)) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Card className="w-full max-w-md">
@@ -22,7 +22,7 @@ export default function Configuration() {
             <div className="text-center">
               <h2 className="text-lg font-semibold">Acceso Restringido</h2>
               <p className="text-sm text-muted-foreground">
-                Solo los administradores pueden acceder a esta sección
+                Solo administradores y gerencia pueden acceder a esta sección
               </p>
             </div>
           </CardContent>
