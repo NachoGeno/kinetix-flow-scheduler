@@ -27,6 +27,7 @@ import { formatDateToISO } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useHolidays } from '@/hooks/useHolidays';
 import AppointmentForm from './AppointmentForm';
 
 interface Doctor {
@@ -117,6 +118,7 @@ export default function AppointmentCalendar() {
   const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
   const { profile } = useAuth();
   const { toast } = useToast();
+  const { data: holidays = [] } = useHolidays();
 
   useEffect(() => {
     fetchDoctors();
@@ -280,6 +282,10 @@ export default function AppointmentCalendar() {
   const generateTimeSlots = () => {
     const slots = [];
     
+    // Verificar si la fecha seleccionada es feriado
+    const selectedDateStr = formatDateToISO(selectedDate);
+    const holidayOnDate = holidays.find(h => h.date === selectedDateStr);
+    
     // If "all doctors" is selected, generate slots based on the union of all doctor schedules
     if (selectedDoctor === 'all') {
       if (doctors.length === 0) return [];
@@ -339,7 +345,9 @@ export default function AppointmentCalendar() {
           appointments: allTimeAppointments,
           availableSlots,
           isFull: activeTimeAppointments.length >= maxSlots,
-          maxSlots
+          maxSlots,
+          isHoliday: !!holidayOnDate,
+          holidayName: holidayOnDate?.name
         });
         
         currentMinute += commonDuration;
@@ -398,7 +406,9 @@ export default function AppointmentCalendar() {
         appointments: allTimeAppointments, // Mostrar todas las citas incluyendo canceladas
         availableSlots,
         isFull: activeTimeAppointments.length >= maxSlots, // Disponibilidad basada solo en citas activas
-        maxSlots
+        maxSlots,
+        isHoliday: !!holidayOnDate,
+        holidayName: holidayOnDate?.name
       });
 
       currentMinute += duration;
@@ -627,6 +637,10 @@ export default function AppointmentCalendar() {
                     selected={selectedDate}
                     onSelect={(date) => date && setSelectedDate(date)}
                     locale={es}
+                    disabled={(date) => {
+                      const dateStr = formatDateToISO(date);
+                      return holidays.some(h => h.date === dateStr);
+                    }}
                     className="w-full p-3 pointer-events-auto"
                     classNames={{
                       months: "flex w-full flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
@@ -710,6 +724,30 @@ export default function AppointmentCalendar() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {timeSlots.map((slot) => {
+                      // Si es feriado, mostrar tarjeta especial
+                      if (slot.isHoliday) {
+                        return (
+                          <Card
+                            key={slot.time}
+                            className="transition-all duration-200 border-2 bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 cursor-not-allowed opacity-60"
+                          >
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center justify-center gap-2">
+                                <span className="text-2xl">🎊</span>
+                                <span className="font-semibold text-red-600 dark:text-red-400">
+                                  {slot.holidayName || 'Feriado'}
+                                </span>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="pt-0 text-center">
+                              <p className="text-xs text-red-600 dark:text-red-400">
+                                No se pueden agendar turnos
+                              </p>
+                            </CardContent>
+                          </Card>
+                        );
+                      }
+                      
                       return (
                          <Card
                            key={slot.time}

@@ -386,8 +386,8 @@ export default function WeeklyPlanningView() {
                             {slot && (
                               <TimeSlotCell
                                 slot={slot}
-                                onClickFree={() => handleCreateAppointment(dayData.date, time, slot)}
-                                onClickOccupied={() => handleViewDetails(slot.appointments, dayData.date, time)}
+                                onClickFree={slot.status === 'holiday' ? () => {} : () => handleCreateAppointment(dayData.date, time, slot)}
+                                onClickOccupied={slot.status === 'holiday' ? () => {} : () => handleViewDetails(slot.appointments, dayData.date, time)}
                               />
                             )}
                           </td>

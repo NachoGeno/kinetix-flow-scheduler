@@ -46,7 +46,7 @@ const statusColors: { [key: string]: string } = {
 export default function TimeSlotCell({ slot, onClickFree, onClickOccupied }: TimeSlotCellProps) {
   if (slot.status === 'holiday') {
     return (
-      <div className="h-16 bg-red-50 dark:bg-red-950 flex flex-col items-center justify-center border border-red-200 dark:border-red-800">
+      <div className="h-16 bg-red-50 dark:bg-red-950 flex flex-col items-center justify-center border border-red-200 dark:border-red-800 cursor-not-allowed opacity-60">
         <span className="text-lg">🎊</span>
         <span className="text-[10px] text-red-600 dark:text-red-400 font-medium text-center px-1 leading-tight">
           {slot.holidayName || 'Feriado'}
