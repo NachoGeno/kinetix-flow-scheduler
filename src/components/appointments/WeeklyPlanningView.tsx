@@ -429,9 +429,9 @@ export default function WeeklyPlanningView() {
 
       {/* Modal de detalles de turno */}
       <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-        <DialogContent className="max-w-lg border-border">
+        <DialogContent className="max-w-lg">
           <DialogHeader className="border-b border-border pb-4">
-            <DialogTitle className="text-xl font-bold text-foreground">
+            <DialogTitle>
               {selectedAppointment?.multiple ? 
                 `🗓️ ${selectedAppointment.appointments.length} Turnos en este horario` : 
                 '📋 Detalles del Turno'
