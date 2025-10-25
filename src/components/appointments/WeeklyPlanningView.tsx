@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Stethoscope, CheckCircle } from 'lucide-react';
@@ -11,7 +11,7 @@ import { useDoctorWeeklySchedule } from '@/hooks/useDoctorWeeklySchedule';
 import { useDoctors } from '@/hooks/useDoctors';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import TimeSlotCell from './TimeSlotCell';
-import CreateAppointmentDialog from './CreateAppointmentDialog';
+import AppointmentForm from './AppointmentForm';
 import WeeklyAppointmentCard from './WeeklyAppointmentCard';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -376,18 +376,29 @@ export default function WeeklyPlanningView() {
       ) : null}
 
       {/* Modal para crear turno */}
-      {selectedSlot && scheduleData?.doctor && (
-        <CreateAppointmentDialog
-          open={createDialogOpen}
-          onOpenChange={setCreateDialogOpen}
-          doctorId={selectedDoctorId!}
-          doctorName={scheduleData.doctor.name}
-          date={selectedSlot.date}
-          time={selectedSlot.time}
-          appointmentDuration={scheduleData.doctor.appointmentDuration}
-          onSuccess={handleCreateSuccess}
-        />
-      )}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Crear Turno</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Complete el formulario para crear un nuevo turno. La orden médica es obligatoria.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedSlot && (
+            <AppointmentForm
+              selectedDate={selectedSlot.date}
+              selectedDoctor={selectedDoctorId}
+              selectedTime={selectedSlot.time.slice(0, 5)}
+              onSuccess={() => {
+                handleCreateSuccess();
+                setCreateDialogOpen(false);
+                setSelectedSlot(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de detalles de turno */}
       <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
