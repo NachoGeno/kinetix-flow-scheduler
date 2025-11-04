@@ -7,7 +7,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.recent-activity]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-billing-excel]
 verify_jwt = false
