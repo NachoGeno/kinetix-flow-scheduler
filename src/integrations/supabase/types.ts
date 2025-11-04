@@ -2144,6 +2144,19 @@ export type Database = {
           patients_count: number
         }[]
       }
+      get_patients_by_obra_social: {
+        Args: {
+          end_date?: string
+          obra_social_filter?: string
+          start_date?: string
+        }
+        Returns: {
+          obra_social_id: string
+          obra_social_nombre: string
+          porcentaje: number
+          total_pacientes: number
+        }[]
+      }
       get_patients_without_closed_history: {
         Args: never
         Returns: {

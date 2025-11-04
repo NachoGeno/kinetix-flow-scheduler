@@ -104,6 +104,7 @@ export default function Reports() {
   const [professionalWorkHours, setProfessionalWorkHours] = useState<ProfessionalWorkHours[]>([]);
   const [appointmentsByTime, setAppointmentsByTime] = useState<AppointmentsByTime[]>([]);
   const [economicStats, setEconomicStats] = useState<any[]>([]);
+  const [patientsByObraSocial, setPatientsByObraSocial] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -195,7 +196,8 @@ export default function Reports() {
         fetchPatientsWithoutHistory(),
         fetchProfessionalWorkHours(),
         fetchAppointmentsByTime(),
-        fetchEconomicStats()
+        fetchEconomicStats(),
+        fetchPatientsByObraSocial()
       ]);
     } catch (error) {
       console.error("Error fetching reports data:", error);
@@ -301,6 +303,21 @@ export default function Reports() {
       setEconomicStats(data || []);
     } catch (error) {
       console.error("Error fetching economic stats:", error);
+    }
+  };
+
+  const fetchPatientsByObraSocial = async () => {
+    try {
+      const { data, error } = await supabase.rpc("get_patients_by_obra_social", {
+        start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
+        end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
+        obra_social_filter: selectedObraSocial === "all" ? null : selectedObraSocial
+      });
+
+      if (error) throw error;
+      setPatientsByObraSocial(data || []);
+    } catch (error) {
+      console.error("Error fetching patients by obra social:", error);
     }
   };
 
@@ -642,6 +659,101 @@ export default function Reports() {
               </Table>
             </CardContent>
           </Card>
+
+          {/* Nueva sección: Pacientes por Obra Social */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            {/* Tabla de pacientes por obra social */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Pacientes por Obra Social
+                  </CardTitle>
+                  <CardDescription>
+                    Distribución de pacientes según cobertura médica
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={() => exportToCSV(patientsByObraSocial, 'pacientes-por-obra-social')}
+                  variant="outline" 
+                  size="sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-[400px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Obra Social</TableHead>
+                        <TableHead className="text-right">Pacientes</TableHead>
+                        <TableHead className="text-right">Porcentaje</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {patientsByObraSocial.map((item, index) => (
+                        <TableRow key={item.obra_social_id || index}>
+                          <TableCell className="font-medium">
+                            {item.obra_social_nombre}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.total_pacientes}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="font-semibold text-primary">
+                              {item.porcentaje}%
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Gráfico de torta */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PieChart className="h-5 w-5" />
+                  Distribución Visual
+                </CardTitle>
+                <CardDescription>
+                  Proporción de pacientes por obra social
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Tooltip 
+                        formatter={(value, name) => [`${value} pacientes`, name]} 
+                      />
+                      <Pie 
+                        data={patientsByObraSocial}
+                        dataKey="total_pacientes"
+                        nameKey="obra_social_nombre"
+                        cx="50%" 
+                        cy="50%" 
+                        outerRadius={100} 
+                        label={({ obra_social_nombre, porcentaje }) => 
+                          `${obra_social_nombre}: ${porcentaje}%`
+                        }
+                      >
+                        {patientsByObraSocial.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Tab Profesionales */}
