@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Cell, Pie } from "recharts";
+import * as XLSX from 'xlsx';
 
 interface Doctor {
   id: string;
@@ -407,6 +408,43 @@ export default function Reports() {
     window.URL.revokeObjectURL(url);
   };
 
+  const exportToExcel = (data: any[], filename: string, sheetName: string = "Datos") => {
+    if (!data || data.length === 0) {
+      toast({
+        title: "Sin datos",
+        description: "No hay datos para exportar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Crear libro de trabajo
+    const workbook = XLSX.utils.book_new();
+    
+    // Convertir datos a hoja de cálculo
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    
+    // Ajustar anchos de columna automáticamente
+    const columnWidths = Object.keys(data[0]).map(key => ({
+      wch: Math.max(
+        key.length,
+        ...data.map(row => String(row[key] || '').length)
+      ) + 2
+    }));
+    worksheet['!cols'] = columnWidths;
+    
+    // Agregar hoja al libro
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    
+    // Descargar archivo
+    XLSX.writeFile(workbook, `${filename}.xlsx`);
+    
+    toast({
+      title: "Exportación exitosa",
+      description: `Se exportaron ${data.length} registros`,
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -793,12 +831,25 @@ export default function Reports() {
                   </CardDescription>
                 </div>
                 <Button 
-                  onClick={() => exportToCSV(patientsListByObraSocial, 'pacientes-detalle-obra-social')}
+                  onClick={() => {
+                    const obraSocialName = obrasSociales.find(os => os.id === selectedObraSocial)?.nombre || 'Obra Social';
+                    const exportData = patientsListByObraSocial.map(patient => ({
+                      'Paciente': patient.patient_name,
+                      'DNI': patient.patient_dni || '-',
+                      'Email': patient.patient_email || '-',
+                      'Teléfono': patient.patient_phone || '-',
+                      'Fecha Registro': patient.fecha_registro 
+                        ? format(new Date(patient.fecha_registro), "dd/MM/yyyy")
+                        : '-',
+                      'Obra Social': patient.obra_social_nombre
+                    }));
+                    exportToExcel(exportData, `pacientes-${obraSocialName.replace(/\s+/g, '-')}`, obraSocialName);
+                  }}
                   variant="outline" 
                   size="sm"
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Exportar
+                  Exportar Excel
                 </Button>
               </CardHeader>
               <CardContent>
