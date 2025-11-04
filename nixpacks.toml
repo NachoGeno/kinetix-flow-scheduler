@@ -1,14 +1,13 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "yarn"]
+nixPkgs = ["nodejs_20"]
 
 [phases.install]
 cmds = [
-  "rm -rf node_modules package-lock.json yarn.lock",
-  "yarn install",
+  "npm ci --prefer-offline --no-audit --legacy-peer-deps"
 ]
 
 [phases.build]
-cmds = ["yarn run build"]
+cmds = ["npm run build"]
 
 [start]
 cmd = "npm run preview"
