@@ -77,8 +77,39 @@ export default function CreateAppointmentDialog({
             hint: error.hint,
             code: error.code
           });
-          toast.error(`No se pudieron cargar los pacientes: ${error.message}`);
-          throw error;
+          
+          // Fallback to direct SELECT if RPC fails
+          console.warn('Falling back to direct SELECT for patients');
+          
+          const { data: directData, error: directError } = await supabase
+            .from('patients')
+            .select(`
+              id,
+              profile:profiles!patients_profile_id_fkey(first_name, last_name),
+              obra_social_art:obras_sociales_art(nombre)
+            `)
+            .eq('organization_id', profile!.organization_id)
+            .eq('is_active', true)
+            .order('first_name', { foreignTable: 'profiles', ascending: true });
+          
+          if (directError) {
+            console.error('Fallback direct SELECT failed:', {
+              message: directError.message,
+              details: directError.details,
+              hint: directError.hint,
+              code: directError.code
+            });
+            toast.error(`No se pudieron cargar los pacientes: ${directError.message}`);
+            throw directError;
+          }
+          
+          const mappedFallback = (directData || []).map((row: any) => ({
+            id: row.id,
+            profile: row.profile,
+            obra_social_art: row.obra_social_art
+          }));
+          
+          return mappedFallback;
         }
         
         // Map RPC response to expected format
