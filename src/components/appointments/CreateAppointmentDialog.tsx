@@ -62,14 +62,24 @@ export default function CreateAppointmentDialog({
     queryKey: ['patients', 'active', profile?.organization_id],
     queryFn: async () => {
       if (!profile?.organization_id) return [];
+      
       const { data, error } = await supabase
         .from('patients')
         .select('id, profile:profiles(first_name, last_name), obra_social_art:obras_sociales_art(nombre)')
         .eq('organization_id', profile.organization_id)
         .eq('is_active', true)
-        .order('profile(first_name)');
+        .order('first_name', { foreignTable: 'profiles', ascending: true });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching patients:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        toast.error(`No se pudieron cargar los pacientes: ${error.message}`);
+        throw error;
+      }
       return data || [];
     },
     enabled: !!profile?.organization_id && open,

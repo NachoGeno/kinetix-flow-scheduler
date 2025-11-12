@@ -34,7 +34,7 @@ export function useDoctors() {
         `)
         .eq('is_active', true)
         .eq('organization_id', profile.organization_id)
-        .order('profile(first_name)');
+        .order('first_name', { foreignTable: 'profiles', ascending: true });
 
       if (error) throw error;
 

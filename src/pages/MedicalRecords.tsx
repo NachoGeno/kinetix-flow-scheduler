@@ -101,7 +101,7 @@ export default function MedicalRecords() {
           allergies,
           profile:profiles(first_name, last_name, dni, date_of_birth)
         `)
-        .order('profile(first_name)', { ascending: true });
+        .order('first_name', { foreignTable: 'profiles', ascending: true });
 
       if (error) throw error;
       setPatients(data || []);

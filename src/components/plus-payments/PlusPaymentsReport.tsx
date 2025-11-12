@@ -70,7 +70,7 @@ export function PlusPaymentsReport() {
           profile:profiles(first_name, last_name)
         `)
         .eq('is_active', true)
-        .order('profile(first_name)');
+        .order('first_name', { foreignTable: 'profiles', ascending: true });
 
       if (error) throw error;
       setDoctors(data || []);
