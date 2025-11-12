@@ -89,8 +89,7 @@ export default function CreateAppointmentDialog({
               obra_social_art:obras_sociales_art(nombre)
             `)
             .eq('organization_id', profile!.organization_id)
-            .eq('is_active', true)
-            .order('first_name', { foreignTable: 'profiles', ascending: true });
+            .eq('is_active', true);
           
           if (directError) {
             console.error('Fallback direct SELECT failed:', {
@@ -108,6 +107,17 @@ export default function CreateAppointmentDialog({
             profile: row.profile,
             obra_social_art: row.obra_social_art
           }));
+          
+          // Sort in-memory by last name, then first name
+          mappedFallback.sort((a: any, b: any) => {
+            const lnA = a.profile?.last_name || '';
+            const lnB = b.profile?.last_name || '';
+            const cmpLast = lnA.localeCompare(lnB, 'es', { sensitivity: 'base' });
+            if (cmpLast !== 0) return cmpLast;
+            const fnA = a.profile?.first_name || '';
+            const fnB = b.profile?.first_name || '';
+            return fnA.localeCompare(fnB, 'es', { sensitivity: 'base' });
+          });
           
           return mappedFallback;
         }
