@@ -751,10 +751,11 @@ export default function AppointmentCalendar() {
                       return (
                          <Card
                            key={slot.time}
+                           onClick={() => handleTimeSlotClick(slot.time, slot.isFull)}
                            className={`transition-all duration-200 hover:shadow-md border-2 ${
                              slot.isFull
                                ? 'bg-destructive/10 border-destructive/20 hover:bg-destructive/15 dark:bg-destructive/20 dark:border-destructive/30 dark:hover:bg-destructive/25'
-                               : 'bg-success/10 border-success/20 hover:bg-success/15 dark:bg-success/20 dark:border-success/30 dark:hover:bg-success/25'
+                               : 'bg-success/10 border-success/20 hover:bg-success/15 dark:bg-success/20 dark:border-success/30 dark:hover:bg-success/25 cursor-pointer'
                            }`}
                          >
                           <CardHeader className="pb-3">
