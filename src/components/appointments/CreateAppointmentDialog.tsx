@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useQuery } from '@tanstack/react-query';
+import { usePaginatedPatients } from '@/hooks/usePaginatedPatients';
 
 interface CreateAppointmentDialogProps {
   open: boolean;
@@ -57,88 +57,14 @@ export default function CreateAppointmentDialog({
     },
   });
 
-  // Obtener pacientes activos
-  const { data: patients = [] } = useQuery({
-    queryKey: ['patients', 'active', profile?.organization_id],
-    queryFn: async () => {
-      if (!profile?.organization_id) return [];
-      
-      try {
-        const { data, error } = await supabase.rpc('search_patients_paginated', {
-          search_term: null,
-          page_number: 1,
-          page_size: 500
-        });
-        
-        if (error) {
-          console.error('Error fetching patients via RPC:', {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code
-          });
-          
-          // Fallback to direct SELECT if RPC fails
-          console.warn('Falling back to direct SELECT for patients');
-          
-          const { data: directData, error: directError } = await supabase
-            .from('patients')
-            .select(`
-              id,
-              profile:profiles!patients_profile_id_fkey(first_name, last_name),
-              obra_social_art:obras_sociales_art(nombre)
-            `)
-            .eq('organization_id', profile!.organization_id)
-            .eq('is_active', true);
-          
-          if (directError) {
-            console.error('Fallback direct SELECT failed:', {
-              message: directError.message,
-              details: directError.details,
-              hint: directError.hint,
-              code: directError.code
-            });
-            toast.error(`No se pudieron cargar los pacientes: ${directError.message}`);
-            throw directError;
-          }
-          
-          const mappedFallback = (directData || []).map((row: any) => ({
-            id: row.id,
-            profile: row.profile,
-            obra_social_art: row.obra_social_art
-          }));
-          
-          // Sort in-memory by last name, then first name
-          mappedFallback.sort((a: any, b: any) => {
-            const lnA = a.profile?.last_name || '';
-            const lnB = b.profile?.last_name || '';
-            const cmpLast = lnA.localeCompare(lnB, 'es', { sensitivity: 'base' });
-            if (cmpLast !== 0) return cmpLast;
-            const fnA = a.profile?.first_name || '';
-            const fnB = b.profile?.first_name || '';
-            return fnA.localeCompare(fnB, 'es', { sensitivity: 'base' });
-          });
-          
-          return mappedFallback;
-        }
-        
-        // Map RPC response to expected format
-        const mappedPatients = (data || []).map((row: any) => ({
-          id: row.patient_data.id,
-          profile: row.patient_data.profile,
-          obra_social_art: row.patient_data.obra_social_art
-        }));
-        
-        return mappedPatients;
-        
-      } catch (error: any) {
-        console.error('Exception fetching patients:', error);
-        toast.error(`No se pudieron cargar los pacientes: ${error.message}`);
-        throw error;
-      }
-    },
-    enabled: !!profile?.organization_id && open,
+  // Obtener pacientes activos usando el hook que funciona en el panel
+  const { data: patientsData } = usePaginatedPatients({
+    searchTerm: '',
+    page: 1,
+    limit: 500
   });
+
+  const patients = patientsData?.patients || [];
 
   const onSubmit = async (values: FormData) => {
     if (!profile?.organization_id) {
