@@ -116,10 +116,10 @@ export default function WeeklyPlanningView() {
     } else if (appointments && appointments.length > 0) {
       // Intentar extraer de los appointments existentes
       const firstApt = Array.isArray(appointments) ? appointments[0] : appointments;
-      if (firstApt.appointmentDate && firstApt.appointmentTime) {
+      if (firstApt.appointment_date && firstApt.appointment_time) {
         setAppointmentSlotInfo({ 
-          date: new Date(firstApt.appointmentDate), 
-          time: firstApt.appointmentTime 
+          date: new Date(firstApt.appointment_date), 
+          time: firstApt.appointment_time 
         });
       }
     }
