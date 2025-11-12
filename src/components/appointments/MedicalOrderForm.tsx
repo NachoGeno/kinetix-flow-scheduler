@@ -137,18 +137,21 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
 
   const fetchPatients = async () => {
     try {
-      const { data, error } = await supabase
-        .from('patients')
-        .select(`
-          id,
-          profile:profiles(first_name, last_name, dni),
-          obra_social_art:obras_sociales_art(id, nombre, tipo)
-        `)
-        .eq('is_active', true)
-        .order('first_name', { foreignTable: 'profiles', ascending: true });
+      const { data, error } = await supabase.rpc('search_patients_paginated', {
+        search_term: null,
+        page_number: 1,
+        page_size: 500
+      });
 
       if (error) throw error;
-      setPatients(data || []);
+      
+      const mappedPatients = (data || []).map((row: any) => ({
+        id: row.patient_data.id,
+        profile: row.patient_data.profile,
+        obra_social_art: row.patient_data.obra_social_art
+      }));
+      
+      setPatients(mappedPatients);
     } catch (error) {
       console.error('Error fetching patients:', error);
       toast({

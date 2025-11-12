@@ -63,24 +63,38 @@ export default function CreateAppointmentDialog({
     queryFn: async () => {
       if (!profile?.organization_id) return [];
       
-      const { data, error } = await supabase
-        .from('patients')
-        .select('id, profile:profiles(first_name, last_name), obra_social_art:obras_sociales_art(nombre)')
-        .eq('organization_id', profile.organization_id)
-        .eq('is_active', true)
-        .order('first_name', { foreignTable: 'profiles', ascending: true });
-      
-      if (error) {
-        console.error('Error fetching patients:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
+      try {
+        const { data, error } = await supabase.rpc('search_patients_paginated', {
+          search_term: null,
+          page_number: 1,
+          page_size: 500
         });
+        
+        if (error) {
+          console.error('Error fetching patients via RPC:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          });
+          toast.error(`No se pudieron cargar los pacientes: ${error.message}`);
+          throw error;
+        }
+        
+        // Map RPC response to expected format
+        const mappedPatients = (data || []).map((row: any) => ({
+          id: row.patient_data.id,
+          profile: row.patient_data.profile,
+          obra_social_art: row.patient_data.obra_social_art
+        }));
+        
+        return mappedPatients;
+        
+      } catch (error: any) {
+        console.error('Exception fetching patients:', error);
         toast.error(`No se pudieron cargar los pacientes: ${error.message}`);
         throw error;
       }
-      return data || [];
     },
     enabled: !!profile?.organization_id && open,
   });

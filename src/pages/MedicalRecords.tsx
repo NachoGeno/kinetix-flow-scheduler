@@ -93,18 +93,22 @@ export default function MedicalRecords() {
 
   const fetchPatients = async () => {
     try {
-      const { data, error } = await supabase
-        .from('patients')
-        .select(`
-          id,
-          blood_type,
-          allergies,
-          profile:profiles(first_name, last_name, dni, date_of_birth)
-        `)
-        .order('first_name', { foreignTable: 'profiles', ascending: true });
+      const { data, error } = await supabase.rpc('search_patients_paginated', {
+        search_term: null,
+        page_number: 1,
+        page_size: 500
+      });
 
       if (error) throw error;
-      setPatients(data || []);
+      
+      const mappedPatients = (data || []).map((row: any) => ({
+        id: row.patient_data.id,
+        blood_type: row.patient_data.blood_type,
+        allergies: row.patient_data.allergies,
+        profile: row.patient_data.profile
+      }));
+      
+      setPatients(mappedPatients);
     } catch (error) {
       console.error('Error fetching patients:', error);
       toast({
