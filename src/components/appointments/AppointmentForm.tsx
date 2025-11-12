@@ -236,50 +236,87 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
   const fetchPatients = async () => {
     try {
-      // Fetch patients with separate queries to avoid RLS issues
-      const { data: patientsData, error: patientsError } = await supabase
-        .from('patients')
-        .select('id, profile_id')
-        .eq('is_active', true);
+      // Intentar usar RPC primero (más robusto con RLS)
+      const { data, error } = await supabase.rpc('search_patients_paginated', {
+        search_term: null,
+        page_number: 1,
+        page_size: 500
+      });
 
-      if (patientsError) throw patientsError;
+      if (error) {
+        console.error('Error fetching patients via RPC:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
 
-      if (!patientsData || patientsData.length === 0) {
-        setPatients([]);
+        // Fallback a SELECT directo si RPC falla
+        console.warn('Falling back to direct SELECT for patients in AppointmentForm');
+
+        const { data: directData, error: directError } = await supabase
+          .from('patients')
+          .select('id, profile:profiles!patients_profile_id_fkey(first_name, last_name, dni, email)')
+          .eq('is_active', true);
+
+        if (directError) {
+          console.error('Fallback direct SELECT failed:', {
+            message: directError.message,
+            details: directError.details,
+            hint: directError.hint,
+            code: directError.code
+          });
+          toast({
+            title: "Error",
+            description: `No se pudieron cargar los pacientes: ${directError.message}`,
+            variant: "destructive",
+          });
+          throw directError;
+        }
+
+        // Mapear y ordenar en memoria
+        const mapped = (directData || []).map((row: any) => ({
+          id: row.id,
+          profile: {
+            first_name: row.profile?.first_name ?? 'N/A',
+            last_name: row.profile?.last_name ?? 'N/A',
+            dni: row.profile?.dni ?? null,
+            email: row.profile?.email ?? 'N/A'
+          }
+        }));
+
+        mapped.sort((a, b) => {
+          const cmpLast = (a.profile.last_name || '').localeCompare(b.profile.last_name || '', 'es', { sensitivity: 'base' });
+          return cmpLast !== 0 ? cmpLast : (a.profile.first_name || '').localeCompare(b.profile.first_name || '', 'es', { sensitivity: 'base' });
+        });
+
+        setPatients(mapped);
         return;
       }
 
-      // Get profiles separately
-      const profileIds = patientsData.map(p => p.profile_id);
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, dni, email')
-        .in('id', profileIds)
-        .order('first_name', { ascending: true });
+      // Mapear respuesta del RPC y ordenar en memoria
+      const mappedPatients = (data || []).map((row: any) => ({
+        id: row.patient_data.id,
+        profile: {
+          first_name: row.patient_data.profile?.first_name ?? 'N/A',
+          last_name: row.patient_data.profile?.last_name ?? 'N/A',
+          dni: row.patient_data.profile?.dni ?? null,
+          email: row.patient_data.profile?.email ?? 'N/A'
+        }
+      }));
 
-      if (profilesError) throw profilesError;
-
-      // Combine data
-      const enrichedPatients = patientsData.map(patient => {
-        const profile = profiles?.find(p => p.id === patient.profile_id);
-        
-        return {
-          id: patient.id,
-          profile: {
-            first_name: profile?.first_name || 'N/A',
-            last_name: profile?.last_name || 'N/A',
-            dni: profile?.dni || null,
-            email: profile?.email || 'N/A'
-          }
-        };
+      mappedPatients.sort((a, b) => {
+        const cmpLast = (a.profile.last_name || '').localeCompare(b.profile.last_name || '', 'es', { sensitivity: 'base' });
+        return cmpLast !== 0 ? cmpLast : (a.profile.first_name || '').localeCompare(b.profile.first_name || '', 'es', { sensitivity: 'base' });
       });
 
-      setPatients(enrichedPatients);
-    } catch (error) {
-      console.error('Error fetching patients:', error);
+      setPatients(mappedPatients);
+
+    } catch (error: any) {
+      console.error('Exception fetching patients:', error);
       toast({
         title: "Error",
-        description: "No se pudieron cargar los pacientes",
+        description: `No se pudieron cargar los pacientes: ${error.message}`,
         variant: "destructive",
       });
     }
