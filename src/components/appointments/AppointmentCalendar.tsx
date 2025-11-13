@@ -796,79 +796,40 @@ export default function AppointmentCalendar() {
                                             {appointment.patient?.profile?.first_name || 'N/A'} {appointment.patient?.profile?.last_name || ''}
                                           </div>
                                              {(appointment.status !== 'completed' && appointment.status !== 'no_show' && appointment.status !== 'cancelled' && appointment.status !== 'discharged') && (profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'reception') ? (
-                                              <Popover 
-                                                open={openPopovers[appointment.id] || false}
-                                                onOpenChange={(open) => setOpenPopovers(prev => ({ ...prev, [appointment.id]: open }))}
-                                              >
-                                                 <PopoverTrigger asChild>
-                                                    <div className={`inline-flex items-center text-xs cursor-pointer rounded-md px-2 py-1 ${
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <div 
+                                                    className={`inline-flex items-center text-xs cursor-pointer rounded-md px-2 py-1 transition-colors ${
                                                       appointment.status === 'cancelled' 
-                                                        ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground border border-destructive/50'
+                                                        ? 'bg-destructive hover:bg-destructive/80 text-destructive-foreground border border-destructive/50'
                                                         : appointment.status === 'completed' || appointment.status === 'in_progress'
-                                                        ? 'bg-success hover:bg-success/90 text-success-foreground border border-success/50'
-                                                        : 'bg-primary hover:bg-primary/90 text-primary-foreground border border-primary/50'
-                                                    }`}>
-                                                     <CalendarIcon className="h-3 w-3 mr-1" />
-                                                     {statusLabels[appointment.status] || appointment.status}
-                                                   </div>
-                                                 </PopoverTrigger>
-                                                 <PopoverContent className="w-48 p-2 bg-popover shadow-lg border rounded-md z-50">
-                                                   <div className="space-y-1">
-                                                     {appointment.status !== 'in_progress' ? (
-                                                       <>
-                                                         <Tooltip>
-                                                           <TooltipTrigger asChild>
-                                                             <Button
-                                                               variant="ghost"
-                                                               size="sm"
-                                                               className="w-8 h-8 p-0 text-success hover:text-success hover:bg-success/10 dark:hover:bg-success/20"
-                                                               onClick={(e) => {
-                                                                 e.stopPropagation();
-                                                                 handleStatusUpdate(appointment.id, 'completed');
-                                                               }}
-                                                             >
-                                                               <CheckCircle className="h-4 w-4" />
-                                                             </Button>
-                                                           </TooltipTrigger>
-                                                           <TooltipContent>
-                                                             <p>Marcar como asistido</p>
-                                                           </TooltipContent>
-                                                         </Tooltip>
-                                                       </>
-                                                     ) : (
-                                                       <Tooltip>
-                                                         <TooltipTrigger asChild>
-                                                           <Button
-                                                             variant="ghost"
-                                                             size="sm"
-                                                             className="w-8 h-8 p-0 text-warning hover:text-warning hover:bg-warning/10 dark:hover:bg-warning/20"
-                                                             onClick={(e) => {
-                                                               e.stopPropagation();
-                                                               handleRevertAttendance(appointment.id);
-                                                             }}
-                                                           >
-                                                             <RotateCcw className="h-4 w-4" />
-                                                           </Button>
-                                                         </TooltipTrigger>
-                                                         <TooltipContent>
-                                                           <p>Revertir asistencia</p>
-                                                         </TooltipContent>
-                                                       </Tooltip>
-                                                     )}
-                                                   </div>
-                                                 </PopoverContent>
-                                              </Popover>
+                                                        ? 'bg-success hover:bg-success/80 text-success-foreground border border-success/50'
+                                                        : 'bg-primary hover:bg-primary/80 text-primary-foreground border border-primary/50'
+                                                    }`}
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleStatusUpdate(appointment.id, 'completed');
+                                                    }}
+                                                  >
+                                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                                    {statusLabels[appointment.status] || appointment.status}
+                                                  </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                  <p>Click para marcar como presente</p>
+                                                </TooltipContent>
+                                              </Tooltip>
                                             ) : (
-                                              <Badge 
-                                                className={`text-xs ${statusColors[appointment.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-700'}`}
-                                              >
-                                                {(() => {
-                                                  const StatusIcon = statusIcons[appointment.status as keyof typeof statusIcons] || CalendarIcon;
-                                                  return <StatusIcon className="h-3 w-3 mr-1" />;
-                                                })()}
-                                                 {statusLabels[appointment.status] || appointment.status}
-                                              </Badge>
-                                            )}
+                                             <Badge 
+                                               className={`text-xs ${statusColors[appointment.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-700'}`}
+                                             >
+                                               {(() => {
+                                                 const StatusIcon = statusIcons[appointment.status as keyof typeof statusIcons] || CalendarIcon;
+                                                 return <StatusIcon className="h-3 w-3 mr-1" />;
+                                               })()}
+                                                {statusLabels[appointment.status] || appointment.status}
+                                             </Badge>
+                                           )}
                                          </div>
                                       </div>
                                     </div>
