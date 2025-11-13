@@ -117,7 +117,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
     warning?: string;
   }>({ isValidating: false });
   
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const { currentOrgId } = useOrganizationContext();
 const { toast } = useToast();
 
@@ -129,6 +129,9 @@ const { toast } = useToast();
     limit: 100,
   });
   const patientsList = patientsData?.patients ?? patients;
+  
+  // Verificar estado de autenticación
+  const isAuthReady = !!user && !!profile?.organization_id;
   
   // Obtener feriados para validación
   const { data: holidays = [] } = useHolidays();
@@ -989,21 +992,31 @@ const { toast } = useToast();
                           <Command>
                             <CommandInput placeholder="Buscar paciente..." value={patientSearchTerm} onValueChange={setPatientSearchTerm} />
                             <CommandList>
-                              <CommandEmpty>
-                                <div className="text-center py-2">
-                                  <p>No se encontraron pacientes</p>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-2"
-                                    onClick={() => setIsNewPatientDialogOpen(true)}
-                                  >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Crear nuevo paciente
-                                  </Button>
+                              {!isAuthReady ? (
+                                <div className="p-4 text-sm text-center text-muted-foreground">
+                                  <CommandEmpty>Esperando autenticación...</CommandEmpty>
                                 </div>
-                              </CommandEmpty>
+                              ) : isLoadingPatients ? (
+                                <div className="p-4 text-sm text-center text-muted-foreground">
+                                  <CommandEmpty>Buscando pacientes...</CommandEmpty>
+                                </div>
+                              ) : (
+                                <>
+                                  <CommandEmpty>
+                                    <div className="text-center py-2">
+                                      <p>No se encontraron pacientes</p>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="mt-2"
+                                        onClick={() => setIsNewPatientDialogOpen(true)}
+                                      >
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Crear nuevo paciente
+                                      </Button>
+                                    </div>
+                                  </CommandEmpty>
                               <CommandGroup>
                                 {patientsList.map((patient) => (
                                   <CommandItem
@@ -1023,8 +1036,10 @@ const { toast } = useToast();
                                       </span>
                                     </div>
                                   </CommandItem>
-                                ))}
+                                  ))}
                               </CommandGroup>
+                                </>
+                              )}
                             </CommandList>
                           </Command>
                         </PopoverContent>

@@ -47,7 +47,7 @@ export default function CreateAppointmentDialog({
   appointmentDuration,
   onSuccess,
 }: CreateAppointmentDialogProps) {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [patientSearchOpen, setPatientSearchOpen] = useState(false);
   const [patientSearchTerm, setPatientSearchTerm] = useState('');
@@ -70,6 +70,9 @@ export default function CreateAppointmentDialog({
   });
 
   const patients = patientsData?.patients || [];
+  
+  // Verificar estado de autenticación
+  const isAuthReady = !!user && !!profile?.organization_id;
 
   const onSubmit = async (values: FormData) => {
     if (!profile?.organization_id) {
@@ -178,7 +181,12 @@ export default function CreateAppointmentDialog({
                       </div>
                       <Command>
                         <CommandList>
-                          {isLoadingPatients ? (
+                          {!isAuthReady ? (
+                            <div className="p-4 text-sm text-center text-muted-foreground">
+                              <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
+                              Esperando autenticación...
+                            </div>
+                          ) : isLoadingPatients ? (
                             <div className="p-4 text-sm text-center text-muted-foreground">
                               <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
                               Buscando pacientes...
