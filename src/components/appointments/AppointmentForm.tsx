@@ -24,6 +24,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 import { useHolidays } from '@/hooks/useHolidays';
 import { useToast } from '@/hooks/use-toast';
+import { useDebounce } from '@/hooks/useDebounce';
+import { usePaginatedPatients } from '@/hooks/usePaginatedPatients';
 import PatientForm from '@/components/patients/PatientForm';
 import MedicalOrderForm from './MedicalOrderForm';
 import PendingDocumentAlert from './PendingDocumentAlert';
@@ -117,7 +119,16 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   
   const { profile } = useAuth();
   const { currentOrgId } = useOrganizationContext();
-  const { toast } = useToast();
+const { toast } = useToast();
+
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  const debouncedPatientSearch = useDebounce(patientSearchTerm, 300);
+  const { data: patientsData, isLoading: isLoadingPatients } = usePaginatedPatients({
+    searchTerm: debouncedPatientSearch,
+    page: 1,
+    limit: 100,
+  });
+  const patientsList = patientsData?.patients ?? patients;
   
   // Obtener feriados para validación
   const { data: holidays = [] } = useHolidays();
@@ -151,7 +162,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
 
   useEffect(() => {
     fetchDoctors();
-    fetchPatients();
+    // fetchPatients(); // replaced by usePaginatedPatients hook
   }, []);
 
   useEffect(() => {
@@ -504,7 +515,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
   };
 
   const handleNewPatientCreated = () => {
-    fetchPatients();
+    setPatientSearchTerm('');
     setIsNewPatientDialogOpen(false);
   };
 
@@ -966,7 +977,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                             >
                               {field.value
                                 ? (() => {
-                                    const patient = patients.find(p => p.id === field.value);
+                                    const patient = patientsList.find(p => p.id === field.value);
                                     return patient ? `${patient.profile.first_name} ${patient.profile.last_name}` : "Seleccionar paciente";
                                   })()
                                 : "Seleccionar paciente"}
@@ -976,7 +987,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                         </PopoverTrigger>
                         <PopoverContent className="p-0" side="bottom" align="start">
                           <Command>
-                            <CommandInput placeholder="Buscar paciente..." />
+                            <CommandInput placeholder="Buscar paciente..." value={patientSearchTerm} onValueChange={setPatientSearchTerm} />
                             <CommandList>
                               <CommandEmpty>
                                 <div className="text-center py-2">
@@ -994,7 +1005,7 @@ export default function AppointmentForm({ onSuccess, selectedDate, selectedDocto
                                 </div>
                               </CommandEmpty>
                               <CommandGroup>
-                                {patients.map((patient) => (
+                                {patientsList.map((patient) => (
                                   <CommandItem
                                     key={patient.id}
                                     value={`${patient.profile.first_name} ${patient.profile.last_name} ${patient.profile.dni || ''}`}
