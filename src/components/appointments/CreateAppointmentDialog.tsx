@@ -7,6 +7,7 @@ import { es } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +17,7 @@ import { toast } from 'sonner';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePaginatedPatients } from '@/hooks/usePaginatedPatients';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface CreateAppointmentDialogProps {
   open: boolean;
@@ -48,6 +50,9 @@ export default function CreateAppointmentDialog({
   const { profile } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [patientSearchOpen, setPatientSearchOpen] = useState(false);
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  
+  const debouncedSearchTerm = useDebounce(patientSearchTerm, 300);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -57,11 +62,11 @@ export default function CreateAppointmentDialog({
     },
   });
 
-  // Obtener pacientes activos usando el hook que funciona en el panel
-  const { data: patientsData } = usePaginatedPatients({
-    searchTerm: '',
+  // Obtener pacientes activos con búsqueda en tiempo real
+  const { data: patientsData, isLoading: isLoadingPatients } = usePaginatedPatients({
+    searchTerm: debouncedSearchTerm,
     page: 1,
-    limit: 500
+    limit: 100
   });
 
   const patients = patientsData?.patients || [];
@@ -163,37 +168,61 @@ export default function CreateAppointmentDialog({
                       </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-[400px] p-0 border-border bg-popover">
+                      <div className="p-2 border-b bg-background">
+                        <Input
+                          placeholder="Buscar por nombre, apellido o DNI..."
+                          value={patientSearchTerm}
+                          onChange={(e) => setPatientSearchTerm(e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
                       <Command>
-                        <CommandInput placeholder="Buscar paciente..." />
                         <CommandList>
-                          <CommandEmpty>No se encontraron pacientes.</CommandEmpty>
-                          <CommandGroup>
-                            {patients.map((patient: any) => (
-                              <CommandItem
-                                key={patient.id}
-                                value={`${patient.profile?.first_name} ${patient.profile?.last_name}`}
-                                onSelect={() => {
-                                  field.onChange(patient.id);
-                                  setPatientSearchOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    'mr-2 h-4 w-4',
-                                    patient.id === field.value ? 'opacity-100' : 'opacity-0'
-                                  )}
-                                />
-                                <div className="flex-1">
-                                  <div className="font-medium text-foreground">
-                                    {patient.profile?.first_name} {patient.profile?.last_name}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {patient.obra_social_art?.nombre || 'Particular'}
-                                  </div>
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
+                          {isLoadingPatients ? (
+                            <div className="p-4 text-sm text-center text-muted-foreground">
+                              <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
+                              Buscando pacientes...
+                            </div>
+                          ) : (
+                            <>
+                              <CommandEmpty>
+                                No se encontraron pacientes.
+                                {debouncedSearchTerm && (
+                                  <p className="text-xs mt-1 text-muted-foreground">
+                                    Intenta con otro término de búsqueda.
+                                  </p>
+                                )}
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {patients.map((patient: any) => (
+                                  <CommandItem
+                                    key={patient.id}
+                                    value={`${patient.profile?.first_name} ${patient.profile?.last_name} ${patient.profile?.dni || ''}`}
+                                    onSelect={() => {
+                                      field.onChange(patient.id);
+                                      setPatientSearchOpen(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        'mr-2 h-4 w-4',
+                                        patient.id === field.value ? 'opacity-100' : 'opacity-0'
+                                      )}
+                                    />
+                                    <div className="flex-1">
+                                      <div className="font-medium text-foreground">
+                                        {patient.profile?.first_name} {patient.profile?.last_name}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {patient.profile?.dni && `DNI: ${patient.profile.dni} • `}
+                                        {patient.obra_social_art?.nombre || 'Particular'}
+                                      </div>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </>
+                          )}
                         </CommandList>
                       </Command>
                     </PopoverContent>
