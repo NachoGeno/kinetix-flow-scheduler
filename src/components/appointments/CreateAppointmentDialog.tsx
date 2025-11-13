@@ -75,7 +75,14 @@ export default function CreateAppointmentDialog({
   const isAuthReady = !!user && !!profile?.organization_id;
 
   const onSubmit = async (values: FormData) => {
+    console.log('🔵 [CreateAppointment] Iniciando creación de turno');
+    console.log('🔵 [CreateAppointment] User:', user?.id);
+    console.log('🔵 [CreateAppointment] Profile:', profile);
+    console.log('🔵 [CreateAppointment] Organization ID:', profile?.organization_id);
+    console.log('🔵 [CreateAppointment] Values:', values);
+
     if (!profile?.organization_id) {
+      console.error('🔴 [CreateAppointment] Error: No hay organization_id en el profile');
       toast.error('Error de organización');
       return;
     }
@@ -83,8 +90,9 @@ export default function CreateAppointmentDialog({
     setIsSubmitting(true);
 
     try {
+      console.log('🔵 [CreateAppointment] Verificando disponibilidad del slot...');
       // Verificar que el slot siga disponible
-      const { data: existingAppointment } = await supabase
+      const { data: existingAppointment, error: checkError } = await supabase
         .from('appointments')
         .select('id')
         .eq('doctor_id', doctorId)
@@ -93,36 +101,58 @@ export default function CreateAppointmentDialog({
         .eq('organization_id', profile.organization_id)
         .maybeSingle();
 
+      console.log('🔵 [CreateAppointment] Check slot result:', { existingAppointment, checkError });
+
+      if (checkError) {
+        console.error('🔴 [CreateAppointment] Error al verificar slot:', checkError);
+        toast.error('Error al verificar disponibilidad');
+        setIsSubmitting(false);
+        return;
+      }
+
       if (existingAppointment) {
+        console.warn('⚠️ [CreateAppointment] Slot ya ocupado');
         toast.error('Este horario ya fue ocupado por otro turno');
         setIsSubmitting(false);
         return;
       }
 
       // Crear el turno
+      console.log('🔵 [CreateAppointment] Insertando turno en la BD...');
+      const insertData = {
+        patient_id: values.patient_id,
+        doctor_id: doctorId,
+        appointment_date: format(date, 'yyyy-MM-dd'),
+        appointment_time: `${time}:00`,
+        duration_minutes: appointmentDuration,
+        reason: values.reason || null,
+        status: 'scheduled' as const,
+        organization_id: profile.organization_id,
+      };
+      console.log('🔵 [CreateAppointment] Datos a insertar:', insertData);
+
       const { data: newAppointment, error: appointmentError } = await supabase
         .from('appointments')
-        .insert({
-          patient_id: values.patient_id,
-          doctor_id: doctorId,
-          appointment_date: format(date, 'yyyy-MM-dd'),
-          appointment_time: `${time}:00`,
-          duration_minutes: appointmentDuration,
-          reason: values.reason || null,
-          status: 'scheduled',
-          organization_id: profile.organization_id,
-        })
+        .insert(insertData)
         .select()
         .single();
 
-      if (appointmentError) throw appointmentError;
+      console.log('🔵 [CreateAppointment] Resultado insert:', { newAppointment, appointmentError });
 
+      if (appointmentError) {
+        console.error('🔴 [CreateAppointment] Error al crear turno:', appointmentError);
+        console.error('🔴 [CreateAppointment] Error details:', JSON.stringify(appointmentError, null, 2));
+        throw appointmentError;
+      }
+
+      console.log('✅ [CreateAppointment] Turno creado exitosamente:', newAppointment);
       toast.success('Turno creado exitosamente');
       form.reset();
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error creating appointment:', error);
+      console.error('🔴 [CreateAppointment] Error en catch:', error);
+      console.error('🔴 [CreateAppointment] Error details:', JSON.stringify(error, null, 2));
       toast.error(error.message || 'Error al crear el turno');
     } finally {
       setIsSubmitting(false);
