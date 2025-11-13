@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       // Use role from user_roles if exists, otherwise fallback to profiles.role
       const finalRole = roleData?.role || profileData?.role;
