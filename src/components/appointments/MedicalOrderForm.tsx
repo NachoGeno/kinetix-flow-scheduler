@@ -349,7 +349,7 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0" align="start">
-                  <Command>
+                  <Command shouldFilter={false}>
                     <CommandInput 
                       placeholder="Buscar por nombre o DNI..." 
                       value={patientSearchTerm}
