@@ -9,13 +9,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn, formatDateToISO, parseDateOnly } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useOrganizationContext } from '@/hooks/useOrganizationContext';
+import { useDebounce } from '@/hooks/useDebounce';
+import { usePaginatedPatients } from '@/hooks/usePaginatedPatients';
 
 const formSchema = z.object({
   patient_id: z.string().min(1, 'Selecciona un paciente'),
@@ -69,14 +72,25 @@ interface MedicalOrderFormProps {
 
 export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient, editOrder }: MedicalOrderFormProps) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
   const [obrasSociales, setObrasSociales] = useState<ObraSocial[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedPatientData, setSelectedPatientData] = useState<Patient | null>(null);
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  const [openPatientCombobox, setOpenPatientCombobox] = useState(false);
   const { toast } = useToast();
   const { currentOrgId } = useOrganizationContext();
+  
+  const debouncedPatientSearch = useDebounce(patientSearchTerm, 300);
+  
+  const { data: patientsData, isLoading: isLoadingPatients } = usePaginatedPatients({
+    searchTerm: debouncedPatientSearch,
+    page: 1,
+    limit: 100
+  });
+  
+  const patients = patientsData?.patients || [];
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -94,7 +108,6 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
   });
 
   useEffect(() => {
-    fetchPatients();
     fetchObrasSociales();
   }, []);
 
@@ -135,32 +148,6 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
     }
   };
 
-  const fetchPatients = async () => {
-    try {
-      const { data, error } = await supabase.rpc('search_patients_paginated', {
-        search_term: null,
-        page_number: 1,
-        page_size: 500
-      });
-
-      if (error) throw error;
-      
-      const mappedPatients = (data || []).map((row: any) => ({
-        id: row.patient_data.id,
-        profile: row.patient_data.profile,
-        obra_social_art: row.patient_data.obra_social_art
-      }));
-      
-      setPatients(mappedPatients);
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los pacientes",
-        variant: "destructive",
-      });
-    }
-  };
 
   const fetchObrasSociales = async () => {
     try {
@@ -336,27 +323,78 @@ export default function MedicalOrderForm({ onSuccess, onCancel, selectedPatient,
           control={form.control}
           name="patient_id"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="flex flex-col">
               <FormLabel>Paciente</FormLabel>
-              <FormControl>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un paciente..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {patients.map((patient) => (
-                      <SelectItem key={patient.id} value={patient.id}>
-                        {patient.profile.first_name} {patient.profile.last_name}
-                        {patient.profile.dni && (
-                          <span className="ml-2 text-muted-foreground">
-                            DNI: {patient.profile.dni}
-                          </span>
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormControl>
+              <Popover open={openPatientCombobox} onOpenChange={setOpenPatientCombobox}>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className={cn(
+                        "w-full justify-between",
+                        !field.value && "text-muted-foreground"
+                      )}
+                    >
+                      {field.value
+                        ? (() => {
+                            const patient = patients.find(p => p.id === field.value);
+                            return patient 
+                              ? `${patient.profile.first_name} ${patient.profile.last_name}${patient.profile.dni ? ` - DNI: ${patient.profile.dni}` : ''}`
+                              : "Selecciona un paciente...";
+                          })()
+                        : "Selecciona un paciente..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Buscar por nombre o DNI..." 
+                      value={patientSearchTerm}
+                      onValueChange={setPatientSearchTerm}
+                    />
+                    <CommandList>
+                      {isLoadingPatients ? (
+                        <CommandEmpty>Buscando pacientes...</CommandEmpty>
+                      ) : patients.length === 0 ? (
+                        <CommandEmpty>No se encontraron pacientes.</CommandEmpty>
+                      ) : (
+                        <CommandGroup>
+                          {patients.map((patient) => (
+                            <CommandItem
+                              key={patient.id}
+                              value={patient.id}
+                              onSelect={() => {
+                                form.setValue("patient_id", patient.id);
+                                setOpenPatientCombobox(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  field.value === patient.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span>
+                                  {patient.profile.first_name} {patient.profile.last_name}
+                                </span>
+                                {patient.profile.dni && (
+                                  <span className="text-xs text-muted-foreground">
+                                    DNI: {patient.profile.dni}
+                                  </span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <FormMessage />
             </FormItem>
           )}
