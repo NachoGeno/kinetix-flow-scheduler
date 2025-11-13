@@ -647,7 +647,7 @@ const { toast } = useToast();
     }
 
       // Get patient, doctor and order info for the summary
-      const patient = patients.find(p => p.id === values.patient_id);
+      const patient = patientsList.find(p => p.id === values.patient_id);
       const doctor = doctors.find(d => d.id === values.doctor_id);
       const medicalOrder = medicalOrders.find(o => o.id === values.medical_order_id);
 
