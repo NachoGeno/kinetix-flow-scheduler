@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Users, Phone, Mail, Calendar, CreditCard, Edit } from 'lucide-react';
+import { Search, Plus, Users, Phone, Mail, Calendar, CreditCard, Edit, Download } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { es } from 'date-fns/locale';
 import { useDebounce } from '@/hooks/useDebounce';
 import { usePaginatedPatients } from '@/hooks/usePaginatedPatients';
 import PatientForm from '@/components/patients/PatientForm';
+import * as XLSX from 'xlsx';
 
 interface Patient {
   id: string;
