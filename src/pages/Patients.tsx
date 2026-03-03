@@ -40,6 +40,7 @@ export default function Patients() {
   const [currentPage, setCurrentPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const { profile } = useAuth();
   const { toast } = useToast();
 
