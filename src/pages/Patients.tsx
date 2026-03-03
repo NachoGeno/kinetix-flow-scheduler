@@ -64,8 +64,62 @@ export default function Patients() {
   const totalPages = patientsData?.totalPages || 0;
   const totalCount = patientsData?.totalCount || 0;
 
+  const exportPatientsToExcel = async () => {
+    setIsExporting(true);
+    try {
+      toast({ title: 'Exportando...', description: 'Obteniendo datos de pacientes...' });
 
-  // Redirect if patient tries to access this page
+      const allPatients: any[] = [];
+      const batchSize = 1000;
+      let offset = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('patients')
+          .select(`
+            profile:profiles!patients_profile_id_fkey(first_name, last_name, dni, email, phone),
+            obra_social_art:obras_sociales_art(nombre)
+          `)
+          .eq('is_active', true)
+          .range(offset, offset + batchSize - 1)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        if (!data || data.length === 0) { hasMore = false; break; }
+        allPatients.push(...data);
+        if (data.length < batchSize) hasMore = false;
+        else offset += batchSize;
+      }
+
+      const rows = allPatients.map((p: any) => ({
+        'Apellido': p.profile?.last_name || '',
+        'Nombre': p.profile?.first_name || '',
+        'DNI': p.profile?.dni || '',
+        'Email': p.profile?.email || '',
+        'Teléfono': p.profile?.phone || '',
+        'Obra Social': p.obra_social_art?.nombre || '',
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 35 }, { wch: 18 }, { wch: 30 },
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Pacientes');
+      const today = format(new Date(), 'yyyy-MM-dd');
+      XLSX.writeFile(wb, `Pacientes_${today}.xlsx`);
+
+      toast({ title: 'Exportación completada', description: `${rows.length} pacientes exportados.` });
+    } catch (err: any) {
+      console.error('Export error:', err);
+      toast({ title: 'Error', description: 'No se pudo exportar.', variant: 'destructive' });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+
   if (profile?.role === 'patient') {
     return (
       <div className="text-center py-8">
