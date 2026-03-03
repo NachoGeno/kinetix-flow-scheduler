@@ -149,6 +149,11 @@ export default function Patients() {
             {totalCount} pacientes encontrados
           </p>
         </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportPatientsToExcel} disabled={isExporting}>
+            <Download className="h-4 w-4 mr-2" />
+            {isExporting ? 'Exportando...' : 'Exportar Excel'}
+          </Button>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button>
