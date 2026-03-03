@@ -175,6 +175,7 @@ export default function Patients() {
             />
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Dialog para editar paciente */}
