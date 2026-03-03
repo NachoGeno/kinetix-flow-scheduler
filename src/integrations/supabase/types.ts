@@ -1961,7 +1961,6 @@ export type Database = {
               appointments_data: Json
               assigned_by_param?: string
               medical_order_id_param?: string
-              organization_id_param?: string
             }
             Returns: {
               appointment_id: string
@@ -1974,6 +1973,7 @@ export type Database = {
               appointments_data: Json
               assigned_by_param?: string
               medical_order_id_param?: string
+              organization_id_param?: string
             }
             Returns: {
               appointment_id: string
@@ -2201,6 +2201,16 @@ export type Database = {
       }
       get_professional_work_hours:
         | {
+            Args: { end_date?: string; start_date?: string }
+            Returns: {
+              doctor_id: string
+              doctor_name: string
+              specialty_name: string
+              total_hours: number
+              total_sessions: number
+            }[]
+          }
+        | {
             Args: {
               doctor_filter?: string
               end_date?: string
@@ -2213,16 +2223,6 @@ export type Database = {
               estimated_hours: number
               patients_attended: number
               specialty_name: string
-            }[]
-          }
-        | {
-            Args: { end_date?: string; start_date?: string }
-            Returns: {
-              doctor_id: string
-              doctor_name: string
-              specialty_name: string
-              total_hours: number
-              total_sessions: number
             }[]
           }
       get_real_session_count: {
